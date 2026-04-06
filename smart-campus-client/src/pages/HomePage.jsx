@@ -130,7 +130,7 @@ export default function HomePage() {
             </div>
 
             <div style={s.heroVisual}>
-              <div style={s.floatingCard} styleAnimation="float">
+               <div style={s.floatingCard}>
                 <div style={s.visualCard}>
                   <div style={s.visualHeader}>
                     <div style={s.visualTitle}>Live Activity</div>
@@ -164,7 +164,7 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-              <div style={s.floatingCard2} styleAnimation="floatReverse">
+              <div style={s.floatingCard2}>
                 <div style={s.statsCard}>
                   <div style={s.statsValue}>12</div>
                   <div style={s.statsLabel}>Active Bookings Today</div>

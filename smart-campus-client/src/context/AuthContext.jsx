@@ -1,19 +1,18 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState } from 'react';
 import { jwtDecode } from 'jwt-decode';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser]       = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
+  
+  const [user, setUser] = useState(() => {
     const token = localStorage.getItem('token');
     if (token) {
       try {
         const decoded = jwtDecode(token);
         if (decoded.exp * 1000 > Date.now()) {
-          setUser(JSON.parse(localStorage.getItem('user')));
+          const storedUser = localStorage.getItem('user');
+          return storedUser ? JSON.parse(storedUser) : null;
         } else {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
@@ -23,8 +22,11 @@ export function AuthProvider({ children }) {
         localStorage.removeItem('user');
       }
     }
-    setLoading(false);
-  }, []);
+    return null;
+  });
+
+ 
+  const loading = false; 
 
   const login = (token, userData) => {
     localStorage.setItem('token', token);
@@ -49,4 +51,5 @@ export function AuthProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext);
