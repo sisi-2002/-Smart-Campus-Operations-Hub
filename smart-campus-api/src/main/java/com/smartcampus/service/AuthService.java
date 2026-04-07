@@ -60,6 +60,13 @@ public class AuthService {
 
     // ✅ Step 1 login — check password, then decide MFA flow
     public LoginStepResponse login(LoginRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new RuntimeException("Invalid email or password"));
+
+        if (!user.isEnabled()) {
+            throw new RuntimeException("Administater Disabled account pleace contact adminstater ");
+        }
+
         try {
             authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
@@ -68,9 +75,6 @@ public class AuthService {
         } catch (AuthenticationException e) {
             throw new RuntimeException("Invalid email or password");
         }
-
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("User not found"));
 
         // ✅ Standard roles (Students/Lecturers) — skip 2FA, issue token immediately
         if (!MFA_REQUIRED_ROLES.contains(user.getRole())) {

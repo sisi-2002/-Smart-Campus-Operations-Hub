@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -12,7 +12,9 @@ export default function MfaSetupPage({ userId, qrCodeUri, secretKey }) {
   const navigate              = useNavigate();
 
   const handleVerify = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    if (loading || code.length !== 6) return;
+    
     setError('');
     setLoading(true);
     try {
@@ -33,6 +35,12 @@ export default function MfaSetupPage({ userId, qrCodeUri, secretKey }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (code.length === 6) {
+      handleVerify();
+    }
+  }, [code]);
 
   return (
     <div style={s.page}>

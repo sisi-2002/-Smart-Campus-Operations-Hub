@@ -44,6 +44,13 @@ public class CustomOAuth2UserService
             return userRepository.save(newUser);
         });
 
+        if (!user.isEnabled()) {
+            throw new OAuth2AuthenticationException(
+                new org.springframework.security.oauth2.core.OAuth2Error("access_denied"), 
+                "Administater Disabled Your account pleace contact adminstater "
+            );
+        }
+
         // If user registered normally before, link Google ID
         if (user.getProvider() == AuthProvider.LOCAL) {
             user.setProviderId(googleId);
