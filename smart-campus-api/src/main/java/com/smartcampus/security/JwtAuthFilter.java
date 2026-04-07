@@ -27,7 +27,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     private static final List<String> PUBLIC_PATHS = List.of(
         "/api/auth/register",
         "/api/auth/login",
-        "/api/auth/**",
+        "/api/auth/login/verify-mfa",   // ✅ add this
         "/oauth2/**",
         "/login/oauth2/**",
         "/error"

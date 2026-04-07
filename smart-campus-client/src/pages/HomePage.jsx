@@ -65,7 +65,9 @@ export default function HomePage() {
                     <span style={s.userRole}>{isAdmin() ? 'Admin' : 'User'}</span>
                   </div>
                 </div>
-                <Link to="/dashboard" style={s.dashboardBtn}>Dashboard</Link>
+                <Link to={isAdmin() ? "/admin" : "/dashboard"} style={s.dashboardBtn}>
+                  {isAdmin() ? "Admin Dashboard" : "User Dashboard"}
+                </Link>
                 <button onClick={handleLogout} style={s.ghostBtn}>Logout</button>
               </>
             )}
@@ -107,7 +109,9 @@ export default function HomePage() {
                   </>
                 ) : (
                   <>
-                    <Link to="/dashboard" style={s.primaryBtnLg}>Go to Dashboard</Link>
+                    <Link to={isAdmin() ? "/admin" : "/dashboard"} style={s.primaryBtnLg}>
+                      {isAdmin() ? "Go to Admin Dashboard" : "Go to User Dashboard"}
+                    </Link>
                     <a href="#features" style={s.secondaryBtnLg}>Explore Features</a>
                   </>
                 )}
@@ -130,7 +134,7 @@ export default function HomePage() {
             </div>
 
             <div style={s.heroVisual}>
-              <div style={s.floatingCard} styleAnimation="float">
+               <div style={s.floatingCard}>
                 <div style={s.visualCard}>
                   <div style={s.visualHeader}>
                     <div style={s.visualTitle}>Live Activity</div>
@@ -164,7 +168,7 @@ export default function HomePage() {
                   </div>
                 </div>
               </div>
-              <div style={s.floatingCard2} styleAnimation="floatReverse">
+              <div style={s.floatingCard2}>
                 <div style={s.statsCard}>
                   <div style={s.statsValue}>12</div>
                   <div style={s.statsLabel}>Active Bookings Today</div>
@@ -388,7 +392,7 @@ export default function HomePage() {
                     <Link to="/login" style={s.linkBtn}>Sign In</Link>
                   </>
                 ) : (
-                  <Link to="/dashboard" style={s.primaryBtnLg}>Open Dashboard</Link>
+                  <Link to={isAdmin() ? "/admin" : "/dashboard"} style={s.primaryBtnLg}>Open Dashboard</Link>
                 )}
               </div>
             </div>

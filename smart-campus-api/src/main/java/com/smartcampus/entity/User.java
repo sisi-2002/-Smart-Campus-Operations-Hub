@@ -36,6 +36,15 @@ public class User {
     @Builder.Default
     private boolean enabled = true;
 
+    // ✅ 2FA fields
+    private String mfaSecret;                    // TOTP secret key
+    
+    @Builder.Default
+    private boolean mfaEnabled = false;          // is 2FA fully set up?
+    
+    @Builder.Default
+    private boolean mfaRequired = false;         // does this role need 2FA?
+
     @CreatedDate
     private LocalDateTime createdAt;
 }

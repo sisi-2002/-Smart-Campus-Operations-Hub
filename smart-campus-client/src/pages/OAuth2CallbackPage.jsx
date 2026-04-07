@@ -23,7 +23,7 @@ export default function OAuth2CallbackPage() {
       .then((res) => {
         const { token: _, ...userData } = res.data;
         login(token, userData);
-        navigate('/dashboard');
+        navigate('/');
       })
       .catch(() => {
         localStorage.removeItem('token');

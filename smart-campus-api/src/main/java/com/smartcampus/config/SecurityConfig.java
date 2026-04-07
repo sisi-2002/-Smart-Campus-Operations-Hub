@@ -34,6 +34,12 @@ public class SecurityConfig {
     private final OAuth2AuthenticationSuccessHandler oAuth2SuccessHandler;
     private final OAuth2AuthenticationFailureHandler oAuth2FailureHandler;
 
+    // ✅ KEY FIX: Cookie-based repository replaces the default session-based one.
+    //    With STATELESS sessions, the session-based repository loses the OAuth2
+    //    state between the redirect to Google and Google's callback, causing the
+    //    "Authorization request not found" error that triggers oauth2_failed.
+    private final HttpCookieOAuth2AuthorizationRequestRepository cookieAuthRequestRepository;
+
     @Value("${app.cors.allowed-origins}")
     private String allowedOrigins;
 
@@ -47,7 +53,9 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
-                    "/api/auth/**",
+                    "/api/auth/register", // ✅ Explicitly mapped
+                    "/api/auth/login",    // ✅ Explicitly mapped
+                    "/api/auth/login/verify-mfa",  // ✅ add this
                     "/oauth2/**",
                     "/login/oauth2/**",
                     "/error"
@@ -57,6 +65,9 @@ public class SecurityConfig {
             )
             .formLogin(AbstractHttpConfigurer::disable)
             .oauth2Login(oauth2 -> oauth2
+                // ✅ Use cookie-based storage for OAuth2 state (fixes STATELESS bug)
+                .authorizationEndpoint(endpoint ->
+                    endpoint.authorizationRequestRepository(cookieAuthRequestRepository))
                 .userInfoEndpoint(userInfo ->
                     userInfo.userService(customOAuth2UserService))
                 .successHandler(oAuth2SuccessHandler)
@@ -73,13 +84,13 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 
-@Bean
-public AuthenticationProvider authenticationProvider() {
-    DaoAuthenticationProvider provider =
-            new DaoAuthenticationProvider(userDetailsService);
-    provider.setPasswordEncoder(passwordEncoder());
-    return provider;
-}
+    @Bean
+    public AuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider provider =
+                new DaoAuthenticationProvider(userDetailsService);
+        provider.setPasswordEncoder(passwordEncoder());
+        return provider;
+    }
 
     @Bean
     public AuthenticationManager authenticationManager(
@@ -92,7 +103,7 @@ public AuthenticationProvider authenticationProvider() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(List.of(allowedOrigins.split(",")));
         config.setAllowedMethods(
-            List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
+            List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
         UrlBasedCorsConfigurationSource source =
