@@ -55,6 +55,7 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/api/auth/register", // ✅ Explicitly mapped
                     "/api/auth/login",    // ✅ Explicitly mapped
+                    "/api/auth/login/verify-mfa",  // ✅ add this
                     "/oauth2/**",
                     "/login/oauth2/**",
                     "/error"

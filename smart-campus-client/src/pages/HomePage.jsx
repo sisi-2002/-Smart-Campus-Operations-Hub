@@ -65,7 +65,9 @@ export default function HomePage() {
                     <span style={s.userRole}>{isAdmin() ? 'Admin' : 'User'}</span>
                   </div>
                 </div>
-                <Link to="/dashboard" style={s.dashboardBtn}>Dashboard</Link>
+                <Link to={isAdmin() ? "/admin" : "/dashboard"} style={s.dashboardBtn}>
+                  {isAdmin() ? "Admin Dashboard" : "User Dashboard"}
+                </Link>
                 <button onClick={handleLogout} style={s.ghostBtn}>Logout</button>
               </>
             )}
@@ -107,7 +109,9 @@ export default function HomePage() {
                   </>
                 ) : (
                   <>
-                    <Link to="/dashboard" style={s.primaryBtnLg}>Go to Dashboard</Link>
+                    <Link to={isAdmin() ? "/admin" : "/dashboard"} style={s.primaryBtnLg}>
+                      {isAdmin() ? "Go to Admin Dashboard" : "Go to User Dashboard"}
+                    </Link>
                     <a href="#features" style={s.secondaryBtnLg}>Explore Features</a>
                   </>
                 )}
@@ -388,7 +392,7 @@ export default function HomePage() {
                     <Link to="/login" style={s.linkBtn}>Sign In</Link>
                   </>
                 ) : (
-                  <Link to="/dashboard" style={s.primaryBtnLg}>Open Dashboard</Link>
+                  <Link to={isAdmin() ? "/admin" : "/dashboard"} style={s.primaryBtnLg}>Open Dashboard</Link>
                 )}
               </div>
             </div>
