@@ -25,6 +25,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab]   = useState('users');
   const [updating, setUpdating]     = useState(null); // userId being updated
   const [userToDelete, setUserToDelete] = useState(null); // Added for custom delete modal
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -141,7 +142,13 @@ export default function AdminDashboard() {
     return matchSearch && matchRole && matchStatus;
   });
 
-  const handleLogout = () => { logout(); navigate('/'); };
+  const handleLogoutClick = () => { setShowLogoutConfirm(true); };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
+    logout();
+    navigate('/');
+  };
 
   const renderUsersTab = () => (
     <>
@@ -348,6 +355,23 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div style={s.modalOverlay}>
+          <div style={s.modalCard}>
+            <div style={s.modalIcon}>👋</div>
+            <h3 style={s.modalTitle}>Log Out</h3>
+            <p style={s.modalDest}>
+              Are you sure you want to log out of your account?
+            </p>
+            <div style={s.modalActions}>
+              <button style={s.cancelBtn} onClick={() => setShowLogoutConfirm(false)}>No</button>
+              <button style={{ ...s.confirmDeleteBtn, background: '#4f46e5', boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)' }} onClick={confirmLogout}>Yes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar Navigation */}
       <div style={s.sidebar}>
         <div style={s.brand}>
@@ -385,7 +409,7 @@ export default function AdminDashboard() {
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
             <span style={s.adminBadge}>ADMIN</span>
             <span style={{ fontSize:14, color:'#64748b' }}>{user?.name}</span>
-            <button style={s.logoutBtn} onClick={handleLogout}>Logout</button>
+            <button style={s.logoutBtn} onClick={handleLogoutClick}>Logout</button>
           </div>
         </div>
 
