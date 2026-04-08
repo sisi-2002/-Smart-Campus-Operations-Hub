@@ -12,6 +12,69 @@ const ROLE_STYLE = {
   USER:       { background:'#dcfce7', color:'#166534' },
 };
 
+const TICKET_STATUS_ORDER = ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'REJECTED'];
+
+const TICKET_STATUS_STYLE = {
+  OPEN: { background: '#fee2e2', color: '#991b1b' },
+  PENDING: { background: '#fef3c7', color: '#92400e' },
+  IN_PROGRESS: { background: '#fef3c7', color: '#92400e' },
+  RESOLVED: { background: '#dcfce7', color: '#166534' },
+  CLOSED: { background: '#e2e8f0', color: '#334155' },
+  REJECTED: { background: '#f3e8ff', color: '#6b21a8' },
+};
+
+const MOCK_TICKETS = [
+  {
+    id: 'ticket-1',
+    ticketId: 'INC-A91F22C0',
+    resourceLocation: 'Computer Lab C',
+    category: 'Hardware',
+    priority: 'High',
+    status: 'OPEN',
+    description: 'Three PCs in row B fail to boot and show black screen after power outage.',
+    preferredContact: '0774960272',
+    reporterName: 'Samantha Perera',
+    reporterEmail: 'samantha@gmail.com',
+    assignedTechnician: 'Nimal Perera',
+    resolutionNotes: '',
+    imageAttachments: [
+      'https://picsum.photos/seed/inc-hub-1/480/320',
+      'https://picsum.photos/seed/inc-hub-2/480/320',
+      'https://picsum.photos/seed/inc-hub-3/480/320',
+    ],
+  },
+  {
+    id: 'ticket-2',
+    ticketId: 'INC-3571EE44',
+    resourceLocation: 'Meeting Room 3B',
+    category: 'Software',
+    priority: 'Medium',
+    status: 'IN_PROGRESS',
+    description: 'Smart display cannot connect to campus Wi-Fi for screen sharing.',
+    preferredContact: 'sachin@campus.edu',
+    reporterName: 'Sachin Fernando',
+    reporterEmail: 'sachin@campus.edu',
+    assignedTechnician: 'Ayesha Silva',
+    resolutionNotes: 'Investigating access point logs and firmware version.',
+    imageAttachments: [],
+  },
+  {
+    id: 'ticket-3',
+    ticketId: 'INC-73AB1092',
+    resourceLocation: 'Lab A',
+    category: 'Network',
+    priority: 'Low',
+    status: 'RESOLVED',
+    description: 'Intermittent packet loss during online lab sessions.',
+    preferredContact: '0712345678',
+    reporterName: 'Kamal Jayasuriya',
+    reporterEmail: 'kamal@campus.edu',
+    assignedTechnician: 'Dinesh Kumar',
+    resolutionNotes: 'Replaced faulty switch uplink cable and validated stability.',
+    imageAttachments: ['https://picsum.photos/seed/inc-hub-4/480/320'],
+  },
+];
+
 export default function AdminDashboard() {
   const { user, logout }      = useAuth();
   const navigate               = useNavigate();
@@ -25,6 +88,13 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab]   = useState('users');
   const [updating, setUpdating]     = useState(null); // userId being updated
   const [userToDelete, setUserToDelete] = useState(null); // Added for custom delete modal
+  const [tickets, setTickets] = useState(MOCK_TICKETS);
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [ticketDraft, setTicketDraft] = useState({
+    status: 'OPEN',
+    assignedTechnician: '',
+    resolutionNotes: '',
+  });
 
   useEffect(() => {
     fetchData();
@@ -142,6 +212,120 @@ export default function AdminDashboard() {
   });
 
   const handleLogout = () => { logout(); navigate('/'); };
+
+  const getAllowedStatusOptions = (currentStatus) => {
+    if (currentStatus === 'OPEN' || currentStatus === 'PENDING') {
+      return ['OPEN', 'IN_PROGRESS', 'REJECTED'];
+    }
+    if (currentStatus === 'IN_PROGRESS') {
+      return ['IN_PROGRESS', 'RESOLVED', 'REJECTED'];
+    }
+    if (currentStatus === 'RESOLVED') {
+      return ['RESOLVED', 'CLOSED'];
+    }
+    if (currentStatus === 'CLOSED') {
+      return ['CLOSED'];
+    }
+    return ['REJECTED'];
+  };
+
+  const openTicketModal = (ticket) => {
+    setSelectedTicket(ticket);
+    setTicketDraft({
+      status: ticket.status,
+      assignedTechnician: ticket.assignedTechnician || '',
+      resolutionNotes: ticket.resolutionNotes || '',
+    });
+  };
+
+  const closeTicketModal = () => {
+    setSelectedTicket(null);
+  };
+
+  const saveTicketUpdates = () => {
+    if (!selectedTicket) return;
+
+    setTickets((prev) => prev.map((ticket) => (
+      ticket.id === selectedTicket.id
+        ? {
+            ...ticket,
+            status: ticketDraft.status,
+            assignedTechnician: ticketDraft.assignedTechnician,
+            resolutionNotes: ticketDraft.resolutionNotes,
+          }
+        : ticket
+    )));
+    showToast(`Ticket ${selectedTicket.ticketId} updated`, 'success');
+    closeTicketModal();
+  };
+
+  const ticketSummary = {
+    total: tickets.length,
+    openPending: tickets.filter((t) => t.status === 'OPEN' || t.status === 'PENDING').length,
+    inProgress: tickets.filter((t) => t.status === 'IN_PROGRESS').length,
+    resolvedClosed: tickets.filter((t) => t.status === 'RESOLVED' || t.status === 'CLOSED').length,
+  };
+
+  const renderTicketsTab = () => (
+    <>
+      <div style={s.statsGrid}>
+        {[
+          { label: 'Total Tickets', value: ticketSummary.total, color: '#6366f1' },
+          { label: 'Open / Pending', value: ticketSummary.openPending, color: '#ef4444' },
+          { label: 'In Progress', value: ticketSummary.inProgress, color: '#f59e0b' },
+          { label: 'Resolved / Closed', value: ticketSummary.resolvedClosed, color: '#10b981' },
+        ].map((stat) => (
+          <div key={stat.label} style={s.statCard}>
+            <div style={{ ...s.statNum, color: stat.color }}>{stat.value}</div>
+            <div style={s.statLabel}>{stat.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={s.tableWrap}>
+        <table style={s.table}>
+          <thead>
+            <tr style={s.thead}>
+              <th style={s.th}>Ticket ID</th>
+              <th style={s.th}>Resource / Location</th>
+              <th style={s.th}>Category</th>
+              <th style={s.th}>Priority</th>
+              <th style={s.th}>Status</th>
+              <th style={s.th}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tickets.map((ticket) => (
+              <tr key={ticket.id} style={s.tr}>
+                <td style={s.td}><strong>{ticket.ticketId}</strong></td>
+                <td style={s.td}>{ticket.resourceLocation}</td>
+                <td style={s.td}>{ticket.category}</td>
+                <td style={s.td}>{ticket.priority}</td>
+                <td style={s.td}>
+                  <span
+                    style={{
+                      ...s.pill,
+                      ...(TICKET_STATUS_STYLE[ticket.status] || { background: '#e2e8f0', color: '#334155' }),
+                    }}
+                  >
+                    {ticket.status}
+                  </span>
+                </td>
+                <td style={s.td}>
+                  <button
+                    style={s.viewDetailsBtn}
+                    onClick={() => openTicketModal(ticket)}
+                  >
+                    View Details
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
 
   const renderUsersTab = () => (
     <>
@@ -348,6 +532,92 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Ticket Details Modal */}
+      {selectedTicket && (
+        <div style={s.modalOverlay}>
+          <div style={s.ticketModalCard}>
+            <div style={s.ticketModalHeader}>
+              <div>
+                <h3 style={s.ticketModalTitle}>Ticket Details - {selectedTicket.ticketId}</h3>
+                <p style={s.ticketModalSub}>Review incident details and update workflow.</p>
+              </div>
+              <button style={s.ticketModalCloseBtn} onClick={closeTicketModal}>x</button>
+            </div>
+
+            <div style={s.ticketModalBody}>
+              <div style={s.ticketInfoGrid}>
+                <div style={s.ticketInfoItem}><span style={s.ticketInfoLabel}>Location</span><span>{selectedTicket.resourceLocation}</span></div>
+                <div style={s.ticketInfoItem}><span style={s.ticketInfoLabel}>Category</span><span>{selectedTicket.category}</span></div>
+                <div style={s.ticketInfoItem}><span style={s.ticketInfoLabel}>Priority</span><span>{selectedTicket.priority}</span></div>
+                <div style={s.ticketInfoItem}><span style={s.ticketInfoLabel}>Reporter</span><span>{selectedTicket.reporterName}</span></div>
+                <div style={s.ticketInfoItem}><span style={s.ticketInfoLabel}>Reporter Email</span><span>{selectedTicket.reporterEmail}</span></div>
+                <div style={s.ticketInfoItem}><span style={s.ticketInfoLabel}>Contact</span><span>{selectedTicket.preferredContact}</span></div>
+              </div>
+
+              <div style={s.ticketSection}>
+                <div style={s.ticketSectionTitle}>Description</div>
+                <p style={s.ticketDescription}>{selectedTicket.description}</p>
+              </div>
+
+              <div style={s.ticketSection}>
+                <div style={s.ticketSectionTitle}>Evidence</div>
+                {selectedTicket.imageAttachments?.length ? (
+                  <div style={s.evidenceGrid}>
+                    {selectedTicket.imageAttachments.slice(0, 3).map((src, idx) => (
+                      <img key={`${selectedTicket.id}-img-${idx}`} src={src} alt={`Evidence ${idx + 1}`} style={s.evidenceImage} />
+                    ))}
+                  </div>
+                ) : (
+                  <div style={s.noEvidenceBox}>No image attachments were provided.</div>
+                )}
+              </div>
+
+              <div style={s.ticketFormGrid}>
+                <label style={s.ticketField}>
+                  <span style={s.ticketFieldLabel}>Update Status</span>
+                  <select
+                    style={s.filterSelect}
+                    value={ticketDraft.status}
+                    onChange={(e) => setTicketDraft((prev) => ({ ...prev, status: e.target.value }))}
+                  >
+                    {TICKET_STATUS_ORDER
+                      .filter((status) => getAllowedStatusOptions(selectedTicket.status).includes(status))
+                      .map((status) => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                  </select>
+                </label>
+
+                <label style={s.ticketField}>
+                  <span style={s.ticketFieldLabel}>Assign Technician</span>
+                  <input
+                    style={s.searchInput}
+                    value={ticketDraft.assignedTechnician}
+                    placeholder="Enter technician name"
+                    onChange={(e) => setTicketDraft((prev) => ({ ...prev, assignedTechnician: e.target.value }))}
+                  />
+                </label>
+              </div>
+
+              <label style={s.ticketField}>
+                <span style={s.ticketFieldLabel}>Resolution Notes / Comments</span>
+                <textarea
+                  style={s.ticketTextarea}
+                  value={ticketDraft.resolutionNotes}
+                  placeholder="Add resolution notes, updates, or technician comments"
+                  onChange={(e) => setTicketDraft((prev) => ({ ...prev, resolutionNotes: e.target.value }))}
+                />
+              </label>
+            </div>
+
+            <div style={s.ticketModalFooter}>
+              <button style={s.cancelBtn} onClick={closeTicketModal}>Cancel</button>
+              <button style={s.saveTicketBtn} onClick={saveTicketUpdates}>Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar Navigation */}
       <div style={s.sidebar}>
         <div style={s.brand}>
@@ -409,13 +679,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeTab === 'tickets' && (
-            <div style={s.placeholderBox}>
-              <span style={{fontSize: 40}}>🎫</span>
-              <h3 style={{margin: '10px 0 5px'}}>Tickets coming soon</h3>
-              <p style={{margin: 0, color:'#64748b'}}>Ticketing and support features will be available here.</p>
-            </div>
-          )}
+          {activeTab === 'tickets' && renderTicketsTab()}
         </div>
       </div>
     </div>
@@ -473,4 +737,26 @@ const s = {
   modalActions:{ display:'flex', gap:12, justifyContent:'center' },
   cancelBtn:   { padding:'12px 24px', borderRadius:10, border:'1px solid #e2e8f0', background:'#fff', color:'#475569', fontWeight:600, cursor:'pointer', fontSize:14, transition:'all 0.2s' },
   confirmDeleteBtn: { padding:'12px 24px', borderRadius:10, border:'none', background:'#dc2626', color:'#fff', fontWeight:600, cursor:'pointer', fontSize:14, boxShadow:'0 4px 12px rgba(220,38,38,0.2)', transition:'all 0.2s' },
+  viewDetailsBtn: { padding:'7px 14px', borderRadius:8, border:'1px solid #c7d2fe', background:'#eef2ff', color:'#3730a3', fontSize:12, fontWeight:600, cursor:'pointer' },
+  ticketModalCard: { background:'#fff', borderRadius:16, width:'100%', maxWidth:980, maxHeight:'90vh', display:'flex', flexDirection:'column', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)' },
+  ticketModalHeader: { display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, padding:'16px 20px', borderBottom:'1px solid #e2e8f0' },
+  ticketModalTitle: { margin:0, fontSize:20, fontWeight:700, color:'#0f172a' },
+  ticketModalSub: { margin:'4px 0 0', fontSize:13, color:'#64748b' },
+  ticketModalCloseBtn: { border:'1px solid #e2e8f0', background:'#f8fafc', color:'#334155', width:34, height:34, borderRadius:999, cursor:'pointer', fontSize:14, fontWeight:700 },
+  ticketModalBody: { padding:'16px 20px', overflowY:'auto', display:'flex', flexDirection:'column', gap:16 },
+  ticketInfoGrid: { display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:10 },
+  ticketInfoItem: { display:'flex', flexDirection:'column', gap:4, border:'1px solid #e2e8f0', borderRadius:8, padding:'10px 12px', fontSize:13, color:'#334155' },
+  ticketInfoLabel: { fontSize:11, textTransform:'uppercase', letterSpacing:0.4, color:'#64748b', fontWeight:600 },
+  ticketSection: { border:'1px solid #e2e8f0', borderRadius:10, padding:'12px 14px' },
+  ticketSectionTitle: { fontSize:13, fontWeight:700, color:'#1e293b', marginBottom:8 },
+  ticketDescription: { margin:0, fontSize:14, lineHeight:1.55, color:'#334155' },
+  evidenceGrid: { display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:10 },
+  evidenceImage: { width:'100%', height:150, objectFit:'cover', borderRadius:10, border:'1px solid #cbd5e1', background:'#f8fafc' },
+  noEvidenceBox: { background:'#f8fafc', border:'1px dashed #cbd5e1', borderRadius:8, padding:'12px', fontSize:13, color:'#64748b' },
+  ticketFormGrid: { display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:12 },
+  ticketField: { display:'flex', flexDirection:'column', gap:8 },
+  ticketFieldLabel: { fontSize:12, color:'#475569', fontWeight:600 },
+  ticketTextarea: { minHeight:100, resize:'vertical', border:'1px solid #e2e8f0', borderRadius:8, padding:'10px 12px', fontSize:14, color:'#1e293b', outline:'none' },
+  ticketModalFooter: { padding:'14px 20px', borderTop:'1px solid #e2e8f0', display:'flex', justifyContent:'flex-end', gap:10 },
+  saveTicketBtn: { padding:'12px 24px', borderRadius:10, border:'none', background:'#2563eb', color:'#fff', fontWeight:600, cursor:'pointer', fontSize:14, boxShadow:'0 4px 12px rgba(37,99,235,0.2)' },
 };
