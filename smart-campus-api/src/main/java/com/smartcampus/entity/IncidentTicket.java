@@ -28,6 +28,14 @@ public class IncidentTicket {
 
     private String category;
 
+    private String priority;
+
+    private String description;
+
+    private String preferredContact;
+
+    private java.util.List<String> imageNames;
+
     private String status;
 
     @CreatedDate

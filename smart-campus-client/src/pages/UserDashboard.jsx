@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getUserDashboardOverview } from '../api/userDashboardApi';
+import { getUserDashboardOverview, submitIncidentTicket } from '../api/userDashboardApi';
+import IncidentModal from '../components/IncidentModal';
 
 export default function UserDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isTicketModalOpen, setIsTicketModalOpen] = useState(false);
+  const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [overview, setOverview] = useState({
@@ -20,30 +21,36 @@ export default function UserDashboard() {
     activeTickets: [],
   });
 
-  useEffect(() => {
-    const fetchOverview = async () => {
-      setLoading(true);
-      setError('');
-      try {
-        const res = await getUserDashboardOverview();
-        setOverview({
-          user: res.data?.user || null,
-          stats: {
-            upcomingBookings: res.data?.stats?.upcomingBookings || 0,
-            pendingRequests: res.data?.stats?.pendingRequests || 0,
-            openTickets: res.data?.stats?.openTickets || 0,
-            resolvedTickets: res.data?.stats?.resolvedTickets || 0,
-          },
-          recentBookings: Array.isArray(res.data?.recentBookings) ? res.data.recentBookings : [],
-          activeTickets: Array.isArray(res.data?.activeTickets) ? res.data.activeTickets : [],
-        });
-      } catch (err) {
-        setError(err.response?.data?.error || 'Failed to load dashboard data.');
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchOverview = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await getUserDashboardOverview();
+      setOverview({
+        user: res.data?.user || null,
+        stats: {
+          upcomingBookings: res.data?.stats?.upcomingBookings || 0,
+          pendingRequests: res.data?.stats?.pendingRequests || 0,
+          openTickets: res.data?.stats?.openTickets || 0,
+          resolvedTickets: res.data?.stats?.resolvedTickets || 0,
+        },
+        recentBookings: Array.isArray(res.data?.recentBookings) ? res.data.recentBookings : [],
+        activeTickets: Array.isArray(res.data?.activeTickets) ? res.data.activeTickets : [],
+      });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to load dashboard data.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const handleIncidentSubmit = async (payload) => {
+    const response = await submitIncidentTicket(payload);
+    await fetchOverview();
+    return response;
+  };
+
+  useEffect(() => {
     fetchOverview();
   }, []);
 
@@ -77,28 +84,11 @@ export default function UserDashboard() {
 
   return (
     <div style={s.layout}>
-      {isTicketModalOpen && (
-        <div style={s.modalOverlay}>
-          <div style={s.modalCard}>
-            <div style={s.modalIcon}>⚠️</div>
-            <h3 style={s.modalTitle}>Report Incident</h3>
-            <p style={s.modalDesc}>Ticket submission form will be implemented here.</p>
-            {/*
-              Module C Ticket Form fields required:
-              - Resource/Location
-              - Category
-              - Description
-              - Priority
-              - Image attachments input (up to 3 files)
-            */}
-            <div style={s.modalActions}>
-              <button style={s.cancelBtn} onClick={() => setIsTicketModalOpen(false)}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <IncidentModal
+        open={isIncidentModalOpen}
+        onClose={() => setIsIncidentModalOpen(false)}
+        onSubmitTicket={handleIncidentSubmit}
+      />
 
       <div style={s.sidebar}>
         <div style={s.brand}>
@@ -143,7 +133,7 @@ export default function UserDashboard() {
             <span style={s.quickActionsLabel}>Quick Actions</span>
             <div style={s.quickActionsBtns}>
               <button style={s.primaryBtn}>+ Book Resource</button>
-              <button style={s.dangerBtn} onClick={() => setIsTicketModalOpen((prev) => !prev)}>
+              <button style={s.dangerBtn} onClick={() => setIsIncidentModalOpen(true)}>
                 Report Incident
               </button>
             </div>
@@ -451,37 +441,4 @@ const s = {
     textAlign: 'center',
   },
   pill: { padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 },
-  modalOverlay: {
-    position: 'fixed',
-    inset: 0,
-    background: 'rgba(15,23,42,0.6)',
-    backdropFilter: 'blur(4px)',
-    zIndex: 1000,
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modalCard: {
-    background: '#fff',
-    borderRadius: 20,
-    padding: '2.25rem',
-    width: '100%',
-    maxWidth: 460,
-    textAlign: 'center',
-    boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
-  },
-  modalIcon: { fontSize: 48, marginBottom: 16 },
-  modalTitle: { margin: '0 0 10px', fontSize: 22, color: '#0f172a', fontWeight: 700 },
-  modalDesc: { margin: '0 0 24px', fontSize: 14, color: '#64748b', lineHeight: 1.6 },
-  modalActions: { display: 'flex', justifyContent: 'center' },
-  cancelBtn: {
-    padding: '10px 20px',
-    borderRadius: 10,
-    border: '1px solid #e2e8f0',
-    background: '#fff',
-    color: '#475569',
-    fontWeight: 600,
-    cursor: 'pointer',
-    fontSize: 14,
-  },
 };

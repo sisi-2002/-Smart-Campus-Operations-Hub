@@ -1,5 +1,6 @@
 package com.smartcampus.service;
 
+import com.smartcampus.dto.request.CreateIncidentTicketRequest;
 import com.smartcampus.dto.response.UserDashboardResponse;
 import com.smartcampus.entity.IncidentTicket;
 import com.smartcampus.entity.ResourceBooking;
@@ -13,6 +14,8 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -21,6 +24,31 @@ public class UserDashboardService {
     private final UserRepository userRepository;
     private final ResourceBookingRepository resourceBookingRepository;
     private final IncidentTicketRepository incidentTicketRepository;
+
+    public Map<String, String> createIncidentTicket(String email, CreateIncidentTicketRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String generatedTicketId = "INC-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
+
+        IncidentTicket savedTicket = incidentTicketRepository.save(IncidentTicket.builder()
+                .userId(user.getId())
+                .ticketId(generatedTicketId)
+                .location(trimToNull(request.getResourceLocation()))
+                .category(trimToNull(request.getCategory()))
+                .priority(trimToNull(request.getPriority()))
+                .description(trimToNull(request.getDescription()))
+                .preferredContact(trimToNull(request.getPreferredContact()))
+                .imageNames(request.getImageNames() == null ? List.of() : request.getImageNames())
+                .status("OPEN")
+                .build());
+
+        return Map.of(
+                "message", "Incident ticket created successfully",
+                "id", savedTicket.getId(),
+                "ticketId", defaultValue(savedTicket.getTicketId(), savedTicket.getId())
+        );
+    }
 
     public UserDashboardResponse getOverview(String email) {
         User user = userRepository.findByEmail(email)
@@ -106,4 +134,12 @@ public class UserDashboardService {
     private String defaultValue(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
     }
+
+        private String trimToNull(String value) {
+                if (value == null) {
+                        return null;
+                }
+                String trimmed = value.trim();
+                return trimmed.isEmpty() ? null : trimmed;
+        }
 }
