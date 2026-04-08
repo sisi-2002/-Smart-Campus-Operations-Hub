@@ -57,8 +57,23 @@ export default function IncidentModal({ open, onClose, onSubmitTicket }) {
       return;
     }
 
-    setAttachmentError('');
-    setAttachments(selectedFiles);
+    Promise.all(
+      selectedFiles.map((file) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve({ name: file.name, dataUrl: String(reader.result || '') });
+        reader.onerror = () => reject(new Error(`Failed to read ${file.name}`));
+        reader.readAsDataURL(file);
+      }))
+    )
+      .then((loadedAttachments) => {
+        setAttachmentError('');
+        setAttachments(loadedAttachments);
+      })
+      .catch((error) => {
+        setAttachmentError(error.message || 'Failed to load selected images.');
+        setAttachments([]);
+        event.target.value = '';
+      });
   };
 
   const handleSubmit = async (event) => {
@@ -86,6 +101,7 @@ export default function IncidentModal({ open, onClose, onSubmitTicket }) {
       const payload = {
         ...formData,
         imageNames: attachments.map((file) => file.name),
+        imageDataUrls: attachments.map((file) => file.dataUrl),
       };
 
       const response = await onSubmitTicket(payload);
@@ -233,9 +249,10 @@ export default function IncidentModal({ open, onClose, onSubmitTicket }) {
               {attachmentError && <div style={styles.errorText}>{attachmentError}</div>}
               {!attachmentError && attachments.length > 0 && (
                 <div style={styles.fileList}>
-                  {attachments.map((file) => (
-                    <div key={`${file.name}-${file.size}`} style={styles.fileChip}>
-                      {file.name}
+                  {attachments.map((file, index) => (
+                    <div key={`${file.name}-${index}`} style={styles.filePreview}>
+                      <img src={file.dataUrl} alt={file.name} style={styles.fileThumbnail} />
+                      <div style={styles.fileChip}>{file.name}</div>
                     </div>
                   ))}
                 </div>
@@ -378,6 +395,21 @@ const styles = {
     display: 'flex',
     flexWrap: 'wrap',
     gap: 8,
+    marginTop: 10,
+  },
+  filePreview: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+    alignItems: 'flex-start',
+  },
+  fileThumbnail: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    objectFit: 'cover',
+    border: '1px solid #cbd5e1',
+    background: '#f8fafc',
   },
   fileChip: {
     padding: '6px 10px',

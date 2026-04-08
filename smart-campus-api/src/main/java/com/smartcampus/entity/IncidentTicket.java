@@ -36,6 +36,8 @@ public class IncidentTicket {
 
     private java.util.List<String> imageNames;
 
+    private java.util.List<String> imageDataUrls;
+
     private String status;
 
     @CreatedDate

@@ -17,6 +17,7 @@ public class UserDashboardResponse {
     private DashboardStats stats;
     private List<RecentBookingItem> recentBookings;
     private List<ActiveTicketItem> activeTickets;
+    private List<ActiveTicketItem> incidentTickets;
 
     @Data
     @Builder
@@ -62,6 +63,8 @@ public class UserDashboardResponse {
         private String ticketId;
         private String location;
         private String category;
+        private List<String> imageNames;
+        private List<String> imageDataUrls;
         private String status;
     }
 }

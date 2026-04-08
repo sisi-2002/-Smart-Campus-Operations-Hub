@@ -19,7 +19,41 @@ export default function UserDashboard() {
     },
     recentBookings: [],
     activeTickets: [],
+    incidentTickets: [],
   });
+
+  const getCachedIncidentImages = () => {
+    try {
+      return JSON.parse(localStorage.getItem('incidentTicketImageCache') || '[]');
+    } catch {
+      return [];
+    }
+  };
+
+  const setCachedIncidentImages = (entries) => {
+    localStorage.setItem('incidentTicketImageCache', JSON.stringify(entries));
+  };
+
+  const mergeCachedImages = (tickets) => {
+    const cache = getCachedIncidentImages();
+    if (!cache.length) {
+      return tickets;
+    }
+
+    const cacheByTicketId = new Map(cache.map((entry) => [entry.ticketId, entry]));
+    return tickets.map((ticket) => {
+      const cached = cacheByTicketId.get(ticket.ticketId || ticket.id);
+      if (!cached) {
+        return ticket;
+      }
+
+      return {
+        ...ticket,
+        imageNames: (ticket.imageNames && ticket.imageNames.length > 0) ? ticket.imageNames : (cached.imageNames || []),
+        imageDataUrls: (ticket.imageDataUrls && ticket.imageDataUrls.length > 0) ? ticket.imageDataUrls : (cached.imageDataUrls || []),
+      };
+    });
+  };
 
   const fetchOverview = async () => {
     setLoading(true);
@@ -35,7 +69,14 @@ export default function UserDashboard() {
           resolvedTickets: res.data?.stats?.resolvedTickets || 0,
         },
         recentBookings: Array.isArray(res.data?.recentBookings) ? res.data.recentBookings : [],
-        activeTickets: Array.isArray(res.data?.activeTickets) ? res.data.activeTickets : [],
+        activeTickets: mergeCachedImages(Array.isArray(res.data?.activeTickets) ? res.data.activeTickets : []),
+        incidentTickets: mergeCachedImages(
+          Array.isArray(res.data?.incidentTickets)
+            ? res.data.incidentTickets
+            : Array.isArray(res.data?.activeTickets)
+              ? res.data.activeTickets
+              : []
+        ),
       });
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to load dashboard data.');
@@ -46,6 +87,16 @@ export default function UserDashboard() {
 
   const handleIncidentSubmit = async (payload) => {
     const response = await submitIncidentTicket(payload);
+    const ticketId = response?.data?.ticketId || response?.data?.id;
+    if (ticketId) {
+      const nextCache = getCachedIncidentImages().filter((entry) => entry.ticketId !== ticketId);
+      nextCache.push({
+        ticketId,
+        imageNames: payload.imageNames || [],
+        imageDataUrls: payload.imageDataUrls || [],
+      });
+      setCachedIncidentImages(nextCache);
+    }
     await fetchOverview();
     return response;
   };
@@ -81,6 +132,181 @@ export default function UserDashboard() {
     }
     return { background: '#dbeafe', color: '#1e40af' };
   };
+
+  const ticketsForMyTickets = overview.incidentTickets.length > 0
+    ? overview.incidentTickets
+    : overview.activeTickets;
+
+  const renderDashboardTab = () => (
+    <>
+      <div style={s.userCard}>
+        <div style={s.userCardHeader}>User Details</div>
+        <div style={s.userDetailsGrid}>
+          <div style={s.userDetailItem}><span style={s.detailLabel}>Name</span><span style={s.detailValue}>{userDetails.name}</span></div>
+          <div style={s.userDetailItem}><span style={s.detailLabel}>Email</span><span style={s.detailValue}>{userDetails.email}</span></div>
+          <div style={s.userDetailItem}><span style={s.detailLabel}>Role</span><span style={s.detailValue}>{userDetails.role}</span></div>
+          <div style={s.userDetailItem}><span style={s.detailLabel}>Provider</span><span style={s.detailValue}>{userDetails.provider}</span></div>
+          <div style={s.userDetailItem}><span style={s.detailLabel}>User ID</span><span style={s.detailMono}>{userDetails.id}</span></div>
+        </div>
+      </div>
+
+      <div style={s.statsGrid}>
+        {userStats.map((stat) => (
+          <div key={stat.label} style={s.statCard}>
+            <div style={{ ...s.statNum, color: stat.color }}>{stat.value}</div>
+            <div style={s.statLabel}>{stat.label}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={s.bottomGrid}>
+        <div style={s.tableWrap}>
+          <div style={s.sectionHeader}>My Recent Bookings</div>
+          <table style={s.table}>
+            <thead>
+              <tr style={s.thead}>
+                <th style={s.th}>Resource</th>
+                <th style={s.th}>Date</th>
+                <th style={s.th}>Time</th>
+                <th style={s.th}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {overview.recentBookings.length === 0 && (
+                <tr style={s.tr}>
+                  <td style={s.emptyTd} colSpan={4}>No bookings found in database.</td>
+                </tr>
+              )}
+              {overview.recentBookings.map((booking) => (
+                <tr key={booking.id} style={s.tr}>
+                  <td style={s.td}>{booking.resource || '-'}</td>
+                  <td style={s.td}>{booking.date || '-'}</td>
+                  <td style={s.td}>{booking.time || '-'}</td>
+                  <td style={s.td}>
+                    <span style={{ ...s.pill, ...getStatusPillStyle(booking.status) }}>
+                      {booking.status || 'Unknown'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <div style={s.tableWrap}>
+          <div style={s.sectionHeader}>Active Incident Tickets</div>
+          <table style={s.table}>
+            <thead>
+              <tr style={s.thead}>
+                <th style={s.th}>Ticket ID</th>
+                <th style={s.th}>Location</th>
+                <th style={s.th}>Category</th>
+                <th style={s.th}>Pictures</th>
+                <th style={s.th}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {overview.activeTickets.length === 0 && (
+                <tr style={s.tr}>
+                  <td style={s.emptyTd} colSpan={5}>No active tickets found in database.</td>
+                </tr>
+              )}
+              {overview.activeTickets.map((ticket) => (
+                <tr key={ticket.id} style={s.tr}>
+                  <td style={s.td}>{ticket.ticketId || ticket.id}</td>
+                  <td style={s.td}>{ticket.location || '-'}</td>
+                  <td style={s.td}>{ticket.category || '-'}</td>
+                  <td style={s.td}>
+                    <div style={s.ticketImages}>
+                      {(ticket.imageDataUrls || []).length > 0 ? (
+                        ticket.imageDataUrls.map((imageUrl, index) => (
+                          <img
+                            key={`${ticket.id}-${index}`}
+                            src={imageUrl}
+                            alt={`${ticket.ticketId || ticket.id} attachment ${index + 1}`}
+                            style={s.ticketThumbnail}
+                          />
+                        ))
+                      ) : (ticket.imageNames || []).length > 0 ? (
+                        (ticket.imageNames || []).map((imageName) => (
+                          <span key={imageName} style={s.imageNameChip}>{imageName}</span>
+                        ))
+                      ) : (
+                        <span style={s.mutedText}>No images</span>
+                      )}
+                    </div>
+                  </td>
+                  <td style={s.td}>
+                    <span style={{ ...s.pill, ...getStatusPillStyle(ticket.status) }}>
+                      {ticket.status || 'Open'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </>
+  );
+
+  const renderTicketsTab = () => (
+    <div style={s.tableWrap}>
+      <div style={s.sectionHeader}>My Incident Reports</div>
+      <table style={s.table}>
+        <thead>
+          <tr style={s.thead}>
+            <th style={s.th}>Ticket ID</th>
+            <th style={s.th}>Location</th>
+            <th style={s.th}>Category</th>
+            <th style={s.th}>Pictures</th>
+            <th style={s.th}>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {ticketsForMyTickets.length === 0 && (
+            <tr style={s.tr}>
+              <td style={s.emptyTd} colSpan={5}>No incident reports found in database.</td>
+            </tr>
+          )}
+          {ticketsForMyTickets.map((ticket) => (
+            <tr key={ticket.id} style={s.tr}>
+              <td style={s.td}>
+                <div style={{ fontWeight: 600 }}>{ticket.ticketId || ticket.id}</div>
+              </td>
+              <td style={s.td}>{ticket.location || '-'}</td>
+              <td style={s.td}>{ticket.category || '-'}</td>
+              <td style={s.td}>
+                <div style={s.ticketImages}>
+                  {(ticket.imageDataUrls || []).length > 0 ? (
+                    ticket.imageDataUrls.map((imageUrl, index) => (
+                      <img
+                        key={`${ticket.id}-${index}`}
+                        src={imageUrl}
+                        alt={`${ticket.ticketId || ticket.id} attachment ${index + 1}`}
+                        style={s.ticketThumbnail}
+                      />
+                    ))
+                  ) : (ticket.imageNames || []).length > 0 ? (
+                    (ticket.imageNames || []).map((imageName) => (
+                      <span key={imageName} style={s.imageNameChip}>{imageName}</span>
+                    ))
+                  ) : (
+                    <span style={s.mutedText}>No images</span>
+                  )}
+                </div>
+              </td>
+              <td style={s.td}>
+                <span style={{ ...s.pill, ...getStatusPillStyle(ticket.status) }}>
+                  {ticket.status || 'Open'}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 
   return (
     <div style={s.layout}>
@@ -146,93 +372,20 @@ export default function UserDashboard() {
 
           {!loading && !error && (
             <>
-              <div style={s.userCard}>
-                <div style={s.userCardHeader}>User Details</div>
-                <div style={s.userDetailsGrid}>
-                  <div style={s.userDetailItem}><span style={s.detailLabel}>Name</span><span style={s.detailValue}>{userDetails.name}</span></div>
-                  <div style={s.userDetailItem}><span style={s.detailLabel}>Email</span><span style={s.detailValue}>{userDetails.email}</span></div>
-                  <div style={s.userDetailItem}><span style={s.detailLabel}>Role</span><span style={s.detailValue}>{userDetails.role}</span></div>
-                  <div style={s.userDetailItem}><span style={s.detailLabel}>Provider</span><span style={s.detailValue}>{userDetails.provider}</span></div>
-                  <div style={s.userDetailItem}><span style={s.detailLabel}>User ID</span><span style={s.detailMono}>{userDetails.id}</span></div>
-                </div>
-              </div>
-
-              <div style={s.statsGrid}>
-                {userStats.map((stat) => (
-                  <div key={stat.label} style={s.statCard}>
-                    <div style={{ ...s.statNum, color: stat.color }}>{stat.value}</div>
-                    <div style={s.statLabel}>{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div style={s.bottomGrid}>
+              {activeTab === 'dashboard' && renderDashboardTab()}
+              {activeTab === 'bookings' && (
                 <div style={s.tableWrap}>
-                  <div style={s.sectionHeader}>My Recent Bookings</div>
-                  <table style={s.table}>
-                    <thead>
-                      <tr style={s.thead}>
-                        <th style={s.th}>Resource</th>
-                        <th style={s.th}>Date</th>
-                        <th style={s.th}>Time</th>
-                        <th style={s.th}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {overview.recentBookings.length === 0 && (
-                        <tr style={s.tr}>
-                          <td style={s.emptyTd} colSpan={4}>No bookings found in database.</td>
-                        </tr>
-                      )}
-                      {overview.recentBookings.map((booking) => (
-                        <tr key={booking.id} style={s.tr}>
-                          <td style={s.td}>{booking.resource || '-'}</td>
-                          <td style={s.td}>{booking.date || '-'}</td>
-                          <td style={s.td}>{booking.time || '-'}</td>
-                          <td style={s.td}>
-                            <span style={{ ...s.pill, ...getStatusPillStyle(booking.status) }}>
-                              {booking.status || 'Unknown'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div style={s.sectionHeader}>My Bookings</div>
+                  <div style={s.emptyState}>Booking details will appear here. Use the dashboard tab for the summary view.</div>
                 </div>
-
+              )}
+              {activeTab === 'catalogue' && (
                 <div style={s.tableWrap}>
-                  <div style={s.sectionHeader}>Active Incident Tickets</div>
-                  <table style={s.table}>
-                    <thead>
-                      <tr style={s.thead}>
-                        <th style={s.th}>Ticket ID</th>
-                        <th style={s.th}>Location</th>
-                        <th style={s.th}>Category</th>
-                        <th style={s.th}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {overview.activeTickets.length === 0 && (
-                        <tr style={s.tr}>
-                          <td style={s.emptyTd} colSpan={4}>No active tickets found in database.</td>
-                        </tr>
-                      )}
-                      {overview.activeTickets.map((ticket) => (
-                        <tr key={ticket.id} style={s.tr}>
-                          <td style={s.td}>{ticket.ticketId || ticket.id}</td>
-                          <td style={s.td}>{ticket.location || '-'}</td>
-                          <td style={s.td}>{ticket.category || '-'}</td>
-                          <td style={s.td}>
-                            <span style={{ ...s.pill, ...getStatusPillStyle(ticket.status) }}>
-                              {ticket.status || 'Open'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <div style={s.sectionHeader}>Resource Catalogue</div>
+                  <div style={s.emptyState}>Resource catalogue content will appear here.</div>
                 </div>
-              </div>
+              )}
+              {activeTab === 'tickets' && renderTicketsTab()}
             </>
           )}
         </div>
@@ -439,6 +592,35 @@ const s = {
     color: '#64748b',
     fontSize: 13,
     textAlign: 'center',
+  },
+  ticketImages: { display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' },
+  ticketThumbnail: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    objectFit: 'cover',
+    border: '1px solid #e2e8f0',
+    background: '#f8fafc',
+    boxShadow: '0 4px 14px rgba(15,23,42,0.08)',
+  },
+  imageNameChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '6px 10px',
+    borderRadius: 999,
+    background: '#f1f5f9',
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: 500,
+  },
+  mutedText: { color: '#94a3b8', fontSize: 13 },
+  emptyState: {
+    background: '#fff',
+    border: '1px solid #e2e8f0',
+    borderRadius: 12,
+    padding: '18px 16px',
+    color: '#64748b',
+    fontSize: 14,
   },
   pill: { padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 },
 };

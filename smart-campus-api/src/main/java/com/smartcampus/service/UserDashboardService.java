@@ -40,6 +40,7 @@ public class UserDashboardService {
                 .description(trimToNull(request.getDescription()))
                 .preferredContact(trimToNull(request.getPreferredContact()))
                 .imageNames(request.getImageNames() == null ? List.of() : request.getImageNames())
+                .imageDataUrls(request.getImageDataUrls() == null ? List.of() : request.getImageDataUrls())
                 .status("OPEN")
                 .build());
 
@@ -96,6 +97,22 @@ public class UserDashboardService {
                         .ticketId(defaultValue(t.getTicketId(), t.getId()))
                         .location(defaultValue(t.getLocation(), "-"))
                         .category(defaultValue(t.getCategory(), "-"))
+                        .imageNames(t.getImageNames() == null ? List.of() : t.getImageNames())
+                        .imageDataUrls(t.getImageDataUrls() == null ? List.of() : t.getImageDataUrls())
+                        .status(defaultValue(t.getStatus(), "Open"))
+                        .build())
+                .toList();
+
+        List<UserDashboardResponse.ActiveTicketItem> incidentTickets = tickets.stream()
+                .sorted(Comparator.comparing(IncidentTicket::getCreatedAt,
+                        Comparator.nullsLast(Comparator.reverseOrder())))
+                .map(t -> UserDashboardResponse.ActiveTicketItem.builder()
+                        .id(t.getId())
+                        .ticketId(defaultValue(t.getTicketId(), t.getId()))
+                        .location(defaultValue(t.getLocation(), "-"))
+                        .category(defaultValue(t.getCategory(), "-"))
+                        .imageNames(t.getImageNames() == null ? List.of() : t.getImageNames())
+                        .imageDataUrls(t.getImageDataUrls() == null ? List.of() : t.getImageDataUrls())
                         .status(defaultValue(t.getStatus(), "Open"))
                         .build())
                 .toList();
@@ -116,6 +133,7 @@ public class UserDashboardService {
                         .build())
                 .recentBookings(recentBookings)
                 .activeTickets(activeTickets)
+                .incidentTickets(incidentTickets)
                 .build();
     }
 

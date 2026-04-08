@@ -24,4 +24,6 @@ public class CreateIncidentTicketRequest {
     private String preferredContact;
 
     private List<String> imageNames;
+
+    private List<String> imageDataUrls;
 }
