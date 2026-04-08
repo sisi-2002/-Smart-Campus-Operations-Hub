@@ -141,7 +141,7 @@ export default function AdminDashboard() {
     return matchSearch && matchRole && matchStatus;
   });
 
-  const handleLogout = () => { logout(); navigate('/login'); };
+  const handleLogout = () => { logout(); navigate('/'); };
 
   const renderUsersTab = () => (
     <>
