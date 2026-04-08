@@ -7,6 +7,7 @@ export default function UserDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [overview, setOverview] = useState({
@@ -201,14 +202,13 @@ export default function UserDashboard() {
                 <th style={s.th}>Ticket ID</th>
                 <th style={s.th}>Location</th>
                 <th style={s.th}>Category</th>
-                <th style={s.th}>Pictures</th>
                 <th style={s.th}>Status</th>
               </tr>
             </thead>
             <tbody>
               {overview.activeTickets.length === 0 && (
                 <tr style={s.tr}>
-                  <td style={s.emptyTd} colSpan={5}>No active tickets found in database.</td>
+                  <td style={s.emptyTd} colSpan={4}>No active tickets found in database.</td>
                 </tr>
               )}
               {overview.activeTickets.map((ticket) => (
@@ -216,26 +216,6 @@ export default function UserDashboard() {
                   <td style={s.td}>{ticket.ticketId || ticket.id}</td>
                   <td style={s.td}>{ticket.location || '-'}</td>
                   <td style={s.td}>{ticket.category || '-'}</td>
-                  <td style={s.td}>
-                    <div style={s.ticketImages}>
-                      {(ticket.imageDataUrls || []).length > 0 ? (
-                        ticket.imageDataUrls.map((imageUrl, index) => (
-                          <img
-                            key={`${ticket.id}-${index}`}
-                            src={imageUrl}
-                            alt={`${ticket.ticketId || ticket.id} attachment ${index + 1}`}
-                            style={s.ticketThumbnail}
-                          />
-                        ))
-                      ) : (ticket.imageNames || []).length > 0 ? (
-                        (ticket.imageNames || []).map((imageName) => (
-                          <span key={imageName} style={s.imageNameChip}>{imageName}</span>
-                        ))
-                      ) : (
-                        <span style={s.mutedText}>No images</span>
-                      )}
-                    </div>
-                  </td>
                   <td style={s.td}>
                     <span style={{ ...s.pill, ...getStatusPillStyle(ticket.status) }}>
                       {ticket.status || 'Open'}
@@ -269,7 +249,11 @@ export default function UserDashboard() {
               <td style={s.emptyTd} colSpan={5}>No incident reports found in database.</td>
             </tr>
           )}
-          {ticketsForMyTickets.map((ticket) => (
+          {ticketsForMyTickets.map((ticket) => {
+            const ticketImages = (ticket.imageDataUrls || []).slice(0, 3);
+            const hasImageNamesOnly = ticketImages.length === 0 && (ticket.imageNames || []).length > 0;
+
+            return (
             <tr key={ticket.id} style={s.tr}>
               <td style={s.td}>
                 <div style={{ fontWeight: 600 }}>{ticket.ticketId || ticket.id}</div>
@@ -278,17 +262,18 @@ export default function UserDashboard() {
               <td style={s.td}>{ticket.category || '-'}</td>
               <td style={s.td}>
                 <div style={s.ticketImages}>
-                  {(ticket.imageDataUrls || []).length > 0 ? (
-                    ticket.imageDataUrls.map((imageUrl, index) => (
+                  {ticketImages.length > 0 ? (
+                    ticketImages.map((imageUrl, index) => (
                       <img
                         key={`${ticket.id}-${index}`}
                         src={imageUrl}
                         alt={`${ticket.ticketId || ticket.id} attachment ${index + 1}`}
                         style={s.ticketThumbnail}
+                        onClick={() => setPreviewImageUrl(imageUrl)}
                       />
                     ))
-                  ) : (ticket.imageNames || []).length > 0 ? (
-                    (ticket.imageNames || []).map((imageName) => (
+                  ) : hasImageNamesOnly ? (
+                    (ticket.imageNames || []).slice(0, 3).map((imageName) => (
                       <span key={imageName} style={s.imageNameChip}>{imageName}</span>
                     ))
                   ) : (
@@ -302,7 +287,7 @@ export default function UserDashboard() {
                 </span>
               </td>
             </tr>
-          ))}
+          )})}
         </tbody>
       </table>
     </div>
@@ -315,6 +300,22 @@ export default function UserDashboard() {
         onClose={() => setIsIncidentModalOpen(false)}
         onSubmitTicket={handleIncidentSubmit}
       />
+
+      {previewImageUrl && (
+        <div style={s.previewOverlay} onClick={() => setPreviewImageUrl('')}>
+          <div style={s.previewModal} onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              style={s.previewCloseButton}
+              onClick={() => setPreviewImageUrl('')}
+              aria-label="Close image preview"
+            >
+              ×
+            </button>
+            <img src={previewImageUrl} alt="Incident attachment preview" style={s.previewImage} />
+          </div>
+        </div>
+      )}
 
       <div style={s.sidebar}>
         <div style={s.brand}>
@@ -602,6 +603,7 @@ const s = {
     border: '1px solid #e2e8f0',
     background: '#f8fafc',
     boxShadow: '0 4px 14px rgba(15,23,42,0.08)',
+    cursor: 'zoom-in',
   },
   imageNameChip: {
     display: 'inline-flex',
@@ -621,6 +623,45 @@ const s = {
     padding: '18px 16px',
     color: '#64748b',
     fontSize: 14,
+  },
+  previewOverlay: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 1300,
+    background: 'rgba(15, 23, 42, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backdropFilter: 'blur(6px)',
+  },
+  previewModal: {
+    position: 'relative',
+    maxWidth: '90vw',
+    maxHeight: '90vh',
+  },
+  previewImage: {
+    maxWidth: '90vw',
+    maxHeight: '90vh',
+    borderRadius: 14,
+    border: '1px solid rgba(255,255,255,0.35)',
+    boxShadow: '0 24px 48px rgba(0,0,0,0.35)',
+    objectFit: 'contain',
+    background: '#0f172a',
+  },
+  previewCloseButton: {
+    position: 'absolute',
+    top: -14,
+    right: -14,
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    border: '1px solid rgba(255,255,255,0.5)',
+    background: 'rgba(15, 23, 42, 0.85)',
+    color: '#fff',
+    fontSize: 24,
+    lineHeight: 1,
+    cursor: 'pointer',
   },
   pill: { padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600 },
 };
