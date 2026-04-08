@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axiosInstance';
 import MfaSetupPage from './MfaSetupPage';
@@ -20,6 +20,21 @@ export default function LoginPage() {
   const [mfaState, setMfaState] = useState(null);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const errorParam = params.get('error');
+    if (errorParam) {
+      if (errorParam === 'oauth2_failed') {
+        setError('Google Sign-In failed. Please try again.');
+      } else {
+        setError(decodeURIComponent(errorParam));
+      }
+      // Remove error from URL without refreshing the page
+      window.history.replaceState({}, document.title, location.pathname);
+    }
+  }, [location]);
 
   // Email validation (strict)
   const validateEmail = (email) => {

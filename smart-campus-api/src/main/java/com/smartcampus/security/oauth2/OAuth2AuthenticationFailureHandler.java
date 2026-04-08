@@ -21,7 +21,11 @@ public class OAuth2AuthenticationFailureHandler
                                         HttpServletResponse response,
                                         AuthenticationException exception)
             throws IOException {
+        String errorMsg = "oauth2_failed";
+        if (exception.getMessage() != null && exception.getMessage().contains("Administater Disabled account")) {
+            errorMsg = "Administater Disabled account pleace contact adminstater ";
+        }
         getRedirectStrategy().sendRedirect(
-            request, response, frontendUrl + "/login?error=oauth2_failed");
+            request, response, frontendUrl + "/login?error=" + java.net.URLEncoder.encode(errorMsg, "UTF-8"));
     }
 }

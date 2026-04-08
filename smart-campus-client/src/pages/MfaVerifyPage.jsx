@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axiosInstance';
@@ -11,7 +11,9 @@ export default function MfaVerifyPage({ userId }) {
   const navigate              = useNavigate();
 
   const handleVerify = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    if (loading || code.length !== 6) return;
+    
     setError('');
     setLoading(true);
     try {
@@ -32,6 +34,12 @@ export default function MfaVerifyPage({ userId }) {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (code.length === 6) {
+      handleVerify();
+    }
+  }, [code]);
 
   return (
     <div style={s.page}>
