@@ -77,11 +77,25 @@ public class AdminController {
         return ResponseEntity.ok(adminService.getAllIncidentTickets());
     }
 
-    // PATCH /api/admin/tickets/{ticketId} — update ticket status/assignment/notes
-    @PatchMapping("/tickets/{ticketId}")
+    // PATCH/PUT/POST /api/admin/tickets/{ticketId} — update ticket status/assignment/notes
+    @RequestMapping(value = "/tickets/{ticketId}", method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST})
     public ResponseEntity<AdminIncidentTicketDto> updateIncidentTicket(
             @PathVariable String ticketId,
             @RequestBody UpdateIncidentTicketRequest request) {
         return ResponseEntity.ok(adminService.updateIncidentTicket(ticketId, request));
+    }
+
+    // PATCH/PUT/POST /api/admin/tickets — fallback update by body id/ticketId
+    @RequestMapping(value = "/tickets", method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST})
+    public ResponseEntity<AdminIncidentTicketDto> updateIncidentTicketByBody(
+            @RequestBody UpdateIncidentTicketRequest request) {
+        String idOrTicketId = request.getId();
+        if (idOrTicketId == null || idOrTicketId.isBlank()) {
+            idOrTicketId = request.getTicketId();
+        }
+        if (idOrTicketId == null || idOrTicketId.isBlank()) {
+            throw new RuntimeException("Ticket id is required");
+        }
+        return ResponseEntity.ok(adminService.updateIncidentTicket(idOrTicketId, request));
     }
 }

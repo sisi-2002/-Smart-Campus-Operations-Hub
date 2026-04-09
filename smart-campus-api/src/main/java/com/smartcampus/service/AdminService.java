@@ -109,7 +109,8 @@ public class AdminService {
 
     public AdminIncidentTicketDto updateIncidentTicket(String ticketId, UpdateIncidentTicketRequest request) {
         IncidentTicket ticket = incidentTicketRepository.findById(ticketId)
-                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+            .or(() -> incidentTicketRepository.findByTicketId(ticketId))
+            .orElseThrow(() -> new RuntimeException("Ticket not found"));
 
         if (request.getStatus() != null && !request.getStatus().isBlank()) {
             ticket.setStatus(request.getStatus().trim().toUpperCase());

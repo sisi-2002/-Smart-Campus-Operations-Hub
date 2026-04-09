@@ -280,7 +280,13 @@ export default function AdminDashboard() {
     if (!selectedTicket) return;
 
     try {
-      const res = await updateIncidentTicket(selectedTicket.id, {
+      const updateKey = selectedTicket.id || selectedTicket.ticketId;
+      if (!updateKey) {
+        showToast('Ticket identifier is missing', 'error');
+        return;
+      }
+
+      const res = await updateIncidentTicket(updateKey, {
         status: ticketDraft.status,
         assignedTechnicianId: ticketDraft.assignedTechnician,
         resolutionNotes: ticketDraft.resolutionNotes,
@@ -303,7 +309,10 @@ export default function AdminDashboard() {
       showToast(`Ticket ${selectedTicket.ticketId} updated`, 'success');
       closeTicketModal();
     } catch (err) {
-      showToast(err.response?.data?.error || 'Failed to update ticket', 'error');
+      const apiMessage = typeof err.response?.data === 'string'
+        ? err.response.data
+        : err.response?.data?.error;
+      showToast(apiMessage || `Failed to update ticket (${err.response?.status || 'network'})`, 'error');
     }
   };
 
