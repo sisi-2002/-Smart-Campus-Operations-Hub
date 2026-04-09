@@ -17,7 +17,7 @@ export default function UnauthorizedPage() {
             Go Home
           </Link>
 
-          <Link to="/login" style={styles.secondaryBtn}>
+          <Link to="/auth?mode=login" style={styles.secondaryBtn}>
             Go to Login
           </Link>
         </div>
