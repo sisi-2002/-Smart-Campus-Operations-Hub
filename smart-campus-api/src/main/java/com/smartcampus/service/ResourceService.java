@@ -16,6 +16,7 @@ public class ResourceService {
 
     private final ResourceRepository resourceRepository;
 
+    // Get all resources with optional filters
     public List<Resource> getAllResources(String type, String status) {
         if (type != null && status != null) {
             return resourceRepository.findByTypeAndStatus(type, ResourceStatus.valueOf(status));
@@ -43,8 +44,9 @@ public class ResourceService {
     public List<Resource> searchResources(String query) {
         return resourceRepository.findAll().stream()
                 .filter(r -> r.getName().toLowerCase().contains(query.toLowerCase()) ||
-                            r.getType().toLowerCase().contains(query.toLowerCase()) ||
-                            r.getBuilding().toLowerCase().contains(query.toLowerCase()))
+                            r.getType().name().toLowerCase().contains(query.toLowerCase()) ||
+                            r.getLocation().toLowerCase().contains(query.toLowerCase()) ||
+                            (r.getBuilding() != null && r.getBuilding().toLowerCase().contains(query.toLowerCase())))
                 .collect(Collectors.toList());
     }
 
@@ -55,25 +57,27 @@ public class ResourceService {
         return resourceRepository.save(resource);
     }
 
+    // Updated to support all fields from your latest Resource.java
     public Resource updateResource(String id, Resource resourceDetails) {
         Resource resource = getResourceById(id);
-        
+
         resource.setName(resourceDetails.getName());
         resource.setType(resourceDetails.getType());
         resource.setCapacity(resourceDetails.getCapacity());
         resource.setLocation(resourceDetails.getLocation());
         resource.setBuilding(resourceDetails.getBuilding());
         resource.setFloor(resourceDetails.getFloor());
+        resource.setAvailabilityWindows(resourceDetails.getAvailabilityWindows());
         resource.setStatus(resourceDetails.getStatus());
-        resource.setAvailableDays(resourceDetails.getAvailableDays());
-        resource.setAvailableFrom(resourceDetails.getAvailableFrom());
-        resource.setAvailableTo(resourceDetails.getAvailableTo());
+        resource.setDescription(resourceDetails.getDescription());
+
+        // New fields added
         resource.setFeatures(resourceDetails.getFeatures());
         resource.setImageUrl(resourceDetails.getImageUrl());
         resource.setHourlyRate(resourceDetails.getHourlyRate());
         resource.setRequiresApproval(resourceDetails.isRequiresApproval());
         resource.setDepartment(resourceDetails.getDepartment());
-        
+
         return resourceRepository.save(resource);
     }
 

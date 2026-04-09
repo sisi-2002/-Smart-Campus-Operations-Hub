@@ -20,7 +20,7 @@ public class ResourceController {
 
     private final ResourceService resourceService;
 
-    // Get all resources (public)
+    // Get all resources (public - all users)
     @GetMapping
     public ResponseEntity<List<Resource>> getAllResources(
             @RequestParam(required = false) String type,
@@ -57,7 +57,7 @@ public class ResourceController {
         return ResponseEntity.ok(resources);
     }
 
-    // Create resource (Admin only)
+    // ===================== ADMIN ONLY =====================
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Resource> createResource(@Valid @RequestBody Resource resource) {
@@ -65,31 +65,33 @@ public class ResourceController {
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    // Update resource (Admin only)
+    // ===================== MANAGER + ADMIN =====================
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<Resource> updateResource(
             @PathVariable String id,
             @Valid @RequestBody Resource resource) {
+        
         Resource updated = resourceService.updateResource(id, resource);
         return ResponseEntity.ok(updated);
     }
 
-    // Delete resource (Admin only)
+    // ===================== MANAGER + ADMIN =====================
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<Resource> updateResourceStatus(
+            @PathVariable String id,
+            @RequestParam ResourceStatus status) {
+        
+        Resource updated = resourceService.updateResourceStatus(id, status);
+        return ResponseEntity.ok(updated);
+    }
+
+    // ===================== ADMIN ONLY =====================
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteResource(@PathVariable String id) {
         resourceService.deleteResource(id);
         return ResponseEntity.noContent().build();
-    }
-
-    // Update resource status (Admin only)
-    @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Resource> updateResourceStatus(
-            @PathVariable String id,
-            @RequestParam ResourceStatus status) {
-        Resource updated = resourceService.updateResourceStatus(id, status);
-        return ResponseEntity.ok(updated);
     }
 }
