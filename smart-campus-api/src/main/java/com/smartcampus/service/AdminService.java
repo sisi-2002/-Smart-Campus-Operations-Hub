@@ -10,9 +10,16 @@ import com.smartcampus.entity.User;
 import com.smartcampus.repository.IncidentTicketRepository;
 import com.smartcampus.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.bson.Document;
+import org.bson.types.ObjectId;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -22,6 +29,7 @@ public class AdminService {
 
     private final UserRepository userRepository;
     private final IncidentTicketRepository incidentTicketRepository;
+    private final MongoTemplate mongoTemplate;
 
     // GET all users — safe fields only
     public List<UserSummaryDto> getAllUsers() {
@@ -97,14 +105,25 @@ public class AdminService {
 
     // GET all incident tickets for ticket management
     public List<AdminIncidentTicketDto> getAllIncidentTickets() {
-        return incidentTicketRepository.findAll()
+        try {
+            return incidentTicketRepository.findAll()
                 .stream()
                 .sorted(Comparator.comparing(
-                        IncidentTicket::getCreatedAt,
-                        Comparator.nullsLast(Comparator.reverseOrder())
+                    IncidentTicket::getCreatedAt,
+                    Comparator.nullsLast(Comparator.reverseOrder())
                 ))
                 .map(this::toIncidentTicketDto)
                 .toList();
+        } catch (Exception ignored) {
+            return mongoTemplate.findAll(Document.class, "incident_tickets")
+                .stream()
+                .map(this::toIncidentTicketDtoFromDocument)
+                .sorted(Comparator.comparing(
+                    AdminIncidentTicketDto::getCreatedAt,
+                    Comparator.nullsLast(Comparator.reverseOrder())
+                ))
+                .toList();
+        }
     }
 
     public AdminIncidentTicketDto updateIncidentTicket(String ticketId, UpdateIncidentTicketRequest request) {
@@ -183,5 +202,65 @@ public class AdminService {
                 .resolutionNotes(ticket.getResolutionNotes())
                 .createdAt(ticket.getCreatedAt())
                 .build();
+    }
+
+    private AdminIncidentTicketDto toIncidentTicketDtoFromDocument(Document doc) {
+        Object idRaw = doc.get("_id");
+        String id = idRaw instanceof ObjectId ? ((ObjectId) idRaw).toHexString() : safeString(idRaw);
+
+        return AdminIncidentTicketDto.builder()
+                .id(id)
+                .userId(safeString(doc.get("userId")))
+                .ticketId(safeString(doc.get("ticketId")))
+                .location(safeString(doc.get("location")))
+                .category(safeString(doc.get("category")))
+                .priority(safeString(doc.get("priority")))
+                .description(safeString(doc.get("description")))
+                .preferredContact(safeString(doc.get("preferredContact")))
+                .imageNames(safeStringList(doc.get("imageNames")))
+                .imageDataUrls(safeStringList(doc.get("imageDataUrls")))
+                .status(safeString(doc.get("status")))
+                .assignedTechnicianId(safeString(doc.get("assignedTechnicianId")))
+                .assignedTechnicianName(safeString(doc.get("assignedTechnicianName")))
+                .resolutionNotes(safeString(doc.get("resolutionNotes")))
+                .createdAt(safeDateTime(doc.get("createdAt")))
+                .build();
+    }
+
+    private String safeString(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String str = String.valueOf(value).trim();
+        return str.isEmpty() ? null : str;
+    }
+
+    private List<String> safeStringList(Object value) {
+        if (value instanceof List<?> list) {
+            return list.stream().map(item -> item == null ? null : String.valueOf(item)).filter(item -> item != null && !item.isBlank()).toList();
+        }
+        return List.of();
+    }
+
+    private LocalDateTime safeDateTime(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof LocalDateTime localDateTime) {
+            return localDateTime;
+        }
+        if (value instanceof Date date) {
+            return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault());
+        }
+        String raw = String.valueOf(value);
+        try {
+            return OffsetDateTime.parse(raw).toLocalDateTime();
+        } catch (Exception ignored) {
+            try {
+                return LocalDateTime.parse(raw);
+            } catch (Exception ignoredAgain) {
+                return null;
+            }
+        }
     }
 }

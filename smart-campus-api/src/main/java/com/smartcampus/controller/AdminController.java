@@ -17,7 +17,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")   // ✅ Entire controller — ADMIN only
+@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")   // ADMIN and MANAGER can use shared dashboard APIs
 public class AdminController {
 
     private final AdminService adminService;

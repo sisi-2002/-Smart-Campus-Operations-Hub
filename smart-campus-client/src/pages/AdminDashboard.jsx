@@ -142,7 +142,10 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
       setTickets([]);
       setTicketsLoaded(true);
       const status = err?.response?.status;
-      showToast(status ? `Failed to load tickets (${status})` : 'Failed to load tickets', 'error');
+      const apiMessage = typeof err?.response?.data === 'string'
+        ? err.response.data
+        : err?.response?.data?.error;
+      showToast(apiMessage || (status ? `Failed to load tickets (${status})` : 'Failed to load tickets'), 'error');
     }
   };
 
