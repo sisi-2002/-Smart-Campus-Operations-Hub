@@ -16,12 +16,16 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public Map<String, String> handleValidation(MethodArgumentNotValidException ex) {
+    public Map<String, Object> handleValidation(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             errors.put(error.getField(), error.getDefaultMessage());
         }
-        return errors;
+        String firstError = errors.values().stream().findFirst().orElse("Validation failed");
+        return Map.of(
+                "error", firstError,
+                "details", errors
+        );
     }
 
     @ExceptionHandler(UsernameNotFoundException.class)

@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 
 export default function HomePage() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isManager, isTechnician, getDashboardPath } = useAuth();
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -66,11 +66,11 @@ export default function HomePage() {
                   </div>
                   <div style={s.userInfo}>
                     <span style={s.userName}>{user.name?.split(' ')[0] || 'User'}</span>
-                    <span style={s.userRole}>{isAdmin() ? 'Admin' : 'User'}</span>
+                    <span style={s.userRole}>{isAdmin() ? 'Admin' : isManager() ? 'Manager' : isTechnician() ? 'Technician' : 'User'}</span>
                   </div>
                 </div>
-                <Link to={isAdmin() ? "/admin" : "/dashboard"} style={s.dashboardBtn}>
-                  {isAdmin() ? "Admin Dashboard" : "User Dashboard"}
+                <Link to={getDashboardPath()} style={s.dashboardBtn}>
+                  {isAdmin() ? "Admin Dashboard" : isManager() ? "Manager Dashboard" : isTechnician() ? "Technician Dashboard" : "User Dashboard"}
                 </Link>
                 <button onClick={handleLogoutClick} style={s.ghostBtn}>Logout</button>
               </>
@@ -113,8 +113,8 @@ export default function HomePage() {
                   </>
                 ) : (
                   <>
-                    <Link to={isAdmin() ? "/admin" : "/dashboard"} style={s.primaryBtnLg}>
-                      {isAdmin() ? "Go to Admin Dashboard" : "Go to User Dashboard"}
+                    <Link to={getDashboardPath()} style={s.primaryBtnLg}>
+                      {isAdmin() ? "Go to Admin Dashboard" : isManager() ? "Go to Manager Dashboard" : isTechnician() ? "Go to Technician Dashboard" : "Go to User Dashboard"}
                     </Link>
                     <a href="#features" style={s.secondaryBtnLg}>Explore Features</a>
                   </>
@@ -396,7 +396,7 @@ export default function HomePage() {
                     <Link to="/login" style={s.linkBtn}>Sign In</Link>
                   </>
                 ) : (
-                  <Link to={isAdmin() ? "/admin" : "/dashboard"} style={s.primaryBtnLg}>Open Dashboard</Link>
+                  <Link to={getDashboardPath()} style={s.primaryBtnLg}>Open Dashboard</Link>
                 )}
               </div>
             </div>

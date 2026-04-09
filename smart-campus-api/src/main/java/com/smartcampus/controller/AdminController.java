@@ -1,6 +1,8 @@
 package com.smartcampus.controller;
 
 import com.smartcampus.dto.request.UpdateRoleRequest;
+import com.smartcampus.dto.request.UpdateIncidentTicketRequest;
+import com.smartcampus.dto.response.AdminIncidentTicketDto;
 import com.smartcampus.dto.response.UserSummaryDto;
 import com.smartcampus.service.AdminService;
 import jakarta.validation.Valid;
@@ -15,7 +17,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
-@PreAuthorize("hasRole('ADMIN')")   // ✅ Entire controller — ADMIN only
+@PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")   // ADMIN and MANAGER can use shared dashboard APIs
 public class AdminController {
 
     private final AdminService adminService;
@@ -67,5 +69,33 @@ public class AdminController {
             "mfaEnabled", users.stream().filter(UserSummaryDto::isMfaEnabled).count(),
             "disabled",   users.stream().filter(u -> !u.isEnabled()).count()
         ));
+    }
+
+    // GET /api/admin/tickets — all incident tickets
+    @GetMapping("/tickets")
+    public ResponseEntity<List<AdminIncidentTicketDto>> getAllIncidentTickets() {
+        return ResponseEntity.ok(adminService.getAllIncidentTickets());
+    }
+
+    // PATCH/PUT/POST /api/admin/tickets/{ticketId} — update ticket status/assignment/notes
+    @RequestMapping(value = "/tickets/{ticketId}", method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST})
+    public ResponseEntity<AdminIncidentTicketDto> updateIncidentTicket(
+            @PathVariable String ticketId,
+            @RequestBody UpdateIncidentTicketRequest request) {
+        return ResponseEntity.ok(adminService.updateIncidentTicket(ticketId, request));
+    }
+
+    // PATCH/PUT/POST /api/admin/tickets — fallback update by body id/ticketId
+    @RequestMapping(value = "/tickets", method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST})
+    public ResponseEntity<AdminIncidentTicketDto> updateIncidentTicketByBody(
+            @RequestBody UpdateIncidentTicketRequest request) {
+        String idOrTicketId = request.getId();
+        if (idOrTicketId == null || idOrTicketId.isBlank()) {
+            idOrTicketId = request.getTicketId();
+        }
+        if (idOrTicketId == null || idOrTicketId.isBlank()) {
+            throw new RuntimeException("Ticket id is required");
+        }
+        return ResponseEntity.ok(adminService.updateIncidentTicket(idOrTicketId, request));
     }
 }

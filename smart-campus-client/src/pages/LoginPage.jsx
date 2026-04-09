@@ -87,7 +87,14 @@ export default function LoginPage() {
       if (data.status === 'SUCCESS') {
         const { token, ...userData } = data;
         login(token, userData);
-        navigate('/');
+        const nextPath = userData.role === 'ADMIN'
+          ? '/admin'
+          : userData.role === 'MANAGER'
+            ? '/'
+          : userData.role === 'TECHNICIAN'
+            ? '/technician'
+            : '/dashboard';
+        navigate(nextPath, { replace: true });
         return;
       }
       if (data.status === 'MFA_SETUP_REQUIRED') {
