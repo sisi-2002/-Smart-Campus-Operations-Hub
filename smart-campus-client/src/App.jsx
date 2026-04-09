@@ -30,7 +30,7 @@ function AppRoutes() {
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute requiredRole = "USER" >
               <DashboardPage />
             </ProtectedRoute>
           }

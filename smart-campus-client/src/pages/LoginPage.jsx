@@ -23,18 +23,23 @@ export default function LoginPage() {
   const location = useLocation();
 
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const errorParam = params.get('error');
-    if (errorParam) {
-      if (errorParam === 'oauth2_failed') {
-        setError('Google Sign-In failed. Please try again.');
-      } else {
-        setError(decodeURIComponent(errorParam));
-      }
-      // Remove error from URL without refreshing the page
-      window.history.replaceState({}, document.title, location.pathname);
+  const params = new URLSearchParams(location.search);
+  const errorParam = params.get('error');
+
+  if (errorParam) {
+    if (errorParam === 'oauth2_failed') {
+      setError('Google Sign-In failed. Please try again.');
+    } else if (errorParam === 'session_expired') {
+      setError('Your session has expired. Please log in again.');
+    } else if (errorParam === 'idle_timeout') {
+      setError('You were logged out after 20 minutes of inactivity.');
+    } else {
+      setError(decodeURIComponent(errorParam));
     }
-  }, [location]);
+
+    window.history.replaceState({}, document.title, location.pathname);
+  }
+}, [location]);
 
   // Email validation (strict)
   const validateEmail = (email) => {

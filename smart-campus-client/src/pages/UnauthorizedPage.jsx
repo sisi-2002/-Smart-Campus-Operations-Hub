@@ -13,12 +13,12 @@ export default function UnauthorizedPage() {
         </p>
 
         <div style={styles.actions}>
-          <Link to="/dashboard" style={styles.primaryBtn}>
-            Go to Dashboard
+          <Link to="/" style={styles.primaryBtn}>
+            Go Home
           </Link>
 
-          <Link to="/" style={styles.secondaryBtn}>
-            Go Home
+          <Link to="/login" style={styles.secondaryBtn}>
+            Go to Login
           </Link>
         </div>
       </div>
