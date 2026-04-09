@@ -1,9 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getAllUsers, getStats, getIncidentTickets, updateIncidentTicket, updateRole, toggleStatus, deleteUser } from '../api/adminApi';
+import {
+  getAllUsers,
+  getStats,
+  getIncidentTickets,
+  updateIncidentTicket,
+  updateRole,
+  toggleStatus,
+  deleteUser,
+} from '../api/adminApi';
 import TicketCommentsPanel from '../components/TicketCommentsPanel';
-import { getAllUsers, getStats, updateRole, toggleStatus, deleteUser } from '../api/adminApi';
 import BookingList from '../components/Bookings/BookingList';
 import ResourceManagement from '../components/Admin/ResourceManagement';
 
@@ -286,28 +293,6 @@ const TICKET_STATUS_STYLE = {
 };
 
 export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
-  const { user, logout }      = useAuth();
-  const navigate               = useNavigate();
-  const [users, setUsers]      = useState([]);
-  const [stats, setStats]      = useState(null);
-  const [loading, setLoading]  = useState(true);
-  const [toast, setToast]      = useState(null);   // { msg, type }
-  const [search, setSearch]    = useState('');
-  const [roleFilter, setRoleFilter] = useState('ALL');
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [activeTab, setActiveTab]   = useState('users');
-  const [updating, setUpdating]     = useState(null); // userId being updated
-  const [userToDelete, setUserToDelete] = useState(null); // Added for custom delete modal
-  const [tickets, setTickets] = useState([]);
-  const [ticketsLoaded, setTicketsLoaded] = useState(false);
-  const [previewImageUrl, setPreviewImageUrl] = useState('');
-  const [selectedTicket, setSelectedTicket] = useState(null);
-  const [ticketDraft, setTicketDraft] = useState({
-    status: 'OPEN',
-    assignedTechnician: '',
-    resolutionNotes: '',
-  });
-export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -323,6 +308,15 @@ export default function AdminDashboard() {
   const [userToDelete, setUserToDelete] = useState(null);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [bmFilter, setBmFilter] = useState('ALL');
+  const [tickets, setTickets] = useState([]);
+  const [ticketsLoaded, setTicketsLoaded] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState('');
+  const [selectedTicket, setSelectedTicket] = useState(null);
+  const [ticketDraft, setTicketDraft] = useState({
+    status: 'OPEN',
+    assignedTechnician: '',
+    resolutionNotes: '',
+  });
 
   useEffect(() => {
     fetchData();
@@ -332,7 +326,7 @@ export default function AdminDashboard() {
     if (activeTab === 'tickets' && !ticketsLoaded) {
       fetchTickets();
     }
-  }, [activeTab, ticketsLoaded]);
+  }, [activeTab, ticketsLoaded, users]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -376,8 +370,8 @@ export default function AdminDashboard() {
         cachedImageEntries = [];
       }
       const cacheByTicketId = new Map(cachedImageEntries.map((entry) => [entry.ticketId, entry]));
-
       const usersById = new Map((users || []).map((u) => [u.id, u]));
+
       const mappedTickets = ticketList.map((ticket) => {
         const reporter = usersById.get(ticket.userId);
         const ticketKey = ticket.ticketId || ticket.id;
@@ -439,8 +433,8 @@ export default function AdminDashboard() {
     setUpdating(userId);
     try {
       const res = await updateRole(userId, newRole);
-      setUsers(prev =>
-        prev.map(u =>
+      setUsers((prev) =>
+        prev.map((u) =>
           u.id === userId
             ? { ...u, role: res.data.role, mfaEnabled: res.data.mfaEnabled }
             : u
@@ -466,8 +460,8 @@ export default function AdminDashboard() {
     setUpdating(userId);
     try {
       const res = await toggleStatus(userId);
-      setUsers(prev =>
-        prev.map(u =>
+      setUsers((prev) =>
+        prev.map((u) =>
           u.id === userId ? { ...u, enabled: res.data.enabled } : u
         )
       );
@@ -496,7 +490,7 @@ export default function AdminDashboard() {
 
     try {
       await deleteUser(userId);
-      setUsers(prev => prev.filter(u => u.id !== userId));
+      setUsers((prev) => prev.filter((u) => u.id !== userId));
       showToast('User deleted successfully', 'success');
 
       const statsRes = await getStats();
@@ -513,7 +507,7 @@ export default function AdminDashboard() {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const filtered = users.filter(u => {
+  const filtered = users.filter((u) => {
     const matchSearch =
       u.name.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase());
@@ -529,7 +523,6 @@ export default function AdminDashboard() {
     .filter((u) => u.role === 'TECHNICIAN' && u.enabled)
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const handleLogout = () => { logout(); navigate('/'); };
   const handleLogoutClick = () => {
     setShowLogoutConfirm(true);
   };
@@ -570,9 +563,7 @@ export default function AdminDashboard() {
   };
 
   const handleTicketCommentsChange = (nextComments) => {
-    if (!selectedTicket) {
-      return;
-    }
+    if (!selectedTicket) return;
 
     setSelectedTicket((current) => (
       current ? { ...current, comments: nextComments } : current
@@ -642,13 +633,13 @@ export default function AdminDashboard() {
       setSelectedTicket((current) => (
         current
           ? {
-            ...current,
-            status: (updatedTicket.status || nextStatus || current.status || 'OPEN').toUpperCase(),
-            assignedTechnicianId: updatedTicket.assignedTechnicianId || '',
-            assignedTechnician: updatedTicket.assignedTechnicianName || current.assignedTechnician,
-            resolutionNotes: updatedTicket.resolutionNotes || '',
-            comments: Array.isArray(updatedTicket.comments) ? updatedTicket.comments : current.comments,
-          }
+              ...current,
+              status: (updatedTicket.status || nextStatus || current.status || 'OPEN').toUpperCase(),
+              assignedTechnicianId: updatedTicket.assignedTechnicianId || '',
+              assignedTechnician: updatedTicket.assignedTechnicianName || current.assignedTechnician,
+              resolutionNotes: updatedTicket.resolutionNotes || '',
+              comments: Array.isArray(updatedTicket.comments) ? updatedTicket.comments : current.comments,
+            }
           : current
       ));
 
@@ -764,7 +755,7 @@ export default function AdminDashboard() {
           onChange={(e) => setRoleFilter(e.target.value)}
         >
           <option value="ALL">All Roles</option>
-          {ROLES.map(r => (
+          {ROLES.map((r) => (
             <option key={r} value={r}>{r}</option>
           ))}
         </select>
@@ -876,7 +867,7 @@ export default function AdminDashboard() {
                       {u.role === 'ADMIN' ? (
                         <option value="ADMIN">ADMIN</option>
                       ) : (
-                        ['USER', 'TECHNICIAN', 'MANAGER'].map(r => (
+                        ['USER', 'TECHNICIAN', 'MANAGER'].map((r) => (
                           <option key={r} value={r}>{r}</option>
                         ))
                       )}
@@ -963,7 +954,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
       {userToDelete && (
         <div style={s.modalOverlay}>
           <div style={s.modalCard}>
@@ -1010,7 +1000,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Ticket Details Modal */}
       {selectedTicket && (
         <div style={s.modalOverlay}>
           <div style={s.ticketModalCard}>
@@ -1111,15 +1100,15 @@ export default function AdminDashboard() {
               </div>
 
               <label style={s.ticketField}>
-                      <span style={s.ticketFieldLabel}>
-                        {ticketDraft.status === 'REJECTED' ? 'Rejection Reason' : 'Resolution Notes / Comments'}
-                      </span>
+                <span style={s.ticketFieldLabel}>
+                  {ticketDraft.status === 'REJECTED' ? 'Rejection Reason' : 'Resolution Notes / Comments'}
+                </span>
                 <textarea
                   style={s.ticketTextarea}
                   value={ticketDraft.resolutionNotes}
-                        placeholder={ticketDraft.status === 'REJECTED'
-                          ? 'Explain why the ticket is being rejected'
-                          : 'Add resolution notes, updates, or technician comments'}
+                  placeholder={ticketDraft.status === 'REJECTED'
+                    ? 'Explain why the ticket is being rejected'
+                    : 'Add resolution notes, updates, or technician comments'}
                   onChange={(e) => setTicketDraft((prev) => ({ ...prev, resolutionNotes: e.target.value }))}
                 />
               </label>
@@ -1141,7 +1130,6 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* Sidebar Navigation */}
       <div style={s.sidebar}>
         <div style={s.brand}>
           <div style={s.brandLogo}>S</div>
@@ -1186,12 +1174,8 @@ export default function AdminDashboard() {
             </h1>
             <p style={s.headerSub}>Manage campus resources and users</p>
           </div>
-          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-            <span style={s.adminBadge}>{dashboardBadge}</span>
-            <span style={{ fontSize:14, color:'#64748b' }}>{user?.name}</span>
-            <button style={s.logoutBtn} onClick={handleLogout}>Logout</button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={s.adminBadge}>ADMIN</span>
+            <span style={s.adminBadge}>{dashboardBadge}</span>
             <span style={{ fontSize: 14, color: '#64748b' }}>{user?.name}</span>
             <button style={s.logoutBtn} onClick={handleLogoutClick}>
               Logout
@@ -1228,7 +1212,7 @@ export default function AdminDashboard() {
                   { label: 'Pending Approval', val: stats?.pendingBookings ?? '—', dot: '#f59e0b' },
                   { label: 'Active Today', val: stats?.activeToday ?? '—', dot: '#10b981' },
                   { label: 'Cancelled', val: stats?.cancelled ?? '—', dot: '#ef4444' },
-                ].map(st => (
+                ].map((st) => (
                   <div key={st.label} className="bm-stat">
                     <div className="bm-stat-val">{st.val}</div>
                     <div className="bm-stat-label">
@@ -1248,7 +1232,7 @@ export default function AdminDashboard() {
                       { key: 'PENDING', label: 'Pending', count: stats?.pendingBookings },
                       { key: 'APPROVED', label: 'Approved', count: stats?.approvedBookings },
                       { key: 'CANCELLED', label: 'Cancelled', count: stats?.cancelled },
-                    ].map(f => (
+                    ].map((f) => (
                       <button
                         key={f.key}
                         className={`bm-ftab ${bmFilter === f.key ? 'on' : ''}`}
@@ -1304,15 +1288,6 @@ export default function AdminDashboard() {
           )}
 
           {activeTab === 'tickets' && renderTicketsTab()}
-          {activeTab === 'tickets' && (
-            <div style={s.placeholderBox}>
-              <span style={{ fontSize: 40 }}>🎫</span>
-              <h3 style={{ margin: '10px 0 5px' }}>Tickets coming soon</h3>
-              <p style={{ margin: 0, color: '#64748b' }}>
-                Ticketing and support features will be available here.
-              </p>
-            </div>
-          )}
         </div>
       </div>
     </div>
@@ -1320,83 +1295,6 @@ export default function AdminDashboard() {
 }
 
 const s = {
-  layout:      { display:'flex', minHeight:'100vh', background:'#f8fafc' },
-  sidebar:     { width:260, background:'#0f172a', color:'#fff', display:'flex', flexDirection:'column', flexShrink:0 },
-  brand:       { padding:'24px 20px', borderBottom:'1px solid rgba(255,255,255,0.1)', display:'flex', alignItems:'center', gap:12 },
-  brandLogo:   { width:32, height:32, borderRadius:8, background:'linear-gradient(135deg, #6366f1, #06b6d4)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:700, fontSize:18 },
-  brandText:   { fontWeight:600, fontSize:16, letterSpacing:0.5 },
-  navGroup:    { display:'flex', flexDirection:'column', gap:4, padding:'20px 12px' },
-  navItem:     { background:'transparent', border:'none', color:'#94a3b8', padding:'12px 16px', textAlign:'left', borderRadius:8, fontSize:14, fontWeight:500, cursor:'pointer', transition:'all 0.2s', display:'flex', alignItems:'center', gap:10 },
-  navItemActive: { background:'rgba(99,102,241,0.15)', border:'none', color:'#818cf8', padding:'12px 16px', textAlign:'left', borderRadius:8, fontSize:14, fontWeight:600, cursor:'pointer', display:'flex', alignItems:'center', gap:10 },
-  mainContent: { flex:1, display:'flex', flexDirection:'column', minWidth:0 },
-  contentArea: { paddingBottom:'3rem', overflowX:'auto' },
-  placeholderBox:{ background:'#fff', margin:'2rem', padding:'4rem 2rem', borderRadius:16, textAlign:'center', border:'1px dashed #cbd5e1', color:'#475569'},
-  header:      { background:'#fff', borderBottom:'1px solid #e2e8f0', padding:'1.2rem 2rem', display:'flex', justifyContent:'space-between', alignItems:'center', position:'sticky', top:0, zIndex:10 },
-  headerTitle: { margin:0, fontSize:22, fontWeight:700, color:'#0f172a' },
-  headerSub:   { margin:'4px 0 0', fontSize:13, color:'#64748b' },
-  adminBadge:  { background:'#fef3c7', color:'#92400e', padding:'3px 10px', borderRadius:20, fontSize:12, fontWeight:600 },
-  logoutBtn:   { padding:'7px 16px', border:'1px solid #e2e8f0', borderRadius:8, background:'#fff', cursor:'pointer', fontSize:13, fontWeight:500 },
-  statsGrid:   { display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:12, padding:'1.5rem 2rem 0' },
-  statCard:    { background:'#fff', borderRadius:12, padding:'1.2rem', textAlign:'center', boxShadow:'0 1px 3px rgba(0,0,0,0.05)', border:'1px solid #f1f5f9' },
-  statNum:     { fontSize:28, fontWeight:700 },
-  statLabel:   { fontSize:12, color:'#64748b', marginTop:4, fontWeight:500 },
-  filterBar:   { display:'flex', alignItems:'center', gap:12, padding:'1.5rem 2rem 1rem', flexWrap:'wrap' },
-  searchInput: { flex:1, minWidth:200, padding:'9px 14px', border:'1px solid #e2e8f0', borderRadius:8, fontSize:14, outline:'none' },
-  filterSelect:{ padding:'9px 14px', border:'1px solid #e2e8f0', borderRadius:8, fontSize:14, outline:'none', background:'#fff', cursor:'pointer' },
-  resultCount: { fontSize:13, color:'#94a3b8', whiteSpace:'nowrap', fontWeight:500 },
-  tableWrap:   { margin:'0 2rem', background:'#fff', borderRadius:12, boxShadow:'0 1px 4px rgba(0,0,0,0.06)', overflow:'hidden', border:'1px solid #f1f5f9' },
-  table:       { width:'100%', borderCollapse:'collapse' },
-  thead:       { background:'#f8fafc' },
-  th:          { padding:'12px 16px', textAlign:'left', fontSize:12, fontWeight:600, color:'#64748b', textTransform:'uppercase', letterSpacing:.5, borderBottom:'1px solid #e2e8f0' },
-  tr:          { borderBottom:'1px solid #f1f5f9', transition:'background .15s' },
-  td:          { padding:'12px 16px', verticalAlign:'middle' },
-  nameCell:    { display:'flex', alignItems:'center', gap:10 },
-  avatar:      { width:36, height:36, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:600, fontSize:15, flexShrink:0 },
-  userName:    { fontSize:14, fontWeight:600, color:'#1e293b', display:'flex', alignItems:'center', gap:6 },
-  youBadge:    { background:'#ede9fe', color:'#6d28d9', fontSize:10, padding:'2px 8px', borderRadius:12, fontWeight:600 },
-  pill:        { padding:'4px 12px', borderRadius:20, fontSize:12, fontWeight:600 },
-  roleSelect:  { padding:'5px 10px', borderRadius:20, fontSize:12, fontWeight:600, border:'none', outline:'none' },
-  actionBtn:   { padding:'6px 14px', borderRadius:8, border:'none', fontSize:12, fontWeight:600, transition:'transform 0.1s' },
-  loadingBox:  { display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'4rem', gap:16 },
-  spinner:     { width:36, height:36, border:'3px solid #e2e8f0', borderTopColor:'#6366f1', borderRadius:'50%', animation:'spin .8s linear infinite' },
-  emptyBox:    { textAlign:'center', padding:'4rem', color:'#64748b', fontSize:15, background:'#f8fafc' },
-  toast:       { position:'fixed', top:24, right:24, color:'#fff', padding:'14px 24px', borderRadius:12, fontSize:14, fontWeight:600, zIndex:9999, boxShadow:'0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)' },
-  modalOverlay:{ position:'fixed', inset:0, background:'rgba(15,23,42,0.6)', backdropFilter:'blur(4px)', zIndex:1000, display:'flex', alignItems:'center', justifyContent:'center' },
-  modalCard:   { background:'#fff', borderRadius:20, padding:'2.5rem 2.5rem', width:'100%', maxWidth:400, textAlign:'center', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)' },
-  modalIcon:   { fontSize:48, marginBottom:16 },
-  modalTitle:  { margin:'0 0 12px', fontSize:22, color:'#0f172a', fontWeight:700 },
-  modalDest:   { margin:'0 0 32px', fontSize:14, color:'#64748b', lineHeight:1.6 },
-  modalActions:{ display:'flex', gap:12, justifyContent:'center' },
-  cancelBtn:   { padding:'12px 24px', borderRadius:10, border:'1px solid #e2e8f0', background:'#fff', color:'#475569', fontWeight:600, cursor:'pointer', fontSize:14, transition:'all 0.2s' },
-  confirmDeleteBtn: { padding:'12px 24px', borderRadius:10, border:'none', background:'#dc2626', color:'#fff', fontWeight:600, cursor:'pointer', fontSize:14, boxShadow:'0 4px 12px rgba(220,38,38,0.2)', transition:'all 0.2s' },
-  viewDetailsBtn: { padding:'7px 14px', borderRadius:8, border:'1px solid #c7d2fe', background:'#eef2ff', color:'#3730a3', fontSize:12, fontWeight:600, cursor:'pointer' },
-  ticketModalCard: { background:'#fff', borderRadius:16, width:'100%', maxWidth:980, maxHeight:'90vh', display:'flex', flexDirection:'column', boxShadow:'0 25px 50px -12px rgba(0,0,0,0.25)' },
-  ticketModalHeader: { display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, padding:'16px 20px', borderBottom:'1px solid #e2e8f0' },
-  ticketModalTitle: { margin:0, fontSize:20, fontWeight:700, color:'#0f172a' },
-  ticketModalSub: { margin:'4px 0 0', fontSize:13, color:'#64748b' },
-  ticketModalCloseBtn: { border:'1px solid #e2e8f0', background:'#f8fafc', color:'#334155', width:34, height:34, borderRadius:999, cursor:'pointer', fontSize:14, fontWeight:700 },
-  ticketModalBody: { padding:'16px 20px', overflowY:'auto', display:'flex', flexDirection:'column', gap:16 },
-  ticketInfoGrid: { display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(220px, 1fr))', gap:10 },
-  ticketInfoItem: { display:'flex', flexDirection:'column', gap:4, border:'1px solid #e2e8f0', borderRadius:8, padding:'10px 12px', fontSize:13, color:'#334155' },
-  ticketInfoLabel: { fontSize:11, textTransform:'uppercase', letterSpacing:0.4, color:'#64748b', fontWeight:600 },
-  ticketSection: { border:'1px solid #e2e8f0', borderRadius:10, padding:'12px 14px' },
-  ticketSectionTitle: { fontSize:13, fontWeight:700, color:'#1e293b', marginBottom:8 },
-  ticketDescription: { margin:0, fontSize:14, lineHeight:1.55, color:'#334155' },
-  evidenceGrid: { display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:10 },
-  evidenceImage: { width:'100%', height:150, objectFit:'cover', borderRadius:10, border:'1px solid #cbd5e1', background:'#f8fafc', cursor:'zoom-in' },
-  attachmentNamesWrap: { display:'flex', flexWrap:'wrap', gap:8 },
-  imageNameChip: { padding:'6px 10px', borderRadius:999, border:'1px solid #cbd5e1', background:'#f8fafc', fontSize:12, color:'#475569' },
-  noEvidenceBox: { background:'#f8fafc', border:'1px dashed #cbd5e1', borderRadius:8, padding:'12px', fontSize:13, color:'#64748b' },
-  previewOverlay: { position:'fixed', inset:0, background:'rgba(15,23,42,0.8)', zIndex:1100, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' },
-  previewModal: { position:'relative', maxWidth:'90vw', maxHeight:'90vh', display:'flex', alignItems:'center', justifyContent:'center' },
-  previewCloseButton: { position:'absolute', top:-12, right:-12, width:34, height:34, borderRadius:'50%', border:'none', background:'#fff', color:'#0f172a', fontSize:24, lineHeight:1, cursor:'pointer', boxShadow:'0 8px 20px rgba(0,0,0,0.25)' },
-  previewImage: { maxWidth:'90vw', maxHeight:'90vh', borderRadius:12, objectFit:'contain', boxShadow:'0 12px 32px rgba(0,0,0,0.4)' },
-  ticketFormGrid: { display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:12 },
-  ticketField: { display:'flex', flexDirection:'column', gap:8 },
-  ticketFieldLabel: { fontSize:12, color:'#475569', fontWeight:600 },
-  ticketTextarea: { minHeight:100, resize:'vertical', border:'1px solid #e2e8f0', borderRadius:8, padding:'10px 12px', fontSize:14, color:'#1e293b', outline:'none' },
-  ticketModalFooter: { padding:'14px 20px', borderTop:'1px solid #e2e8f0', display:'flex', justifyContent:'flex-end', gap:10 },
-  saveTicketBtn: { padding:'12px 24px', borderRadius:10, border:'none', background:'#2563eb', color:'#fff', fontWeight:600, cursor:'pointer', fontSize:14, boxShadow:'0 4px 12px rgba(37,99,235,0.2)' },
   layout: { display: 'flex', minHeight: '100vh', background: '#f8fafc' },
   sidebar: {
     width: 260,
@@ -1686,5 +1584,166 @@ const s = {
     fontSize: 14,
     boxShadow: '0 4px 12px rgba(220,38,38,0.2)',
     transition: 'all 0.2s',
+  },
+  viewDetailsBtn: {
+    padding: '7px 14px',
+    borderRadius: 8,
+    border: '1px solid #c7d2fe',
+    background: '#eef2ff',
+    color: '#3730a3',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  ticketModalCard: {
+    background: '#fff',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 980,
+    maxHeight: '90vh',
+    display: 'flex',
+    flexDirection: 'column',
+    boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+  },
+  ticketModalHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: '16px 20px',
+    borderBottom: '1px solid #e2e8f0',
+  },
+  ticketModalTitle: { margin: 0, fontSize: 20, fontWeight: 700, color: '#0f172a' },
+  ticketModalSub: { margin: '4px 0 0', fontSize: 13, color: '#64748b' },
+  ticketModalCloseBtn: {
+    border: '1px solid #e2e8f0',
+    background: '#f8fafc',
+    color: '#334155',
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    cursor: 'pointer',
+    fontSize: 14,
+    fontWeight: 700,
+  },
+  ticketModalBody: {
+    padding: '16px 20px',
+    overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
+  },
+  ticketInfoGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 },
+  ticketInfoItem: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    border: '1px solid #e2e8f0',
+    borderRadius: 8,
+    padding: '10px 12px',
+    fontSize: 13,
+    color: '#334155',
+  },
+  ticketInfoLabel: { fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.4, color: '#64748b', fontWeight: 600 },
+  ticketSection: { border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 14px' },
+  ticketSectionTitle: { fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 8 },
+  ticketDescription: { margin: 0, fontSize: 14, lineHeight: 1.55, color: '#334155' },
+  evidenceGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10 },
+  evidenceImage: {
+    width: '100%',
+    height: 150,
+    objectFit: 'cover',
+    borderRadius: 10,
+    border: '1px solid #cbd5e1',
+    background: '#f8fafc',
+    cursor: 'zoom-in',
+  },
+  attachmentNamesWrap: { display: 'flex', flexWrap: 'wrap', gap: 8 },
+  imageNameChip: {
+    padding: '6px 10px',
+    borderRadius: 999,
+    border: '1px solid #cbd5e1',
+    background: '#f8fafc',
+    fontSize: 12,
+    color: '#475569',
+  },
+  noEvidenceBox: {
+    background: '#f8fafc',
+    border: '1px dashed #cbd5e1',
+    borderRadius: 8,
+    padding: '12px',
+    fontSize: 13,
+    color: '#64748b',
+  },
+  previewOverlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(15,23,42,0.8)',
+    zIndex: 1100,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '20px',
+  },
+  previewModal: {
+    position: 'relative',
+    maxWidth: '90vw',
+    maxHeight: '90vh',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewCloseButton: {
+    position: 'absolute',
+    top: -12,
+    right: -12,
+    width: 34,
+    height: 34,
+    borderRadius: '50%',
+    border: 'none',
+    background: '#fff',
+    color: '#0f172a',
+    fontSize: 24,
+    lineHeight: 1,
+    cursor: 'pointer',
+    boxShadow: '0 8px 20px rgba(0,0,0,0.25)',
+  },
+  previewImage: {
+    maxWidth: '90vw',
+    maxHeight: '90vh',
+    borderRadius: 12,
+    objectFit: 'contain',
+    boxShadow: '0 12px 32px rgba(0,0,0,0.4)',
+  },
+  ticketFormGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 },
+  ticketField: { display: 'flex', flexDirection: 'column', gap: 8 },
+  ticketFieldLabel: { fontSize: 12, color: '#475569', fontWeight: 600 },
+  ticketTextarea: {
+    minHeight: 100,
+    resize: 'vertical',
+    border: '1px solid #e2e8f0',
+    borderRadius: 8,
+    padding: '10px 12px',
+    fontSize: 14,
+    color: '#1e293b',
+    outline: 'none',
+  },
+  ticketModalFooter: {
+    padding: '14px 20px',
+    borderTop: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  saveTicketBtn: {
+    padding: '12px 24px',
+    borderRadius: 10,
+    border: 'none',
+    background: '#2563eb',
+    color: '#fff',
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontSize: 14,
+    boxShadow: '0 4px 12px rgba(37,99,235,0.2)',
   },
 };

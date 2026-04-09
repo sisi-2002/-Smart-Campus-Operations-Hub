@@ -378,10 +378,7 @@ const CreateBooking = () => {
       }
 
       const formatToUTC = (date) => {
-        return new Date(Date.UTC(
-          date.getFullYear(), date.getMonth(), date.getDate(),
-          date.getHours(), date.getMinutes(), date.getSeconds()
-        )).toISOString();
+        return date.toISOString();
       };
 
       const bookingData = {
@@ -389,7 +386,7 @@ const CreateBooking = () => {
         startTime: formatToUTC(startDate),
         endTime: formatToUTC(endDate),
         purpose: formData.purpose.trim(),
-        expectedAttendees: formData.expectedAttendees ? parseInt(formData.expectedAttendees) : 0,
+        expectedAttendees: formData.expectedAttendees ? parseInt(formData.expectedAttendees) : 1,
         specialRequests: formData.specialRequests || '',
       };
 

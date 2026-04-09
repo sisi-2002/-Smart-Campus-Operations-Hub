@@ -1,13 +1,16 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getIncidentTicket, getUserDashboardOverview, submitIncidentTicket, updateIncidentTicket } from '../api/userDashboardApi';
 import IncidentModal from '../components/IncidentModal';
 import TicketCommentsPanel from '../components/TicketCommentsPanel';
+import BookingList from '../components/Bookings/BookingList';
 
 const HIDDEN_TICKET_STORAGE_KEY = 'incidentTicketHiddenIds';
 
 export default function UserDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [editingTicket, setEditingTicket] = useState(null);
@@ -541,7 +544,12 @@ export default function UserDashboard() {
           <div style={s.quickActionsWrap}>
             <span style={s.quickActionsLabel}>Quick Actions</span>
             <div style={s.quickActionsBtns}>
-              <button style={s.primaryBtn}>+ Book Resource</button>
+              <button 
+                style={s.primaryBtn} 
+                onClick={() => navigate('/create-booking')}
+              >
+                Book Resource
+              </button>
               <button style={s.dangerBtn} onClick={openCreateIncidentModal}>
                 Report Incident
               </button>
@@ -557,10 +565,7 @@ export default function UserDashboard() {
             <>
               {activeTab === 'dashboard' && renderDashboardTab()}
               {activeTab === 'bookings' && (
-                <div style={s.tableWrap}>
-                  <div style={s.sectionHeader}>My Bookings</div>
-                  <div style={s.emptyState}>Booking details will appear here. Use the dashboard tab for the summary view.</div>
-                </div>
+                <BookingList isAdmin={false} />
               )}
               {activeTab === 'catalogue' && (
                 <div style={s.tableWrap}>
