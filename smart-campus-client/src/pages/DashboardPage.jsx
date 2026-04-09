@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -8,7 +8,9 @@ export default function DashboardPage() {
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  const handleLogoutClick = () => { setShowLogoutConfirm(true); };
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+  };
 
   const confirmLogout = () => {
     setShowLogoutConfirm(false);
@@ -16,9 +18,26 @@ export default function DashboardPage() {
     navigate('/');
   };
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    if (!document.querySelector('#dashboard-hover-styles')) {
+      const styleTag = document.createElement('style');
+      styleTag.id = 'dashboard-hover-styles';
+      styleTag.textContent = `
+        button:hover {
+          transform: translateY(-1px);
+        }
+        [data-card-hover="true"]:hover {
+          transform: translateY(-2px);
+        }
+      `;
+      document.head.appendChild(styleTag);
+    }
+  }, []);
+
   return (
     <div style={styles.page}>
-      {/* Animated Tech Background */}
       <div style={styles.bgCanvas}>
         <div style={styles.glowOrb1} />
         <div style={styles.glowOrb2} />
@@ -32,13 +51,14 @@ export default function DashboardPage() {
               <stop offset="100%" stopColor="#4f46e5" stopOpacity="0.2" />
             </linearGradient>
             <filter id="glow">
-              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feGaussianBlur stdDeviation="3" result="coloredBlur" />
               <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
               </feMerge>
             </filter>
           </defs>
+
           {[
             { x1: 200, y1: 250, x2: 500, y2: 180 },
             { x1: 500, y1: 180, x2: 850, y2: 300 },
@@ -49,8 +69,18 @@ export default function DashboardPage() {
             { x1: 1050, y1: 480, x2: 1200, y2: 350 },
             { x1: 500, y1: 180, x2: 700, y2: 550 },
           ].map((line, idx) => (
-            <line key={`line-${idx}`} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke="url(#lineGrad)" strokeWidth="1.5" strokeDasharray="6 6" />
+            <line
+              key={`line-${idx}`}
+              x1={line.x1}
+              y1={line.y1}
+              x2={line.x2}
+              y2={line.y2}
+              stroke="url(#lineGrad)"
+              strokeWidth="1.5"
+              strokeDasharray="6 6"
+            />
           ))}
+
           <g filter="url(#glow)">
             <circle cx="200" cy="250" r="14" fill="#4f46e5" opacity="0.7" />
             <circle cx="500" cy="180" r="12" fill="#06b6d4" opacity="0.7" />
@@ -62,58 +92,82 @@ export default function DashboardPage() {
         </svg>
       </div>
 
-      {/* Main Content */}
       <div style={styles.content}>
-        {/* Header */}
         <div style={styles.header}>
           <div style={styles.logo}>
             <div style={styles.logoIcon}>
               <svg width="28" height="28" viewBox="0 0 32 32" fill="none">
-                <path d="M16 4L4 12L16 20L28 12L16 4Z" stroke="url(#logoGrad)" strokeWidth="2" fill="none"/>
-                <path d="M4 18L16 26L28 18" stroke="url(#logoGrad)" strokeWidth="2" fill="none"/>
-                <path d="M4 13L16 21L28 13" stroke="url(#logoGrad)" strokeWidth="2" fill="none"/>
+                <path d="M16 4L4 12L16 20L28 12L16 4Z" stroke="url(#logoGrad)" strokeWidth="2" fill="none" />
+                <path d="M4 18L16 26L28 18" stroke="url(#logoGrad)" strokeWidth="2" fill="none" />
+                <path d="M4 13L16 21L28 13" stroke="url(#logoGrad)" strokeWidth="2" fill="none" />
                 <defs>
                   <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stopColor="#6366f1"/>
-                    <stop offset="100%" stopColor="#06b6d4"/>
+                    <stop offset="0%" stopColor="#6366f1" />
+                    <stop offset="100%" stopColor="#06b6d4" />
                   </linearGradient>
                 </defs>
               </svg>
             </div>
-            <span>Smart<span style={{ background: 'linear-gradient(135deg, #6366f1, #06b6d4)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Campus</span></span>
+            <span>
+              Smart
+              <span
+                style={{
+                  background: 'linear-gradient(135deg, #6366f1, #06b6d4)',
+                  WebkitBackgroundClip: 'text',
+                  backgroundClip: 'text',
+                  color: 'transparent',
+                }}
+              >
+                Campus
+              </span>
+            </span>
           </div>
-          <button style={styles.logoutBtn} onClick={handleLogoutClick}>Logout</button>
+          <button style={styles.logoutBtn} onClick={handleLogoutClick}>
+            Logout
+          </button>
         </div>
 
-        {/* Welcome Card */}
         <div style={styles.card}>
-          <h3 style={{ marginTop: 0, marginBottom: '24px', fontSize: '1.5rem', fontWeight: 600 }}>Welcome, {user?.name} 👋</h3>
+          <h3 style={{ marginTop: 0, marginBottom: '24px', fontSize: '1.5rem', fontWeight: 600 }}>
+            Welcome, {user?.name} 👋
+          </h3>
+
           <div style={styles.row}>
             <span style={styles.label}>Email</span>
             <span style={styles.value}>{user?.email}</span>
           </div>
+
           <div style={styles.row}>
             <span style={styles.label}>Role</span>
-            <span style={{
-              ...styles.badge,
-              background: user?.role === 'ADMIN' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(99, 102, 241, 0.15)',
-              color: user?.role === 'ADMIN' ? '#fbbf24' : '#a5b4fc',
-              border: `1px solid ${user?.role === 'ADMIN' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(99, 102, 241, 0.3)'}`
-            }}>
+            <span
+              style={{
+                ...styles.badge,
+                background:
+                  user?.role === 'ADMIN'
+                    ? 'rgba(245, 158, 11, 0.15)'
+                    : 'rgba(99, 102, 241, 0.15)',
+                color: user?.role === 'ADMIN' ? '#fbbf24' : '#a5b4fc',
+                border: `1px solid ${
+                  user?.role === 'ADMIN'
+                    ? 'rgba(245, 158, 11, 0.3)'
+                    : 'rgba(99, 102, 241, 0.3)'
+                }`,
+              }}
+            >
               {user?.role}
             </span>
           </div>
+
           <div style={styles.row}>
             <span style={styles.label}>User ID</span>
             <span style={styles.userId}>{user?.id}</span>
           </div>
         </div>
 
-        {/* Booking Management Cards - This is what was missing */}
         <div style={styles.bookingGrid}>
-          {/* Create Booking Card */}
-          <div 
-            style={styles.bookingCard} 
+          <div
+            style={styles.bookingCard}
+            data-card-hover="true"
             onClick={() => navigate('/create-booking')}
             role="button"
             tabIndex={0}
@@ -129,9 +183,9 @@ export default function DashboardPage() {
             <div style={styles.arrowIcon}>→</div>
           </div>
 
-          {/* My Bookings Card */}
-          <div 
-            style={styles.bookingCard} 
+          <div
+            style={styles.bookingCard}
+            data-card-hover="true"
             onClick={() => navigate('/my-bookings')}
             role="button"
             tabIndex={0}
@@ -148,11 +202,11 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Admin Section (if admin) */}
         {isAdmin() && (
           <div style={styles.adminGrid}>
-            <div 
-              style={styles.adminCard} 
+            <div
+              style={styles.adminCard}
+              data-card-hover="true"
               onClick={() => navigate('/admin')}
               role="button"
               tabIndex={0}
@@ -168,8 +222,9 @@ export default function DashboardPage() {
               <div style={styles.arrowIcon}>→</div>
             </div>
 
-            <div 
-              style={styles.adminBookingCard} 
+            <div
+              style={styles.adminBookingCard}
+              data-card-hover="true"
               onClick={() => navigate('/admin/bookings')}
               role="button"
               tabIndex={0}
@@ -188,24 +243,24 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
         <div style={styles.modalOverlay}>
           <div style={styles.modalCard}>
             <div style={styles.modalIcon}>👋</div>
             <h3 style={styles.modalTitle}>Log Out</h3>
-            <p style={styles.modalDest}>
-              Are you sure you want to log out of your account?
-            </p>
+            <p style={styles.modalDest}>Are you sure you want to log out of your account?</p>
             <div style={styles.modalActions}>
-              <button style={styles.cancelBtn} onClick={() => setShowLogoutConfirm(false)}>No</button>
-              <button style={styles.confirmBtn} onClick={confirmLogout}>Yes</button>
+              <button style={styles.cancelBtn} onClick={() => setShowLogoutConfirm(false)}>
+                No
+              </button>
+              <button style={styles.confirmBtn} onClick={confirmLogout}>
+                Yes
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Inject Global Animations */}
       <style>{`
         @keyframes floatBG {
           0% { transform: translate(0, 0) scale(1); }
@@ -220,7 +275,6 @@ export default function DashboardPage() {
   );
 }
 
-// Modern Smart Campus Styles
 const styles = {
   page: {
     minHeight: '100vh',
@@ -241,7 +295,8 @@ const styles = {
     left: '-10%',
     width: '60%',
     height: '60%',
-    background: 'radial-gradient(circle, rgba(99,102,241,0.25) 0%, rgba(6,182,212,0.1) 50%, transparent 70%)',
+    background:
+      'radial-gradient(circle, rgba(99,102,241,0.25) 0%, rgba(6,182,212,0.1) 50%, transparent 70%)',
     borderRadius: '50%',
     filter: 'blur(80px)',
     animation: 'floatBG 15s ease-in-out infinite alternate',
@@ -252,7 +307,8 @@ const styles = {
     right: '-10%',
     width: '55%',
     height: '55%',
-    background: 'radial-gradient(circle, rgba(139,92,246,0.2) 0%, rgba(236,72,153,0.1) 50%, transparent 70%)',
+    background:
+      'radial-gradient(circle, rgba(139,92,246,0.2) 0%, rgba(236,72,153,0.1) 50%, transparent 70%)',
     borderRadius: '50%',
     filter: 'blur(80px)',
     animation: 'floatBG 18s ease-in-out infinite alternate-reverse',
@@ -260,7 +316,8 @@ const styles = {
   gridOverlay: {
     position: 'absolute',
     inset: 0,
-    backgroundImage: 'linear-gradient(rgba(51, 65, 85, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(51, 65, 85, 0.2) 1px, transparent 1px)',
+    backgroundImage:
+      'linear-gradient(rgba(51, 65, 85, 0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(51, 65, 85, 0.2) 1px, transparent 1px)',
     backgroundSize: '40px 40px',
     opacity: 0.5,
   },
@@ -378,11 +435,6 @@ const styles = {
     gap: '1rem',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
-    ':hover': {
-      transform: 'translateY(-2px)',
-      borderColor: 'rgba(99, 102, 241, 0.5)',
-      boxShadow: '0 10px 25px -5px rgba(0,0,0,0.2)',
-    }
   },
   bookingIcon: {
     fontSize: '2rem',
@@ -419,10 +471,6 @@ const styles = {
     gap: '1rem',
     cursor: 'pointer',
     transition: 'all 0.2s ease',
-    ':hover': {
-      transform: 'translateY(-2px)',
-      borderColor: 'rgba(245, 158, 11, 0.5)',
-    }
   },
   adminIcon: {
     fontSize: '2rem',
@@ -449,10 +497,6 @@ const styles = {
     gap: '1rem',
     cursor: 'pointer',
     transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-    ':hover': {
-      transform: 'translateY(-2px)',
-      borderColor: 'rgba(16, 185, 129, 0.5)',
-    }
   },
   adminBookingIcon: {
     fontSize: '2rem',
@@ -467,6 +511,7 @@ const styles = {
   adminBookingContent: {
     flex: 1,
     color: '#6ee7b7',
+  },
   modalOverlay: {
     position: 'fixed',
     inset: 0,
@@ -475,7 +520,7 @@ const styles = {
     zIndex: 1000,
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   modalCard: {
     background: '#1e293b',
@@ -485,28 +530,28 @@ const styles = {
     maxWidth: '400px',
     textAlign: 'center',
     boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
-    border: '1px solid rgba(255,255,255,0.1)'
+    border: '1px solid rgba(255,255,255,0.1)',
   },
   modalIcon: {
     fontSize: '48px',
-    marginBottom: '16px'
+    marginBottom: '16px',
   },
   modalTitle: {
     margin: '0 0 12px',
     fontSize: '22px',
     color: '#f8fafc',
-    fontWeight: 700
+    fontWeight: 700,
   },
   modalDest: {
     margin: '0 0 32px',
     fontSize: '14px',
     color: '#94a3b8',
-    lineHeight: 1.6
+    lineHeight: 1.6,
   },
   modalActions: {
     display: 'flex',
     gap: '12px',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   cancelBtn: {
     padding: '12px 24px',
@@ -517,7 +562,7 @@ const styles = {
     fontWeight: 600,
     cursor: 'pointer',
     fontSize: '14px',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
   },
   confirmBtn: {
     padding: '12px 24px',
@@ -529,23 +574,6 @@ const styles = {
     cursor: 'pointer',
     fontSize: '14px',
     boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)',
-    transition: 'all 0.2s'
+    transition: 'all 0.2s',
   },
 };
-
-// Add hover styles
-const styleTag = document.createElement('style');
-styleTag.textContent = `
-  button:hover {
-    transform: translateY(-1px);
-  }
-  [style*="bookingCard"]:hover,
-  [style*="adminCard"]:hover,
-  [style*="adminBookingCard"]:hover {
-    transform: translateY(-2px);
-  }
-`;
-if (!document.querySelector('#dashboard-hover-styles')) {
-  styleTag.id = 'dashboard-hover-styles';
-  document.head.appendChild(styleTag);
-}
