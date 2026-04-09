@@ -116,4 +116,23 @@ public class UserDashboardController {
 
         return ResponseEntity.status(401).body(Map.of("error", "Unknown authentication type"));
     }
+
+    @PatchMapping("/profile")
+    public ResponseEntity<?> updateProfile(
+            Authentication authentication,
+            @RequestBody Map<String, String> request
+    ) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        }
+
+        Object principal = authentication.getPrincipal();     
+        if (principal instanceof UserDetails userDetails) {
+            return ResponseEntity.ok(userDashboardService.updateProfile(userDetails.getUsername(), request));
+        }
+        if (principal instanceof OAuth2UserPrincipal oauth2User) {
+            return ResponseEntity.ok(userDashboardService.updateProfile(oauth2User.getUser().getEmail(), request));
+        }
+        return ResponseEntity.status(401).body(Map.of("error", "Unknown authentication type"));
+    }
 }

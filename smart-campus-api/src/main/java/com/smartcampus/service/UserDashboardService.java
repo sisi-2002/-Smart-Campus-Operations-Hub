@@ -114,6 +114,30 @@ public class UserDashboardService {
                                 .build();
                     }
 
+    public Map<String, String> updateProfile(String email, Map<String, String> request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        
+        if (request.containsKey("name")) {
+            user.setName(request.get("name"));
+        }
+        if (request.containsKey("email")) {
+            String newEmail = request.get("email");
+            if (!newEmail.equals(user.getEmail()) && userRepository.existsByEmail(newEmail)) {
+                throw new RuntimeException("Email already in use");
+            }
+            user.setEmail(newEmail);
+        }
+
+        userRepository.save(user);
+
+        return Map.of(
+            "message", "Profile updated successfully",
+            "name", user.getName(),
+            "email", user.getEmail()
+        );
+    }
+
     public UserDashboardResponse getOverview(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));

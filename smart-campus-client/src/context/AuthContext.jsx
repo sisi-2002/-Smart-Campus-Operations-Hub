@@ -42,7 +42,7 @@ export function AuthProvider({ children }) {
       return;
     }
 
-    window.location.href = '/auth?mode=login';
+    window.location.href = '/';
   }, []);
 
   const resetIdleTimer = useCallback(() => {

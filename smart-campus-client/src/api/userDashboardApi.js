@@ -7,3 +7,5 @@ export const getIncidentTicket = (ticketId) => api.get(`/dashboard/incidents/${t
 export const submitIncidentTicket = (payload) => api.post('/dashboard/incidents', payload);
 
 export const updateIncidentTicket = (ticketId, payload) => api.patch(`/dashboard/incidents/${ticketId}`, payload);
+
+export const updateUserProfile = (payload) => api.patch(`/dashboard/profile`, payload);

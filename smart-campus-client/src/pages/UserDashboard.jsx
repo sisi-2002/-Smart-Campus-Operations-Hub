@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getIncidentTicket, getUserDashboardOverview, submitIncidentTicket, updateIncidentTicket } from '../api/userDashboardApi';
+import { getIncidentTicket, getUserDashboardOverview, submitIncidentTicket, updateIncidentTicket, updateUserProfile } from '../api/userDashboardApi';
 import IncidentModal from '../components/IncidentModal';
 import TicketCommentsPanel from '../components/TicketCommentsPanel';
 import BookingList from '../components/Bookings/BookingList';
@@ -9,10 +9,13 @@ import BookingList from '../components/Bookings/BookingList';
 const HIDDEN_TICKET_STORAGE_KEY = 'incidentTicketHiddenIds';
 
 export default function UserDashboard() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [isEditingUser, setIsEditingUser] = useState(false);
+  const [editUserForm, setEditUserForm] = useState({ name: '', email: '' });
   const [editingTicket, setEditingTicket] = useState(null);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [expandedTicketId, setExpandedTicketId] = useState('');
@@ -155,11 +158,35 @@ export default function UserDashboard() {
     return {
       name: overview.user?.name || user?.name || 'User',
       email: overview.user?.email || user?.email || '-',
-      role: overview.user?.role || user?.role || '-',
       id: overview.user?.id || user?.id || '-',
       provider: overview.user?.provider || 'LOCAL',
     };
   }, [overview.user, user]);
+
+  const startEditingUser = () => {
+    setEditUserForm({
+      name: userDetails.name,
+      email: userDetails.email,
+    });
+    setIsEditingUser(true);
+  };
+
+  const saveUserDetails = async () => {
+    try {
+      await updateUserProfile(editUserForm);
+      setOverview(prev => ({
+        ...prev,
+        user: {
+          ...prev.user,
+          name: editUserForm.name,
+          email: editUserForm.email
+        }
+      }));
+      setIsEditingUser(false);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to update profile');
+    }
+  };
 
   const userStats = [
     { label: 'Upcoming Bookings', value: overview.stats.upcomingBookings, color: '#6366f1' },
@@ -230,13 +257,43 @@ export default function UserDashboard() {
   const renderDashboardTab = () => (
     <>
       <div style={s.userCard}>
-        <div style={s.userCardHeader}>User Details</div>
+        <div style={{ ...s.userCardHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>User Details</span>
+          {isEditingUser ? (
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button style={s.secondaryBtn} onClick={() => setIsEditingUser(false)}>Cancel</button>
+              <button style={s.primaryBtn} onClick={saveUserDetails}>Save</button>
+            </div>
+          ) : (
+            <button style={s.secondaryBtn} onClick={startEditingUser}>Edit Details</button>
+          )}
+        </div>
         <div style={s.userDetailsGrid}>
-          <div style={s.userDetailItem}><span style={s.detailLabel}>Name</span><span style={s.detailValue}>{userDetails.name}</span></div>
-          <div style={s.userDetailItem}><span style={s.detailLabel}>Email</span><span style={s.detailValue}>{userDetails.email}</span></div>
-          <div style={s.userDetailItem}><span style={s.detailLabel}>Role</span><span style={s.detailValue}>{userDetails.role}</span></div>
+          <div style={s.userDetailItem}>
+            <span style={s.detailLabel}>Name</span>
+            {isEditingUser ? (
+              <input 
+                value={editUserForm.name} 
+                onChange={e => setEditUserForm({ ...editUserForm, name: e.target.value })} 
+                style={s.profileInput} 
+              />
+            ) : (
+              <span style={s.detailValue}>{userDetails.name}</span>
+            )}
+          </div>
+          <div style={s.userDetailItem}>
+            <span style={s.detailLabel}>Email</span>
+            {isEditingUser ? (
+              <input 
+                value={editUserForm.email} 
+                onChange={e => setEditUserForm({ ...editUserForm, email: e.target.value })} 
+                style={s.profileInput} 
+              />
+            ) : (
+              <span style={s.detailValue}>{userDetails.email}</span>
+            )}
+          </div>
           <div style={s.userDetailItem}><span style={s.detailLabel}>Provider</span><span style={s.detailValue}>{userDetails.provider}</span></div>
-          <div style={s.userDetailItem}><span style={s.detailLabel}>User ID</span><span style={s.detailMono}>{userDetails.id}</span></div>
         </div>
       </div>
 
@@ -466,6 +523,29 @@ export default function UserDashboard() {
 
   return (
     <div style={s.layout}>
+      {showLogoutConfirm && (
+        <div style={s.previewOverlay}>
+          <div style={{ ...s.previewModal, background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', width: '320px', textAlign: 'center' }}>
+            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#0f172a' }}>Confirm Logout</h3>
+            <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#64748b' }}>Are you sure you want to log out?</p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              <button 
+                style={s.secondaryBtn} 
+                onClick={() => setShowLogoutConfirm(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                style={s.dangerBtn} 
+                onClick={() => logout()}
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <IncidentModal
         open={isIncidentModalOpen}
         onClose={closeIncidentModal}
@@ -552,6 +632,12 @@ export default function UserDashboard() {
               </button>
               <button style={s.dangerBtn} onClick={openCreateIncidentModal}>
                 Report Incident
+              </button>
+              <button 
+                style={{ ...s.dangerBtn, background: '#475569', boxShadow: 'none' }} 
+                onClick={() => setShowLogoutConfirm(true)}
+              >
+                Logout
               </button>
             </div>
           </div>
@@ -668,6 +754,24 @@ const s = {
     fontWeight: 700,
     cursor: 'pointer',
     boxShadow: '0 4px 12px rgba(220,38,38,0.2)',
+  },
+  secondaryBtn: {
+    padding: '7px 12px',
+    border: '1px solid #cbd5e1',
+    borderRadius: 8,
+    background: '#fff',
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  profileInput: {
+    padding: '6px 12px',
+    border: '1px solid #cbd5e1',
+    borderRadius: 6,
+    fontSize: 13,
+    width: '180px',
+    color: '#0f172a'
   },
   infoBanner: {
     margin: '1.25rem 2rem 0',
