@@ -2,8 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
+
 import DashboardPage from './pages/DashboardPage';
 import OAuth2CallbackPage from './pages/OAuth2CallbackPage';
 import AdminDashboard from './pages/AdminDashboard';
@@ -12,6 +11,7 @@ import CreateBooking from './components/Bookings/CreateBooking';
 import ResourceManagement from './components/Admin/ResourceManagement';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import ChatBot from './components/ChatBot';
+import AuthPage from './pages/AuthPage';
 
 function AppRoutes() {
   const { user } = useAuth();
@@ -21,8 +21,8 @@ function AppRoutes() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/auth" element={<AuthPage />} />
+
         <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
 

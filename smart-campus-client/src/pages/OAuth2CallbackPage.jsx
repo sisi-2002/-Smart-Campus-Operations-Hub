@@ -12,7 +12,7 @@ export default function OAuth2CallbackPage() {
     const token = searchParams.get('token');
 
     if (!token) {
-      navigate('/login?error=oauth2_failed');
+      navigate('/auth?mode=login&error=oauth2_failed');
       return;
     }
 
@@ -27,7 +27,7 @@ export default function OAuth2CallbackPage() {
       })
       .catch(() => {
         localStorage.removeItem('token');
-        navigate('/login?error=oauth2_failed');
+        navigate('/auth?mode=login&error=oauth2_failed');
       });
   }, []);
 

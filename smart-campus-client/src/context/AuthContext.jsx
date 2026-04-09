@@ -38,11 +38,11 @@ export function AuthProvider({ children }) {
     setUser(null);
 
     if (reason === 'idle') {
-      window.location.href = '/login?error=idle_timeout';
+      window.location.href = '/auth?mode=login&error=idle_timeout';
       return;
     }
 
-    window.location.href = '/login';
+    window.location.href = '/auth?mode=login';
   }, []);
 
   const resetIdleTimer = useCallback(() => {
