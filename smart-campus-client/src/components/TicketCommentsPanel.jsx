@@ -7,6 +7,13 @@ import {
 
 const STAFF_ROLES = new Set(['ADMIN', 'MANAGER', 'TECHNICIAN']);
 
+const ROLE_STYLE = {
+  ADMIN: { background: '#fef3c7', color: '#92400e' },
+  MANAGER: { background: '#f3e8ff', color: '#6b21a8' },
+  TECHNICIAN: { background: '#dbeafe', color: '#1e40af' },
+  USER: { background: '#dcfce7', color: '#166534' },
+};
+
 export default function TicketCommentsPanel({
   ticket,
   currentUser,
@@ -50,6 +57,7 @@ export default function TicketCommentsPanel({
 
   const canEdit = (comment) => comment?.authorUserId && comment.authorUserId === currentUser?.id;
   const canDelete = (comment) => canEdit(comment) || role === 'ADMIN' || role === 'MANAGER';
+  const replyingToComment = comments.find((item) => item.id === replyTo);
 
   const showError = (error) => {
     const apiMessage = typeof error?.response?.data === 'string'
@@ -151,14 +159,39 @@ export default function TicketCommentsPanel({
     return date.toLocaleString();
   };
 
+  const roleBadgeStyle = (authorRole) => ({
+    ...styles.roleBadge,
+    ...(ROLE_STYLE[(authorRole || '').toUpperCase()] || { background: '#e2e8f0', color: '#334155' }),
+  });
+
+  const initials = (name) => {
+    const raw = (name || 'U').trim();
+    if (!raw) {
+      return 'U';
+    }
+    const parts = raw.split(/\s+/).filter(Boolean);
+    if (parts.length === 1) {
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    return `${parts[0][0] || ''}${parts[1][0] || ''}`.toUpperCase();
+  };
+
   const renderComment = (comment, isReply = false) => (
     <div key={comment.id} style={{ ...styles.commentCard, ...(isReply ? styles.replyCard : null) }}>
       <div style={styles.commentHeader}>
-        <div>
-          <strong style={styles.authorName}>{comment.authorName || 'Unknown'}</strong>
-          <span style={styles.roleBadge}>{comment.authorRole || '-'}</span>
+        <div style={styles.authorWrap}>
+          <div style={styles.avatar}>{initials(comment.authorName)}</div>
+          <div>
+            <div style={styles.authorLine}>
+              <strong style={styles.authorName}>{comment.authorName || 'Unknown'}</strong>
+              <span style={roleBadgeStyle(comment.authorRole)}>{comment.authorRole || '-'}</span>
+              {comment.updatedAt && comment.createdAt && comment.updatedAt !== comment.createdAt && (
+                <span style={styles.editedPill}>edited</span>
+              )}
+            </div>
+            <div style={styles.metaText}>{commentTimestamp(comment.updatedAt || comment.createdAt)}</div>
+          </div>
         </div>
-        <span style={styles.metaText}>{commentTimestamp(comment.updatedAt || comment.createdAt)}</span>
       </div>
 
       {editingId === comment.id ? (
@@ -183,19 +216,19 @@ export default function TicketCommentsPanel({
 
       <div style={styles.rowBtns}>
         {isStaff && !isReply && (
-          <button type="button" style={styles.linkBtn} onClick={() => setReplyTo(comment.id)}>
+          <button type="button" style={styles.secondaryBtn} onClick={() => setReplyTo(comment.id)}>
             Reply
           </button>
         )}
         {canEdit(comment) && editingId !== comment.id && (
-          <button type="button" style={styles.linkBtn} onClick={() => startEdit(comment)}>
+          <button type="button" style={styles.secondaryBtn} onClick={() => startEdit(comment)}>
             Edit
           </button>
         )}
         {canDelete(comment) && (
           <button
             type="button"
-            style={styles.dangerLinkBtn}
+            style={styles.dangerBtn}
             onClick={() => removeComment(comment.id)}
             disabled={deletingId === comment.id}
           >
@@ -220,8 +253,11 @@ export default function TicketCommentsPanel({
       </div>
 
       {replyTo && (
-        <div style={styles.replyingTo}>Replying to staff thread
-          <button type="button" style={styles.clearReplyBtn} onClick={() => setReplyTo('')}>Clear</button>
+        <div style={styles.replyingTo}>
+          <span>
+            Replying to <strong>{replyingToComment?.authorName || 'comment'}</strong>
+          </span>
+          <button type="button" style={styles.clearReplyBtn} onClick={() => setReplyTo('')}>Cancel reply</button>
         </div>
       )}
 
@@ -231,6 +267,9 @@ export default function TicketCommentsPanel({
         placeholder={replyTo ? 'Write a reply...' : 'Add a comment about this ticket...'}
         onChange={(e) => setDraft(e.target.value)}
       />
+      <div style={styles.composerMeta}>
+        <span>{draft.trim().length} chars</span>
+      </div>
       <div style={styles.rowBtns}>
         <button type="button" style={styles.primaryBtn} onClick={submitComment} disabled={saving || !draft.trim()}>
           {saving ? 'Posting...' : 'Post Comment'}
@@ -243,55 +282,86 @@ export default function TicketCommentsPanel({
 const styles = {
   wrap: {
     border: '1px solid #e2e8f0',
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 14,
+    padding: 14,
     background: '#ffffff',
+    boxShadow: '0 8px 20px rgba(15, 23, 42, 0.04)',
   },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 700,
     color: '#1e293b',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   listWrap: {
     display: 'flex',
     flexDirection: 'column',
     gap: 10,
-    maxHeight: 240,
+    maxHeight: 280,
     overflowY: 'auto',
     paddingRight: 4,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   commentCard: {
     border: '1px solid #e2e8f0',
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 12,
+    padding: 12,
     background: '#f8fafc',
   },
   replyCard: {
-    marginTop: 8,
-    marginLeft: 18,
+    marginTop: 10,
+    marginLeft: 26,
     background: '#ffffff',
+    borderLeft: '3px solid #bfdbfe',
   },
   commentHeader: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: 8,
     marginBottom: 6,
+  },
+  authorWrap: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  avatar: {
+    width: 30,
+    height: 30,
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 11,
+    fontWeight: 700,
+    background: '#e2e8f0',
+    color: '#1e293b',
+    flexShrink: 0,
+  },
+  authorLine: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
   },
   authorName: {
     fontSize: 13,
     color: '#0f172a',
-    marginRight: 8,
   },
   roleBadge: {
     fontSize: 10,
     fontWeight: 700,
     borderRadius: 999,
+    padding: '2px 8px',
+  },
+  editedPill: {
+    fontSize: 10,
+    fontWeight: 600,
+    borderRadius: 999,
     padding: '2px 7px',
-    background: '#e2e8f0',
-    color: '#334155',
+    background: '#f1f5f9',
+    color: '#64748b',
   },
   metaText: {
     fontSize: 11,
@@ -307,21 +377,24 @@ const styles = {
     display: 'flex',
     gap: 8,
     alignItems: 'center',
+    flexWrap: 'wrap',
   },
-  linkBtn: {
-    border: 'none',
-    background: 'transparent',
-    color: '#2563eb',
-    padding: 0,
+  secondaryBtn: {
+    border: '1px solid #cbd5e1',
+    background: '#fff',
+    color: '#334155',
+    padding: '5px 10px',
+    borderRadius: 999,
     cursor: 'pointer',
     fontSize: 12,
     fontWeight: 600,
   },
-  dangerLinkBtn: {
-    border: 'none',
-    background: 'transparent',
+  dangerBtn: {
+    border: '1px solid #fecaca',
+    background: '#fff5f5',
     color: '#dc2626',
-    padding: 0,
+    padding: '5px 10px',
+    borderRadius: 999,
     cursor: 'pointer',
     fontSize: 12,
     fontWeight: 600,
@@ -339,9 +412,16 @@ const styles = {
     marginBottom: 8,
     boxSizing: 'border-box',
   },
+  composerMeta: {
+    marginTop: -4,
+    marginBottom: 8,
+    fontSize: 11,
+    color: '#64748b',
+    textAlign: 'right',
+  },
   primaryBtn: {
-    padding: '7px 12px',
-    borderRadius: 8,
+    padding: '8px 14px',
+    borderRadius: 10,
     border: 'none',
     background: '#2563eb',
     color: '#fff',
@@ -368,14 +448,20 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: 8,
-    color: '#0f172a',
+    color: '#1e293b',
     fontSize: 12,
     fontWeight: 600,
+    background: '#eff6ff',
+    border: '1px solid #bfdbfe',
+    borderRadius: 8,
+    padding: '8px 10px',
   },
   clearReplyBtn: {
-    border: 'none',
-    background: 'transparent',
-    color: '#2563eb',
+    border: '1px solid #bfdbfe',
+    background: '#fff',
+    color: '#1d4ed8',
+    borderRadius: 999,
+    padding: '4px 10px',
     cursor: 'pointer',
     fontWeight: 600,
     fontSize: 12,
