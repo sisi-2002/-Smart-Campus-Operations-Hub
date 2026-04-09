@@ -60,7 +60,8 @@ public class SecurityConfig {
                     "/login/oauth2/**",
                     "/error"
                 ).permitAll()
-                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "MANAGER")
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/chatbot/**").authenticated()  // ✅ logged in users only
                 .anyRequest().authenticated()
             )
             .formLogin(AbstractHttpConfigurer::disable)
