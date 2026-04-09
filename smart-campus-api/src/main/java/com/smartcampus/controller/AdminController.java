@@ -1,6 +1,7 @@
 package com.smartcampus.controller;
 
 import com.smartcampus.dto.request.UpdateRoleRequest;
+import com.smartcampus.dto.response.AdminIncidentTicketDto;
 import com.smartcampus.dto.response.UserSummaryDto;
 import com.smartcampus.service.AdminService;
 import jakarta.validation.Valid;
@@ -67,5 +68,11 @@ public class AdminController {
             "mfaEnabled", users.stream().filter(UserSummaryDto::isMfaEnabled).count(),
             "disabled",   users.stream().filter(u -> !u.isEnabled()).count()
         ));
+    }
+
+    // GET /api/admin/tickets — all incident tickets
+    @GetMapping("/tickets")
+    public ResponseEntity<List<AdminIncidentTicketDto>> getAllIncidentTickets() {
+        return ResponseEntity.ok(adminService.getAllIncidentTickets());
     }
 }

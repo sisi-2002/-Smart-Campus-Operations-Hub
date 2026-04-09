@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getAllUsers, getStats, updateRole, toggleStatus, deleteUser } from '../api/adminApi';
+import { getAllUsers, getStats, getIncidentTickets, updateRole, toggleStatus, deleteUser } from '../api/adminApi';
 
 const ROLES = ['USER', 'TECHNICIAN', 'MANAGER', 'ADMIN'];
 
@@ -23,58 +23,6 @@ const TICKET_STATUS_STYLE = {
   REJECTED: { background: '#f3e8ff', color: '#6b21a8' },
 };
 
-const MOCK_TICKETS = [
-  {
-    id: 'ticket-1',
-    ticketId: 'INC-A91F22C0',
-    resourceLocation: 'Computer Lab C',
-    category: 'Hardware',
-    priority: 'High',
-    status: 'OPEN',
-    description: 'Three PCs in row B fail to boot and show black screen after power outage.',
-    preferredContact: '0774960272',
-    reporterName: 'Samantha Perera',
-    reporterEmail: 'samantha@gmail.com',
-    assignedTechnician: 'Nimal Perera',
-    resolutionNotes: '',
-    imageAttachments: [
-      'https://picsum.photos/seed/inc-hub-1/480/320',
-      'https://picsum.photos/seed/inc-hub-2/480/320',
-      'https://picsum.photos/seed/inc-hub-3/480/320',
-    ],
-  },
-  {
-    id: 'ticket-2',
-    ticketId: 'INC-3571EE44',
-    resourceLocation: 'Meeting Room 3B',
-    category: 'Software',
-    priority: 'Medium',
-    status: 'IN_PROGRESS',
-    description: 'Smart display cannot connect to campus Wi-Fi for screen sharing.',
-    preferredContact: 'sachin@campus.edu',
-    reporterName: 'Sachin Fernando',
-    reporterEmail: 'sachin@campus.edu',
-    assignedTechnician: 'Ayesha Silva',
-    resolutionNotes: 'Investigating access point logs and firmware version.',
-    imageAttachments: [],
-  },
-  {
-    id: 'ticket-3',
-    ticketId: 'INC-73AB1092',
-    resourceLocation: 'Lab A',
-    category: 'Network',
-    priority: 'Low',
-    status: 'RESOLVED',
-    description: 'Intermittent packet loss during online lab sessions.',
-    preferredContact: '0712345678',
-    reporterName: 'Kamal Jayasuriya',
-    reporterEmail: 'kamal@campus.edu',
-    assignedTechnician: 'Dinesh Kumar',
-    resolutionNotes: 'Replaced faulty switch uplink cable and validated stability.',
-    imageAttachments: ['https://picsum.photos/seed/inc-hub-4/480/320'],
-  },
-];
-
 export default function AdminDashboard() {
   const { user, logout }      = useAuth();
   const navigate               = useNavigate();
@@ -88,7 +36,8 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab]   = useState('users');
   const [updating, setUpdating]     = useState(null); // userId being updated
   const [userToDelete, setUserToDelete] = useState(null); // Added for custom delete modal
-  const [tickets, setTickets] = useState(MOCK_TICKETS);
+  const [tickets, setTickets] = useState([]);
+  const [ticketsLoaded, setTicketsLoaded] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [ticketDraft, setTicketDraft] = useState({
     status: 'OPEN',
@@ -99,6 +48,12 @@ export default function AdminDashboard() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'tickets' && !ticketsLoaded) {
+      fetchTickets();
+    }
+  }, [activeTab, ticketsLoaded]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -113,6 +68,45 @@ export default function AdminDashboard() {
       showToast('Failed to load users', 'error');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchTickets = async () => {
+    try {
+      const ticketsRes = await getIncidentTickets();
+      const ticketList = Array.isArray(ticketsRes.data)
+        ? ticketsRes.data
+        : Array.isArray(ticketsRes.data?.data)
+          ? ticketsRes.data.data
+          : [];
+
+      const usersById = new Map((users || []).map((u) => [u.id, u]));
+      const mappedTickets = ticketList.map((ticket) => {
+        const reporter = usersById.get(ticket.userId);
+        return {
+          id: ticket.id,
+          ticketId: ticket.ticketId || ticket.id,
+          resourceLocation: ticket.location || '-',
+          category: ticket.category || '-',
+          priority: ticket.priority || '-',
+          status: (ticket.status || 'OPEN').toUpperCase(),
+          description: ticket.description || 'No description provided',
+          preferredContact: ticket.preferredContact || '-',
+          reporterName: reporter?.name || 'Unknown User',
+          reporterEmail: reporter?.email || '-',
+          assignedTechnician: '',
+          resolutionNotes: '',
+          imageAttachments: Array.isArray(ticket.imageDataUrls) ? ticket.imageDataUrls : [],
+        };
+      });
+
+      setTickets(mappedTickets);
+      setTicketsLoaded(true);
+    } catch (err) {
+      setTickets([]);
+      setTicketsLoaded(true);
+      const status = err?.response?.status;
+      showToast(status ? `Failed to load tickets (${status})` : 'Failed to load tickets', 'error');
     }
   };
 
