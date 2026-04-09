@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getAllUsers, getStats, getIncidentTickets, updateRole, toggleStatus, deleteUser } from '../api/adminApi';
+import { getAllUsers, getStats, getIncidentTickets, updateIncidentTicket, updateRole, toggleStatus, deleteUser } from '../api/adminApi';
 
 const ROLES = ['USER', 'TECHNICIAN', 'MANAGER', 'ADMIN'];
 
@@ -128,8 +128,9 @@ export default function AdminDashboard() {
           preferredContact: ticket.preferredContact || '-',
           reporterName: reporter?.name || 'Unknown User',
           reporterEmail: reporter?.email || '-',
-          assignedTechnician: '',
-          resolutionNotes: '',
+          assignedTechnicianId: ticket.assignedTechnicianId || '',
+          assignedTechnician: ticket.assignedTechnicianName || '',
+          resolutionNotes: ticket.resolutionNotes || '',
           imageAttachments,
           attachmentNames: mergedImageNames.filter((name) => !isRenderableImageSrc(name)),
         };
@@ -266,7 +267,7 @@ export default function AdminDashboard() {
     setSelectedTicket(ticket);
     setTicketDraft({
       status: ticket.status,
-      assignedTechnician: ticket.assignedTechnician || '',
+      assignedTechnician: ticket.assignedTechnicianId || '',
       resolutionNotes: ticket.resolutionNotes || '',
     });
   };
@@ -275,21 +276,35 @@ export default function AdminDashboard() {
     setSelectedTicket(null);
   };
 
-  const saveTicketUpdates = () => {
+  const saveTicketUpdates = async () => {
     if (!selectedTicket) return;
 
-    setTickets((prev) => prev.map((ticket) => (
-      ticket.id === selectedTicket.id
-        ? {
-            ...ticket,
-            status: ticketDraft.status,
-            assignedTechnician: ticketDraft.assignedTechnician,
-            resolutionNotes: ticketDraft.resolutionNotes,
-          }
-        : ticket
-    )));
-    showToast(`Ticket ${selectedTicket.ticketId} updated`, 'success');
-    closeTicketModal();
+    try {
+      const res = await updateIncidentTicket(selectedTicket.id, {
+        status: ticketDraft.status,
+        assignedTechnicianId: ticketDraft.assignedTechnician,
+        resolutionNotes: ticketDraft.resolutionNotes,
+      });
+
+      const updatedTicket = res.data;
+      setTickets((prev) => prev.map((ticket) => {
+        if (ticket.id !== selectedTicket.id) return ticket;
+
+        const selectedTech = users.find((u) => u.id === updatedTicket.assignedTechnicianId);
+        return {
+          ...ticket,
+          status: (updatedTicket.status || ticketDraft.status || ticket.status || 'OPEN').toUpperCase(),
+          assignedTechnicianId: updatedTicket.assignedTechnicianId || '',
+          assignedTechnician: updatedTicket.assignedTechnicianName || selectedTech?.name || '',
+          resolutionNotes: updatedTicket.resolutionNotes || '',
+        };
+      }));
+
+      showToast(`Ticket ${selectedTicket.ticketId} updated`, 'success');
+      closeTicketModal();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to update ticket', 'error');
+    }
   };
 
   const ticketSummary = {
@@ -661,7 +676,7 @@ export default function AdminDashboard() {
                       {availableTechnicians.length ? 'Select technician' : 'No technicians available'}
                     </option>
                     {availableTechnicians.map((tech) => (
-                      <option key={tech.id} value={tech.name}>
+                      <option key={tech.id} value={tech.id}>
                         {tech.name} ({tech.email})
                       </option>
                     ))}

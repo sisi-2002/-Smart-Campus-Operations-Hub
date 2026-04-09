@@ -1,6 +1,7 @@
 package com.smartcampus.controller;
 
 import com.smartcampus.dto.request.UpdateRoleRequest;
+import com.smartcampus.dto.request.UpdateIncidentTicketRequest;
 import com.smartcampus.dto.response.AdminIncidentTicketDto;
 import com.smartcampus.dto.response.UserSummaryDto;
 import com.smartcampus.service.AdminService;
@@ -74,5 +75,13 @@ public class AdminController {
     @GetMapping("/tickets")
     public ResponseEntity<List<AdminIncidentTicketDto>> getAllIncidentTickets() {
         return ResponseEntity.ok(adminService.getAllIncidentTickets());
+    }
+
+    // PATCH /api/admin/tickets/{ticketId} — update ticket status/assignment/notes
+    @PatchMapping("/tickets/{ticketId}")
+    public ResponseEntity<AdminIncidentTicketDto> updateIncidentTicket(
+            @PathVariable String ticketId,
+            @RequestBody UpdateIncidentTicketRequest request) {
+        return ResponseEntity.ok(adminService.updateIncidentTicket(ticketId, request));
     }
 }

@@ -41,11 +41,17 @@ export function AuthProvider({ children }) {
   };
 
   const isAdmin = () => user?.role === 'ADMIN';
+  const isTechnician = () => user?.role === 'TECHNICIAN';
+  const getDashboardPath = () => {
+    if (user?.role === 'ADMIN') return '/admin';
+    if (user?.role === 'TECHNICIAN') return '/technician';
+    return '/dashboard';
+  };
   const isAuthenticated = () => !!user;
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, logout, isAdmin, isAuthenticated }}>
+      value={{ user, loading, login, logout, isAdmin, isTechnician, getDashboardPath, isAuthenticated }}>
       {children}
     </AuthContext.Provider>
   );

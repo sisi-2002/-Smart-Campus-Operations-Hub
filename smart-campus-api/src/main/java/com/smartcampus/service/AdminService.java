@@ -1,6 +1,7 @@
 package com.smartcampus.service;
 
 import com.smartcampus.dto.request.UpdateRoleRequest;
+import com.smartcampus.dto.request.UpdateIncidentTicketRequest;
 import com.smartcampus.dto.response.AdminIncidentTicketDto;
 import com.smartcampus.dto.response.UserSummaryDto;
 import com.smartcampus.entity.IncidentTicket;
@@ -106,6 +107,42 @@ public class AdminService {
                 .toList();
     }
 
+    public AdminIncidentTicketDto updateIncidentTicket(String ticketId, UpdateIncidentTicketRequest request) {
+        IncidentTicket ticket = incidentTicketRepository.findById(ticketId)
+                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+
+        if (request.getStatus() != null && !request.getStatus().isBlank()) {
+            ticket.setStatus(request.getStatus().trim().toUpperCase());
+        }
+
+        if (request.getAssignedTechnicianId() != null) {
+            String technicianId = request.getAssignedTechnicianId().trim();
+            if (technicianId.isEmpty()) {
+                ticket.setAssignedTechnicianId(null);
+                ticket.setAssignedTechnicianName(null);
+            } else {
+                User technician = userRepository.findById(technicianId)
+                        .orElseThrow(() -> new RuntimeException("Technician not found"));
+                if (technician.getRole() != Role.TECHNICIAN) {
+                    throw new RuntimeException("Selected user is not a technician");
+                }
+                if (!technician.isEnabled()) {
+                    throw new RuntimeException("Selected technician account is disabled");
+                }
+                ticket.setAssignedTechnicianId(technician.getId());
+                ticket.setAssignedTechnicianName(technician.getName());
+            }
+        }
+
+        if (request.getResolutionNotes() != null) {
+            String notes = request.getResolutionNotes().trim();
+            ticket.setResolutionNotes(notes.isEmpty() ? null : notes);
+        }
+
+        IncidentTicket saved = incidentTicketRepository.save(ticket);
+        return toIncidentTicketDto(saved);
+    }
+
     // Helper
     private boolean isPrivileged(Role role) {
         return role == Role.ADMIN
@@ -140,6 +177,9 @@ public class AdminService {
                 .imageNames(ticket.getImageNames() == null ? List.of() : ticket.getImageNames())
                 .imageDataUrls(ticket.getImageDataUrls() == null ? List.of() : ticket.getImageDataUrls())
                 .status(ticket.getStatus())
+                .assignedTechnicianId(ticket.getAssignedTechnicianId())
+                .assignedTechnicianName(ticket.getAssignedTechnicianName())
+                .resolutionNotes(ticket.getResolutionNotes())
                 .createdAt(ticket.getCreatedAt())
                 .build();
     }

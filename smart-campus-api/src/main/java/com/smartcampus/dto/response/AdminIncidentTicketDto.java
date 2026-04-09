@@ -22,8 +22,13 @@ public class AdminIncidentTicketDto {
     private String priority;
     private String description;
     private String preferredContact;
+    private String reporterName;
+    private String reporterEmail;
     private List<String> imageNames;
     private List<String> imageDataUrls;
     private String status;
+    private String assignedTechnicianId;
+    private String assignedTechnicianName;
+    private String resolutionNotes;
     private LocalDateTime createdAt;
 }

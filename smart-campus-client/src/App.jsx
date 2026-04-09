@@ -7,6 +7,7 @@ import RegisterPage from './pages/RegisterPage';
 import UserDashboard from './pages/UserDashboard';
 import OAuth2CallbackPage from './pages/OAuth2CallbackPage';
 import AdminDashboard from './pages/AdminDashboard';      // ✅ Imported your new dashboard
+import TechnicianDashboard from './pages/TechnicianDashboard';
 
 export default function App() {
   return (
@@ -28,6 +29,12 @@ export default function App() {
           <Route path="/admin" element={
             <ProtectedRoute requiredRole="ADMIN">
               <AdminDashboard />
+            </ProtectedRoute>
+          } />
+
+          <Route path="/technician" element={
+            <ProtectedRoute requiredRole="TECHNICIAN">
+              <TechnicianDashboard />
             </ProtectedRoute>
           } />
 

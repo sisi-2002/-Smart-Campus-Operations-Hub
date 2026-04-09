@@ -40,6 +40,12 @@ public class IncidentTicket {
 
     private String status;
 
+    private String assignedTechnicianId;
+
+    private String assignedTechnicianName;
+
+    private String resolutionNotes;
+
     @CreatedDate
     private LocalDateTime createdAt;
 }

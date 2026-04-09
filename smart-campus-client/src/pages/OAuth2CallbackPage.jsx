@@ -23,7 +23,12 @@ export default function OAuth2CallbackPage() {
       .then((res) => {
         const { token: _, ...userData } = res.data;
         login(token, userData);
-        navigate('/');
+        const nextPath = userData.role === 'ADMIN'
+          ? '/admin'
+          : userData.role === 'TECHNICIAN'
+            ? '/technician'
+            : '/dashboard';
+        navigate(nextPath, { replace: true });
       })
       .catch(() => {
         localStorage.removeItem('token');
