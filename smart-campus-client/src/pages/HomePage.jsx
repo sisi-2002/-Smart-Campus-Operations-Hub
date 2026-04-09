@@ -6,6 +6,7 @@ export default function HomePage() {
   const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -13,7 +14,10 @@ export default function HomePage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => setShowLogoutConfirm(true);
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
     logout();
     navigate('/');
   };
@@ -68,7 +72,7 @@ export default function HomePage() {
                 <Link to={isAdmin() ? "/admin" : "/dashboard"} style={s.dashboardBtn}>
                   {isAdmin() ? "Admin Dashboard" : "User Dashboard"}
                 </Link>
-                <button onClick={handleLogout} style={s.ghostBtn}>Logout</button>
+                <button onClick={handleLogoutClick} style={s.ghostBtn}>Logout</button>
               </>
             )}
           </div>
@@ -399,6 +403,23 @@ export default function HomePage() {
           </div>
         </section>
       </main>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div style={s.modalOverlay}>
+          <div style={s.modalCard}>
+            <div style={s.modalIcon}>👋</div>
+            <h3 style={s.modalTitle}>Log Out</h3>
+            <p style={s.modalDest}>
+              Are you sure you want to log out of your account?
+            </p>
+            <div style={s.modalActions}>
+              <button style={s.cancelBtn} onClick={() => setShowLogoutConfirm(false)}>No</button>
+              <button style={s.confirmBtn} onClick={confirmLogout}>Yes</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer id="contact" style={s.footer}>
@@ -1127,6 +1148,72 @@ const s = {
     color: '#64748b',
     fontSize: 13,
     textAlign: 'center',
+  },
+  
+  // Modal styles
+  modalOverlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(15,23,42,0.6)',
+    backdropFilter: 'blur(4px)',
+    zIndex: 1000,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  modalCard: {
+    background: '#1e293b',
+    borderRadius: '20px',
+    padding: '2.5rem 2.5rem',
+    width: '100%',
+    maxWidth: '400px',
+    textAlign: 'center',
+    boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+    border: '1px solid rgba(255,255,255,0.1)'
+  },
+  modalIcon: {
+    fontSize: '48px',
+    marginBottom: '16px'
+  },
+  modalTitle: {
+    margin: '0 0 12px',
+    fontSize: '22px',
+    color: '#f8fafc',
+    fontWeight: 700
+  },
+  modalDest: {
+    margin: '0 0 32px',
+    fontSize: '14px',
+    color: '#94a3b8',
+    lineHeight: 1.6
+  },
+  modalActions: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'center'
+  },
+  cancelBtn: {
+    padding: '12px 24px',
+    borderRadius: '10px',
+    border: '1px solid #334155',
+    background: 'transparent',
+    color: '#cbd5e1',
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontSize: '14px',
+    transition: 'all 0.2s'
+  },
+  confirmBtn: {
+    padding: '12px 24px',
+    borderRadius: '10px',
+    border: 'none',
+    background: '#4f46e5',
+    color: '#fff',
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontSize: '14px',
+    boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)',
+    transition: 'all 0.2s'
   },
 };
 

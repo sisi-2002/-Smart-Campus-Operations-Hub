@@ -17,15 +17,26 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto logout if token expires
+// Global response handling
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
+    const status = error.response?.status;
+
+    // 🔴 401 → Not authenticated
+    if (status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login';
+      window.location.href = '/login?error=session_expired';
+      return Promise.reject(error);
     }
+
+    // 🔴 403 → Forbidden (NO logout)
+    if (status === 403) {
+      window.location.href = '/unauthorized';
+      return Promise.reject(error);
+    }
+
     return Promise.reject(error);
   }
 );
