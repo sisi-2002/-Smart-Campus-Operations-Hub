@@ -30,5 +30,6 @@ public class AdminIncidentTicketDto {
     private String assignedTechnicianId;
     private String assignedTechnicianName;
     private String resolutionNotes;
+    private List<TicketCommentDto> comments;
     private LocalDateTime createdAt;
 }

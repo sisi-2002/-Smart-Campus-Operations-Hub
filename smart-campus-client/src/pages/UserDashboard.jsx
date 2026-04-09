@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getUserDashboardOverview, submitIncidentTicket } from '../api/userDashboardApi';
 import IncidentModal from '../components/IncidentModal';
+import TicketCommentsPanel from '../components/TicketCommentsPanel';
 
 const HIDDEN_TICKET_STORAGE_KEY = 'incidentTicketHiddenIds';
 
@@ -10,6 +11,7 @@ export default function UserDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
+  const [expandedTicketId, setExpandedTicketId] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [hiddenTicketIds, setHiddenTicketIds] = useState(() => {
@@ -284,63 +286,104 @@ export default function UserDashboard() {
             const hasImageNamesOnly = ticketImages.length === 0 && (ticket.imageNames || []).length > 0;
             const normalizedStatus = (ticket.status || '').trim().toUpperCase();
             const canHide = ['RESOLVED', 'CLOSED', 'REJECTED'].includes(normalizedStatus);
+            const ticketKey = ticket.ticketId || ticket.id;
+            const isExpanded = expandedTicketId === ticketKey;
 
             return (
-            <tr key={ticket.id} style={s.tr}>
-              <td style={s.td}>
-                <div style={{ fontWeight: 600 }}>{ticket.ticketId || ticket.id}</div>
-              </td>
-              <td style={s.td}>{ticket.location || '-'}</td>
-              <td style={s.td}>{ticket.category || '-'}</td>
-              <td style={s.td}>
-                <div style={s.ticketImages}>
-                  {ticketImages.length > 0 ? (
-                    ticketImages.map((imageUrl, index) => (
-                      <img
-                        key={`${ticket.id}-${index}`}
-                        src={imageUrl}
-                        alt={`${ticket.ticketId || ticket.id} attachment ${index + 1}`}
-                        style={s.ticketThumbnail}
-                        onClick={() => setPreviewImageUrl(imageUrl)}
+              <Fragment key={ticket.id}>
+                <tr style={s.tr}>
+                  <td style={s.td}>
+                    <div style={{ fontWeight: 600 }}>{ticket.ticketId || ticket.id}</div>
+                  </td>
+                  <td style={s.td}>{ticket.location || '-'}</td>
+                  <td style={s.td}>{ticket.category || '-'}</td>
+                  <td style={s.td}>
+                    <div style={s.ticketImages}>
+                      {ticketImages.length > 0 ? (
+                        ticketImages.map((imageUrl, index) => (
+                          <img
+                            key={`${ticket.id}-${index}`}
+                            src={imageUrl}
+                            alt={`${ticket.ticketId || ticket.id} attachment ${index + 1}`}
+                            style={s.ticketThumbnail}
+                            onClick={() => setPreviewImageUrl(imageUrl)}
+                          />
+                        ))
+                      ) : hasImageNamesOnly ? (
+                        (ticket.imageNames || []).slice(0, 3).map((imageName) => (
+                          <span key={imageName} style={s.imageNameChip}>{imageName}</span>
+                        ))
+                      ) : (
+                        <span style={s.mutedText}>No images</span>
+                      )}
+                    </div>
+                  </td>
+                  <td style={s.td}>
+                    <span style={{ ...s.pill, ...getStatusPillStyle(ticket.status) }}>
+                      {ticket.status || 'Open'}
+                    </span>
+                  </td>
+                  <td style={s.td}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        style={s.actionBtn}
+                        onClick={() => setExpandedTicketId(isExpanded ? '' : ticketKey)}
+                      >
+                        {isExpanded ? 'Hide comments' : 'View comments'}
+                      </button>
+
+                      {canHide ? (
+                        <button
+                          type="button"
+                          style={{
+                            padding: '7px 12px',
+                            borderRadius: 8,
+                            border: '1px solid #cbd5e1',
+                            background: '#fff',
+                            color: '#334155',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => hideTicketFromView(ticket.ticketId || ticket.id)}
+                        >
+                          Remove from view
+                        </button>
+                      ) : (
+                        <span style={s.mutedText}>Visible to staff</span>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+
+                {isExpanded && (
+                  <tr style={s.tr}>
+                    <td style={s.td} colSpan={6}>
+                      <TicketCommentsPanel
+                        ticket={ticket}
+                        currentUser={userDetails}
+                        onCommentsChange={(nextComments) => {
+                          setOverview((prev) => ({
+                            ...prev,
+                            activeTickets: prev.activeTickets.map((item) => (
+                              (item.ticketId || item.id) === ticketKey
+                                ? { ...item, comments: nextComments }
+                                : item
+                            )),
+                            incidentTickets: prev.incidentTickets.map((item) => (
+                              (item.ticketId || item.id) === ticketKey
+                                ? { ...item, comments: nextComments }
+                                : item
+                            )),
+                          }));
+                        }}
+                        onError={(message) => setError(message || 'Failed to update comments')}
                       />
-                    ))
-                  ) : hasImageNamesOnly ? (
-                    (ticket.imageNames || []).slice(0, 3).map((imageName) => (
-                      <span key={imageName} style={s.imageNameChip}>{imageName}</span>
-                    ))
-                  ) : (
-                    <span style={s.mutedText}>No images</span>
-                  )}
-                </div>
-              </td>
-              <td style={s.td}>
-                <span style={{ ...s.pill, ...getStatusPillStyle(ticket.status) }}>
-                  {ticket.status || 'Open'}
-                </span>
-              </td>
-              <td style={s.td}>
-                {canHide ? (
-                  <button
-                    type="button"
-                    style={{
-                      padding: '7px 12px',
-                      borderRadius: 8,
-                      border: '1px solid #cbd5e1',
-                      background: '#fff',
-                      color: '#334155',
-                      fontSize: 12,
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                    onClick={() => hideTicketFromView(ticket.ticketId || ticket.id)}
-                  >
-                    Remove from view
-                  </button>
-                ) : (
-                  <span style={s.mutedText}>Visible to staff</span>
+                    </td>
+                  </tr>
                 )}
-              </td>
-            </tr>
+                </Fragment>
           )})}
         </tbody>
       </table>
@@ -658,6 +701,16 @@ const s = {
     background: '#f8fafc',
     boxShadow: '0 4px 14px rgba(15,23,42,0.08)',
     cursor: 'zoom-in',
+  },
+  actionBtn: {
+    padding: '7px 12px',
+    borderRadius: 8,
+    border: '1px solid #bfdbfe',
+    background: '#eff6ff',
+    color: '#1d4ed8',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
   },
   imageNameChip: {
     display: 'inline-flex',

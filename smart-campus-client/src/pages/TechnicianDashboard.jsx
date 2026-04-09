@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getTechnicianOverview, updateAssignedTicket } from '../api/technicianApi';
+import TicketCommentsPanel from '../components/TicketCommentsPanel';
 
 const STATUS_STYLE = {
   OPEN: { background: '#fee2e2', color: '#991b1b' },
@@ -71,6 +72,7 @@ export default function TechnicianDashboard() {
       return {
         ...ticket,
         status: (ticket.status || 'OPEN').toUpperCase(),
+        comments: Array.isArray(ticket.comments) ? ticket.comments : [],
         imageAttachments,
         attachmentNames: imageNames.filter((name) => !isRenderableImageSrc(name)),
       };
@@ -109,6 +111,22 @@ export default function TechnicianDashboard() {
 
   const closeTicket = () => setSelectedTicket(null);
 
+  const handleTicketCommentsChange = (nextComments) => {
+    if (!selectedTicket) {
+      return;
+    }
+
+    setSelectedTicket((current) => (current ? { ...current, comments: nextComments } : current));
+    setOverview((prev) => ({
+      ...prev,
+      assignedTickets: prev.assignedTickets.map((ticket) => (
+        ticket.id === selectedTicket.id
+          ? { ...ticket, comments: nextComments }
+          : ticket
+      )),
+    }));
+  };
+
   const saveTicket = async () => {
     if (!selectedTicket) return;
 
@@ -138,12 +156,24 @@ export default function TechnicianDashboard() {
         ...prev,
         assignedTickets: prev.assignedTickets.map((ticket) => (
           ticket.id === selectedTicket.id
-            ? { ...ticket, status: updated.status || ticketDraft.status, resolutionNotes: updated.resolutionNotes || '' }
+            ? {
+              ...ticket,
+              status: updated.status || ticketDraft.status,
+              resolutionNotes: updated.resolutionNotes || '',
+              comments: Array.isArray(updated.comments) ? updated.comments : ticket.comments,
+            }
             : ticket
         )),
       }));
 
-      setSelectedTicket((prev) => prev ? { ...prev, status: updated.status || ticketDraft.status, resolutionNotes: updated.resolutionNotes || '' } : prev);
+      setSelectedTicket((prev) => prev
+        ? {
+          ...prev,
+          status: updated.status || ticketDraft.status,
+          resolutionNotes: updated.resolutionNotes || '',
+          comments: Array.isArray(updated.comments) ? updated.comments : prev.comments,
+        }
+        : prev);
       showToast('Ticket updated', 'success');
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to update ticket', 'error');
@@ -243,6 +273,14 @@ export default function TechnicianDashboard() {
                   onChange={(e) => setTicketDraft((prev) => ({ ...prev, resolutionNotes: e.target.value }))}
                 />
               </label>
+
+              <TicketCommentsPanel
+                ticket={selectedTicket}
+                currentUser={user}
+                onCommentsChange={handleTicketCommentsChange}
+                onError={(message) => showToast(message, 'error')}
+                onSuccess={(message) => showToast(message, 'success')}
+              />
             </div>
 
             <div style={s.ticketModalFooter}>

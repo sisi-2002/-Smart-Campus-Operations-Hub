@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getAllUsers, getStats, getIncidentTickets, updateIncidentTicket, updateRole, toggleStatus, deleteUser } from '../api/adminApi';
+import TicketCommentsPanel from '../components/TicketCommentsPanel';
 
 const ROLES = ['USER', 'TECHNICIAN', 'MANAGER', 'ADMIN'];
 
@@ -131,6 +132,7 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
           assignedTechnicianId: ticket.assignedTechnicianId || '',
           assignedTechnician: ticket.assignedTechnicianName || '',
           resolutionNotes: ticket.resolutionNotes || '',
+          comments: Array.isArray(ticket.comments) ? ticket.comments : [],
           imageAttachments,
           attachmentNames: mergedImageNames.filter((name) => !isRenderableImageSrc(name)),
         };
@@ -279,10 +281,29 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
     setSelectedTicket(null);
   };
 
+  const handleTicketCommentsChange = (nextComments) => {
+    if (!selectedTicket) {
+      return;
+    }
+
+    setSelectedTicket((current) => (
+      current ? { ...current, comments: nextComments } : current
+    ));
+
+    setTickets((prev) => prev.map((ticket) => (
+      ticket.id === selectedTicket.id
+        ? { ...ticket, comments: nextComments }
+        : ticket
+    )));
+  };
+
   const saveTicketUpdates = async () => {
     if (!selectedTicket) return;
 
-    const nextStatus = ticketDraft.status;
+    const autoProgressStatus =
+      Boolean(ticketDraft.assignedTechnician) &&
+      (ticketDraft.status === 'OPEN' || ticketDraft.status === 'PENDING');
+    const nextStatus = autoProgressStatus ? 'IN_PROGRESS' : ticketDraft.status;
     const nextNotes = ticketDraft.resolutionNotes.trim();
     const existingNotes = (selectedTicket.resolutionNotes || '').trim();
     const effectiveNotes = nextNotes || existingNotes;
@@ -310,7 +331,7 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
       }
 
       const res = await updateIncidentTicket(updateKey, {
-        status: ticketDraft.status,
+        status: nextStatus,
         assignedTechnicianId: ticketDraft.assignedTechnician,
         resolutionNotes: ticketDraft.resolutionNotes,
       });
@@ -322,12 +343,26 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
         const selectedTech = users.find((u) => u.id === updatedTicket.assignedTechnicianId);
         return {
           ...ticket,
-          status: (updatedTicket.status || ticketDraft.status || ticket.status || 'OPEN').toUpperCase(),
+          status: (updatedTicket.status || nextStatus || ticket.status || 'OPEN').toUpperCase(),
           assignedTechnicianId: updatedTicket.assignedTechnicianId || '',
           assignedTechnician: updatedTicket.assignedTechnicianName || selectedTech?.name || '',
           resolutionNotes: updatedTicket.resolutionNotes || '',
+          comments: Array.isArray(updatedTicket.comments) ? updatedTicket.comments : ticket.comments,
         };
       }));
+
+      setSelectedTicket((current) => (
+        current
+          ? {
+            ...current,
+            status: (updatedTicket.status || nextStatus || current.status || 'OPEN').toUpperCase(),
+            assignedTechnicianId: updatedTicket.assignedTechnicianId || '',
+            assignedTechnician: updatedTicket.assignedTechnicianName || current.assignedTechnician,
+            resolutionNotes: updatedTicket.resolutionNotes || '',
+            comments: Array.isArray(updatedTicket.comments) ? updatedTicket.comments : current.comments,
+          }
+          : current
+      ));
 
       showToast(`Ticket ${selectedTicket.ticketId} updated`, 'success');
       closeTicketModal();
@@ -701,7 +736,19 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
                   <select
                     style={s.filterSelect}
                     value={ticketDraft.assignedTechnician}
-                    onChange={(e) => setTicketDraft((prev) => ({ ...prev, assignedTechnician: e.target.value }))}
+                    onChange={(e) => {
+                      const technicianId = e.target.value;
+                      setTicketDraft((prev) => {
+                        const shouldMoveToInProgress =
+                          Boolean(technicianId) &&
+                          (prev.status === 'OPEN' || prev.status === 'PENDING');
+                        return {
+                          ...prev,
+                          assignedTechnician: technicianId,
+                          status: shouldMoveToInProgress ? 'IN_PROGRESS' : prev.status,
+                        };
+                      });
+                    }}
                     disabled={!availableTechnicians.length}
                   >
                     <option value="">
@@ -729,6 +776,14 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
                   onChange={(e) => setTicketDraft((prev) => ({ ...prev, resolutionNotes: e.target.value }))}
                 />
               </label>
+
+              <TicketCommentsPanel
+                ticket={selectedTicket}
+                currentUser={user}
+                onCommentsChange={handleTicketCommentsChange}
+                onError={(message) => showToast(message, 'error')}
+                onSuccess={(message) => showToast(message, 'success')}
+              />
             </div>
 
             <div style={s.ticketModalFooter}>

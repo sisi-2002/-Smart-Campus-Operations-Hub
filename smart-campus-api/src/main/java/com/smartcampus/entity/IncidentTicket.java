@@ -38,6 +38,8 @@ public class IncidentTicket {
 
     private java.util.List<String> imageDataUrls;
 
+    private java.util.List<TicketComment> comments;
+
     private String status;
 
     private String assignedTechnicianId;

@@ -65,6 +65,7 @@ public class UserDashboardResponse {
         private String category;
         private List<String> imageNames;
         private List<String> imageDataUrls;
+        private List<TicketCommentDto> comments;
         private String status;
     }
 }

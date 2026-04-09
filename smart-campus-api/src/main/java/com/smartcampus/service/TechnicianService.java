@@ -2,6 +2,7 @@ package com.smartcampus.service;
 
 import com.smartcampus.dto.request.UpdateIncidentTicketRequest;
 import com.smartcampus.dto.response.AdminIncidentTicketDto;
+import com.smartcampus.dto.response.TicketCommentDto;
 import com.smartcampus.dto.response.TechnicianDashboardResponse;
 import com.smartcampus.entity.IncidentTicket;
 import com.smartcampus.entity.Role;
@@ -191,6 +192,7 @@ public class TechnicianService {
                 .assignedTechnicianId(ticket.getAssignedTechnicianId())
                 .assignedTechnicianName(ticket.getAssignedTechnicianName())
                 .resolutionNotes(ticket.getResolutionNotes())
+                                .comments(TicketCommentDto.fromList(ticket.getComments()))
                 .createdAt(ticket.getCreatedAt())
                 .build();
     }

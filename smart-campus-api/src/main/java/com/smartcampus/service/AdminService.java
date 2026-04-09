@@ -3,9 +3,11 @@ package com.smartcampus.service;
 import com.smartcampus.dto.request.UpdateRoleRequest;
 import com.smartcampus.dto.request.UpdateIncidentTicketRequest;
 import com.smartcampus.dto.response.AdminIncidentTicketDto;
+import com.smartcampus.dto.response.TicketCommentDto;
 import com.smartcampus.dto.response.UserSummaryDto;
 import com.smartcampus.entity.IncidentTicket;
 import com.smartcampus.entity.Role;
+import com.smartcampus.entity.TicketComment;
 import com.smartcampus.entity.User;
 import com.smartcampus.repository.IncidentTicketRepository;
 import com.smartcampus.repository.UserRepository;
@@ -173,6 +175,16 @@ public class AdminService {
             }
         }
 
+        String normalizedDraftStatus = normalizeStatus(ticket.getStatus());
+        boolean hasAssignedTechnician = trimToNull(ticket.getAssignedTechnicianId()) != null;
+        boolean requestWantsOpenLikeStatus = requestedStatus == null
+                || "OPEN".equalsIgnoreCase(requestedStatus)
+                || "PENDING".equalsIgnoreCase(requestedStatus);
+
+        if (hasAssignedTechnician && requestWantsOpenLikeStatus && isOpenLikeStatus(normalizedDraftStatus)) {
+            ticket.setStatus("IN_PROGRESS");
+        }
+
         if (request.getResolutionNotes() != null) {
             String notes = request.getResolutionNotes().trim();
             ticket.setResolutionNotes(notes.isEmpty() ? null : notes);
@@ -219,6 +231,7 @@ public class AdminService {
                 .assignedTechnicianId(ticket.getAssignedTechnicianId())
                 .assignedTechnicianName(ticket.getAssignedTechnicianName())
                 .resolutionNotes(ticket.getResolutionNotes())
+                .comments(TicketCommentDto.fromList(ticket.getComments()))
                 .createdAt(ticket.getCreatedAt())
                 .build();
     }
@@ -242,6 +255,7 @@ public class AdminService {
                 .assignedTechnicianId(safeString(doc.get("assignedTechnicianId")))
                 .assignedTechnicianName(safeString(doc.get("assignedTechnicianName")))
                 .resolutionNotes(safeString(doc.get("resolutionNotes")))
+                .comments(safeCommentList(doc.get("comments")))
                 .createdAt(safeDateTime(doc.get("createdAt")))
                 .build();
     }
@@ -265,6 +279,10 @@ public class AdminService {
     private String normalizeStatus(String status) {
         String normalized = trimToNull(status);
         return normalized == null ? "OPEN" : normalized.toUpperCase();
+    }
+
+    private boolean isOpenLikeStatus(String status) {
+        return "OPEN".equals(status) || "PENDING".equals(status);
     }
 
     private void validateAdminTransition(String currentStatus, String nextStatus) {
@@ -307,6 +325,28 @@ public class AdminService {
             return list.stream().map(item -> item == null ? null : String.valueOf(item)).filter(item -> item != null && !item.isBlank()).toList();
         }
         return List.of();
+    }
+
+    private List<TicketCommentDto> safeCommentList(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+
+        return list.stream()
+                .filter(item -> item instanceof Document)
+                .map(item -> (Document) item)
+                .map(doc -> TicketCommentDto.from(TicketComment.builder()
+                        .id(safeString(doc.get("id")))
+                        .parentCommentId(safeString(doc.get("parentCommentId")))
+                        .authorUserId(safeString(doc.get("authorUserId")))
+                        .authorName(safeString(doc.get("authorName")))
+                        .authorRole(safeString(doc.get("authorRole")))
+                        .message(safeString(doc.get("message")))
+                        .createdAt(safeDateTime(doc.get("createdAt")))
+                        .updatedAt(safeDateTime(doc.get("updatedAt")))
+                        .build()))
+                .filter(item -> item != null)
+                .toList();
     }
 
     private LocalDateTime safeDateTime(Object value) {

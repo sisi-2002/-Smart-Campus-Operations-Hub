@@ -1,6 +1,7 @@
 package com.smartcampus.service;
 
 import com.smartcampus.dto.request.CreateIncidentTicketRequest;
+import com.smartcampus.dto.response.TicketCommentDto;
 import com.smartcampus.dto.response.UserDashboardResponse;
 import com.smartcampus.entity.IncidentTicket;
 import com.smartcampus.entity.ResourceBooking;
@@ -41,6 +42,7 @@ public class UserDashboardService {
                 .preferredContact(trimToNull(request.getPreferredContact()))
                 .imageNames(request.getImageNames() == null ? List.of() : request.getImageNames())
                 .imageDataUrls(request.getImageDataUrls() == null ? List.of() : request.getImageDataUrls())
+                .comments(List.of())
                 .status("OPEN")
                 .build());
 
@@ -99,6 +101,7 @@ public class UserDashboardService {
                         .category(defaultValue(t.getCategory(), "-"))
                         .imageNames(t.getImageNames() == null ? List.of() : t.getImageNames())
                         .imageDataUrls(t.getImageDataUrls() == null ? List.of() : t.getImageDataUrls())
+                        .comments(TicketCommentDto.fromList(t.getComments()))
                         .status(defaultValue(t.getStatus(), "Open"))
                         .build())
                 .toList();
@@ -113,6 +116,7 @@ public class UserDashboardService {
                         .category(defaultValue(t.getCategory(), "-"))
                         .imageNames(t.getImageNames() == null ? List.of() : t.getImageNames())
                         .imageDataUrls(t.getImageDataUrls() == null ? List.of() : t.getImageDataUrls())
+                        .comments(TicketCommentDto.fromList(t.getComments()))
                         .status(defaultValue(t.getStatus(), "Open"))
                         .build())
                 .toList();
