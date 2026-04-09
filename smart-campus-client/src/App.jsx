@@ -6,32 +6,81 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import OAuth2CallbackPage from './pages/OAuth2CallbackPage';
-import AdminDashboard from './pages/AdminDashboard';      // ✅ Imported your new dashboard
+import AdminDashboard from './pages/AdminDashboard';
+// Import Booking Components
+import BookingList from './components/Bookings/BookingList';
+import CreateBooking from './components/Bookings/CreateBooking';
+import ResourceManagement from './components/Admin/ResourceManagement';
 
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Public */}
-          <Route path="/"                element={<HomePage />} />
-          <Route path="/login"           element={<LoginPage />} />
-          <Route path="/register"        element={<RegisterPage />} />
+          {/* Public Routes */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
           <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
 
-          {/* Protected - any logged in user */}
-          <Route path="/dashboard" element={
-            <ProtectedRoute><DashboardPage /></ProtectedRoute>
-          } />
+          {/* Protected Routes - Any authenticated user */}
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            } 
+          />
 
-          {/* ✅ Admin only - Updated to use the actual component */}
-          <Route path="/admin" element={
-            <ProtectedRoute requiredRole="ADMIN">
-              <AdminDashboard />
-            </ProtectedRoute>
-          } />
+          {/* Booking Routes - Any authenticated user */}
+          <Route 
+            path="/create-booking" 
+            element={
+              <ProtectedRoute>
+                <CreateBooking />
+              </ProtectedRoute>
+            } 
+          />
 
-          {/* Redirects */}
+          <Route 
+            path="/my-bookings" 
+            element={
+              <ProtectedRoute>
+                <BookingList isAdmin={false} />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Admin Routes - ADMIN only */}
+          <Route 
+            path="/admin" 
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <AdminDashboard />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/admin/resources" 
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <ResourceManagement />
+              </ProtectedRoute>
+            } 
+          />
+
+          <Route 
+            path="/admin/bookings" 
+            element={
+              <ProtectedRoute requiredRole="ADMIN">
+                <BookingList isAdmin={true} />
+              </ProtectedRoute>
+            } 
+          />
+
+          {/* Redirect all unknown routes to home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </BrowserRouter>
