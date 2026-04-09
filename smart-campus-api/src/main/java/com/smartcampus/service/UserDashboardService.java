@@ -142,7 +142,7 @@ public class UserDashboardService {
             return true;
         }
         String normalized = status.trim().toUpperCase();
-        return !"RESOLVED".equals(normalized) && !"CLOSED".equals(normalized);
+                return !"RESOLVED".equals(normalized) && !"CLOSED".equals(normalized) && !"REJECTED".equals(normalized);
     }
 
     private boolean equalsIgnoreCase(String a, String b) {

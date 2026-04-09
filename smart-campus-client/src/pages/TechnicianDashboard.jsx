@@ -85,10 +85,47 @@ export default function TechnicianDashboard() {
     });
   };
 
+  const getAllowedStatusOptions = (currentStatus) => {
+    const normalized = (currentStatus || 'OPEN').trim().toUpperCase();
+
+    if (normalized === 'OPEN' || normalized === 'PENDING') {
+      return ['OPEN', 'IN_PROGRESS'];
+    }
+
+    if (normalized === 'IN_PROGRESS') {
+      return ['IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+    }
+
+    if (normalized === 'RESOLVED') {
+      return ['RESOLVED', 'CLOSED'];
+    }
+
+    if (normalized === 'CLOSED') {
+      return ['CLOSED'];
+    }
+
+    return ['REJECTED'];
+  };
+
   const closeTicket = () => setSelectedTicket(null);
 
   const saveTicket = async () => {
     if (!selectedTicket) return;
+
+    const nextStatus = ticketDraft.status;
+    const nextNotes = ticketDraft.resolutionNotes.trim();
+    const existingNotes = (selectedTicket.resolutionNotes || '').trim();
+    const effectiveNotes = nextNotes || existingNotes;
+
+    if (nextStatus === 'RESOLVED' && !nextNotes) {
+      showToast('Resolution notes are required before marking a ticket as resolved', 'error');
+      return;
+    }
+
+    if (nextStatus === 'CLOSED' && selectedTicket.status !== 'CLOSED' && !effectiveNotes) {
+      showToast('Resolution notes are required before closing a ticket', 'error');
+      return;
+    }
 
     try {
       const res = await updateAssignedTicket(selectedTicket.id, {
@@ -188,10 +225,9 @@ export default function TechnicianDashboard() {
                     value={ticketDraft.status}
                     onChange={(e) => setTicketDraft((prev) => ({ ...prev, status: e.target.value }))}
                   >
-                    <option value="OPEN">OPEN</option>
-                    <option value="IN_PROGRESS">IN_PROGRESS</option>
-                    <option value="RESOLVED">RESOLVED</option>
-                    <option value="CLOSED">CLOSED</option>
+                    {getAllowedStatusOptions(selectedTicket.status).map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
                   </select>
                 </label>
               </div>
@@ -201,7 +237,9 @@ export default function TechnicianDashboard() {
                 <textarea
                   style={s.ticketTextarea}
                   value={ticketDraft.resolutionNotes}
-                  placeholder="Add resolution notes, updates, or technician comments"
+                  placeholder={ticketDraft.status === 'RESOLVED' || ticketDraft.status === 'CLOSED'
+                    ? 'Add the fix, steps taken, or confirmation notes'
+                    : 'Add progress updates or technician comments'}
                   onChange={(e) => setTicketDraft((prev) => ({ ...prev, resolutionNotes: e.target.value }))}
                 />
               </label>

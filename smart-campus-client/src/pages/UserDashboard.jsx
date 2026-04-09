@@ -3,6 +3,8 @@ import { useAuth } from '../context/AuthContext';
 import { getUserDashboardOverview, submitIncidentTicket } from '../api/userDashboardApi';
 import IncidentModal from '../components/IncidentModal';
 
+const HIDDEN_TICKET_STORAGE_KEY = 'incidentTicketHiddenIds';
+
 export default function UserDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -10,6 +12,13 @@ export default function UserDashboard() {
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [hiddenTicketIds, setHiddenTicketIds] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(HIDDEN_TICKET_STORAGE_KEY) || '[]');
+    } catch {
+      return [];
+    }
+  });
   const [overview, setOverview] = useState({
     user: null,
     stats: {
@@ -33,6 +42,18 @@ export default function UserDashboard() {
 
   const setCachedIncidentImages = (entries) => {
     localStorage.setItem('incidentTicketImageCache', JSON.stringify(entries));
+  };
+
+  const hideTicketFromView = (ticketId) => {
+    if (!ticketId) {
+      return;
+    }
+
+    setHiddenTicketIds((current) => {
+      const next = Array.from(new Set([...current, ticketId]));
+      localStorage.setItem(HIDDEN_TICKET_STORAGE_KEY, JSON.stringify(next));
+      return next;
+    });
   };
 
   const mergeCachedImages = (tickets) => {
@@ -128,6 +149,9 @@ export default function UserDashboard() {
     if (normalized === 'CONFIRMED' || normalized === 'RESOLVED') {
       return { background: '#dcfce7', color: '#166534' };
     }
+    if (normalized === 'REJECTED') {
+      return { background: '#f3e8ff', color: '#6b21a8' };
+    }
     if (normalized === 'PENDING' || normalized === 'OPEN') {
       return { background: '#fef3c7', color: '#92400e' };
     }
@@ -137,6 +161,11 @@ export default function UserDashboard() {
   const ticketsForMyTickets = overview.incidentTickets.length > 0
     ? overview.incidentTickets
     : overview.activeTickets;
+
+  const visibleTicketsForMyTickets = ticketsForMyTickets.filter((ticket) => {
+    const ticketKey = ticket.ticketId || ticket.id;
+    return ticketKey && !hiddenTicketIds.includes(ticketKey);
+  });
 
   const renderDashboardTab = () => (
     <>
@@ -241,17 +270,20 @@ export default function UserDashboard() {
             <th style={s.th}>Category</th>
             <th style={s.th}>Pictures</th>
             <th style={s.th}>Status</th>
+                <th style={s.th}>Actions</th>
           </tr>
         </thead>
         <tbody>
-          {ticketsForMyTickets.length === 0 && (
+          {visibleTicketsForMyTickets.length === 0 && (
             <tr style={s.tr}>
-              <td style={s.emptyTd} colSpan={5}>No incident reports found in database.</td>
+              <td style={s.emptyTd} colSpan={6}>No incident reports found in database.</td>
             </tr>
           )}
-          {ticketsForMyTickets.map((ticket) => {
+          {visibleTicketsForMyTickets.map((ticket) => {
             const ticketImages = (ticket.imageDataUrls || []).slice(0, 3);
             const hasImageNamesOnly = ticketImages.length === 0 && (ticket.imageNames || []).length > 0;
+            const normalizedStatus = (ticket.status || '').trim().toUpperCase();
+            const canHide = ['RESOLVED', 'CLOSED', 'REJECTED'].includes(normalizedStatus);
 
             return (
             <tr key={ticket.id} style={s.tr}>
@@ -285,6 +317,28 @@ export default function UserDashboard() {
                 <span style={{ ...s.pill, ...getStatusPillStyle(ticket.status) }}>
                   {ticket.status || 'Open'}
                 </span>
+              </td>
+              <td style={s.td}>
+                {canHide ? (
+                  <button
+                    type="button"
+                    style={{
+                      padding: '7px 12px',
+                      borderRadius: 8,
+                      border: '1px solid #cbd5e1',
+                      background: '#fff',
+                      color: '#334155',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => hideTicketFromView(ticket.ticketId || ticket.id)}
+                  >
+                    Remove from view
+                  </button>
+                ) : (
+                  <span style={s.mutedText}>Visible to staff</span>
+                )}
               </td>
             </tr>
           )})}

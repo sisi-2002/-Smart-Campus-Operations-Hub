@@ -282,6 +282,26 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
   const saveTicketUpdates = async () => {
     if (!selectedTicket) return;
 
+    const nextStatus = ticketDraft.status;
+    const nextNotes = ticketDraft.resolutionNotes.trim();
+    const existingNotes = (selectedTicket.resolutionNotes || '').trim();
+    const effectiveNotes = nextNotes || existingNotes;
+
+    if (nextStatus === 'REJECTED' && !nextNotes) {
+      showToast('A rejection reason is required', 'error');
+      return;
+    }
+
+    if (nextStatus === 'RESOLVED' && !nextNotes) {
+      showToast('Resolution notes are required before marking a ticket as resolved', 'error');
+      return;
+    }
+
+    if (nextStatus === 'CLOSED' && selectedTicket.status !== 'CLOSED' && !effectiveNotes) {
+      showToast('Resolution notes are required before closing a ticket', 'error');
+      return;
+    }
+
     try {
       const updateKey = selectedTicket.id || selectedTicket.ticketId;
       if (!updateKey) {
@@ -697,11 +717,15 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
               </div>
 
               <label style={s.ticketField}>
-                <span style={s.ticketFieldLabel}>Resolution Notes / Comments</span>
+                      <span style={s.ticketFieldLabel}>
+                        {ticketDraft.status === 'REJECTED' ? 'Rejection Reason' : 'Resolution Notes / Comments'}
+                      </span>
                 <textarea
                   style={s.ticketTextarea}
                   value={ticketDraft.resolutionNotes}
-                  placeholder="Add resolution notes, updates, or technician comments"
+                        placeholder={ticketDraft.status === 'REJECTED'
+                          ? 'Explain why the ticket is being rejected'
+                          : 'Add resolution notes, updates, or technician comments'}
                   onChange={(e) => setTicketDraft((prev) => ({ ...prev, resolutionNotes: e.target.value }))}
                 />
               </label>

@@ -87,8 +87,23 @@ public class TechnicianService {
             throw new RuntimeException("You can only update tickets assigned to you");
         }
 
-        if (request.getStatus() != null && !request.getStatus().isBlank()) {
-            ticket.setStatus(request.getStatus().trim().toUpperCase());
+                String currentStatus = normalizeStatus(ticket.getStatus());
+                String requestedStatus = trimToNull(request.getStatus());
+                String effectiveNotes = trimToNull(request.getResolutionNotes());
+
+                if (requestedStatus != null) {
+                        String normalizedNextStatus = requestedStatus.toUpperCase();
+                        validateTechnicianTransition(currentStatus, normalizedNextStatus);
+
+                        if ("RESOLVED".equals(normalizedNextStatus) && effectiveNotes == null) {
+                                throw new RuntimeException("Resolution notes are required when marking a ticket as resolved");
+                        }
+
+                        if ("CLOSED".equals(normalizedNextStatus) && !"CLOSED".equals(currentStatus) && effectiveNotes == null) {
+                                throw new RuntimeException("Resolution notes are required before closing a ticket");
+                        }
+
+                        ticket.setStatus(normalizedNextStatus);
         }
 
         if (request.getResolutionNotes() != null) {
@@ -111,7 +126,51 @@ public class TechnicianService {
     }
 
     private String normalizeStatus(String status) {
-        return status == null ? "OPEN" : status.trim().toUpperCase();
+                String normalized = trimToNull(status);
+                return normalized == null ? "OPEN" : normalized.toUpperCase();
+        }
+
+        private String trimToNull(String value) {
+                if (value == null) {
+                        return null;
+                }
+                String trimmed = value.trim();
+                return trimmed.isEmpty() ? null : trimmed;
+        }
+
+        private void validateTechnicianTransition(String currentStatus, String nextStatus) {
+                if (nextStatus == null || nextStatus.isBlank()) {
+                        throw new RuntimeException("Ticket status is required");
+                }
+
+                switch (currentStatus) {
+                        case "OPEN", "PENDING" -> {
+                                if (!"OPEN".equals(nextStatus) && !"IN_PROGRESS".equals(nextStatus)) {
+                                        throw new RuntimeException("Technicians can only keep tickets OPEN or move them to IN_PROGRESS from " + currentStatus);
+                                }
+                        }
+                        case "IN_PROGRESS" -> {
+                                if (!"IN_PROGRESS".equals(nextStatus) && !"RESOLVED".equals(nextStatus) && !"CLOSED".equals(nextStatus)) {
+                                        throw new RuntimeException("Allowed transitions from IN_PROGRESS are IN_PROGRESS, RESOLVED, or CLOSED");
+                                }
+                        }
+                        case "RESOLVED" -> {
+                                if (!"RESOLVED".equals(nextStatus) && !"CLOSED".equals(nextStatus)) {
+                                        throw new RuntimeException("Allowed transitions from RESOLVED are RESOLVED or CLOSED");
+                                }
+                        }
+                        case "CLOSED" -> {
+                                if (!"CLOSED".equals(nextStatus)) {
+                                        throw new RuntimeException("Closed tickets cannot transition to another status");
+                                }
+                        }
+                        case "REJECTED" -> {
+                                if (!"REJECTED".equals(nextStatus)) {
+                                        throw new RuntimeException("Rejected tickets cannot transition to another status");
+                                }
+                        }
+                        default -> throw new RuntimeException("Unknown ticket status: " + currentStatus);
+                }
     }
 
     private AdminIncidentTicketDto toTicketDto(IncidentTicket ticket, User reporter) {

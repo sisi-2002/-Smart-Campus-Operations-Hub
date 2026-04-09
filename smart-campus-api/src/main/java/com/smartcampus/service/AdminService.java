@@ -131,8 +131,27 @@ public class AdminService {
             .or(() -> incidentTicketRepository.findByTicketId(ticketId))
             .orElseThrow(() -> new RuntimeException("Ticket not found"));
 
-        if (request.getStatus() != null && !request.getStatus().isBlank()) {
-            ticket.setStatus(request.getStatus().trim().toUpperCase());
+        String currentStatus = normalizeStatus(ticket.getStatus());
+        String requestedStatus = trimToNull(request.getStatus());
+        String effectiveNotes = trimToNull(request.getResolutionNotes());
+
+        if (requestedStatus != null) {
+            String normalizedNextStatus = requestedStatus.toUpperCase();
+            validateAdminTransition(currentStatus, normalizedNextStatus);
+
+            if ("REJECTED".equals(normalizedNextStatus) && effectiveNotes == null) {
+                throw new RuntimeException("Rejection reason is required");
+            }
+
+            if ("RESOLVED".equals(normalizedNextStatus) && effectiveNotes == null) {
+                throw new RuntimeException("Resolution notes are required when marking a ticket as resolved");
+            }
+
+            if ("CLOSED".equals(normalizedNextStatus) && !"CLOSED".equals(currentStatus) && effectiveNotes == null) {
+                throw new RuntimeException("Resolution notes are required before closing a ticket");
+            }
+
+            ticket.setStatus(normalizedNextStatus);
         }
 
         if (request.getAssignedTechnicianId() != null) {
@@ -233,6 +252,54 @@ public class AdminService {
         }
         String str = String.valueOf(value).trim();
         return str.isEmpty() ? null : str;
+    }
+
+    private String trimToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String normalizeStatus(String status) {
+        String normalized = trimToNull(status);
+        return normalized == null ? "OPEN" : normalized.toUpperCase();
+    }
+
+    private void validateAdminTransition(String currentStatus, String nextStatus) {
+        if (nextStatus == null || nextStatus.isBlank()) {
+            throw new RuntimeException("Ticket status is required");
+        }
+
+        switch (currentStatus) {
+            case "OPEN", "PENDING" -> {
+                if (!"OPEN".equals(nextStatus) && !"IN_PROGRESS".equals(nextStatus) && !"REJECTED".equals(nextStatus)) {
+                    throw new RuntimeException("Allowed transitions from " + currentStatus + " are OPEN, IN_PROGRESS, or REJECTED");
+                }
+            }
+            case "IN_PROGRESS" -> {
+                if (!"IN_PROGRESS".equals(nextStatus) && !"RESOLVED".equals(nextStatus) && !"REJECTED".equals(nextStatus)) {
+                    throw new RuntimeException("Allowed transitions from IN_PROGRESS are IN_PROGRESS, RESOLVED, or REJECTED");
+                }
+            }
+            case "RESOLVED" -> {
+                if (!"RESOLVED".equals(nextStatus) && !"CLOSED".equals(nextStatus)) {
+                    throw new RuntimeException("Allowed transitions from RESOLVED are RESOLVED or CLOSED");
+                }
+            }
+            case "CLOSED" -> {
+                if (!"CLOSED".equals(nextStatus)) {
+                    throw new RuntimeException("Closed tickets cannot transition to another status");
+                }
+            }
+            case "REJECTED" -> {
+                if (!"REJECTED".equals(nextStatus)) {
+                    throw new RuntimeException("Rejected tickets cannot transition to another status");
+                }
+            }
+            default -> throw new RuntimeException("Unknown ticket status: " + currentStatus);
+        }
     }
 
     private List<String> safeStringList(Object value) {
