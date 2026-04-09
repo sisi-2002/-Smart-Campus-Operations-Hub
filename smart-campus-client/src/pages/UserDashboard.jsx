@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getUserDashboardOverview, submitIncidentTicket } from '../api/userDashboardApi';
+import { getIncidentTicket, getUserDashboardOverview, submitIncidentTicket, updateIncidentTicket } from '../api/userDashboardApi';
 import IncidentModal from '../components/IncidentModal';
 import TicketCommentsPanel from '../components/TicketCommentsPanel';
 
@@ -10,6 +10,7 @@ export default function UserDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
+  const [editingTicket, setEditingTicket] = useState(null);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [expandedTicketId, setExpandedTicketId] = useState('');
   const [ticketNotice, setTicketNotice] = useState(null);
@@ -126,6 +127,17 @@ export default function UserDashboard() {
     return response;
   };
 
+  const handleIncidentUpdate = async (payload) => {
+    if (!editingTicket) {
+      throw new Error('No ticket selected for editing.');
+    }
+
+    const ticketId = editingTicket.id || editingTicket.ticketId;
+    const response = await updateIncidentTicket(ticketId, payload);
+    await fetchOverview();
+    return response;
+  };
+
   useEffect(() => {
     fetchOverview();
   }, []);
@@ -175,6 +187,42 @@ export default function UserDashboard() {
     const ticketKey = ticket.ticketId || ticket.id;
     return ticketKey && !hiddenTicketIds.includes(ticketKey);
   });
+
+  const openCreateIncidentModal = () => {
+    setEditingTicket(null);
+    setIsIncidentModalOpen(true);
+  };
+
+  const openEditIncidentModal = async (ticket) => {
+    if (!ticket) {
+      return;
+    }
+
+    try {
+      const ticketId = ticket.id || ticket.ticketId;
+      const response = await getIncidentTicket(ticketId);
+      setEditingTicket(response.data || ticket);
+      setIsIncidentModalOpen(true);
+    } catch (err) {
+      setTicketNotice({
+        type: 'error',
+        message: err.response?.data?.error || 'Failed to load ticket details for editing',
+      });
+    }
+  };
+
+  const editingTicketFormValues = editingTicket ? {
+    resourceLocation: editingTicket.resourceLocation || editingTicket.location || '',
+    category: editingTicket.category || '',
+    priority: editingTicket.priority || '',
+    description: editingTicket.description || '',
+    preferredContact: editingTicket.preferredContact || '',
+  } : undefined;
+
+  const closeIncidentModal = () => {
+    setIsIncidentModalOpen(false);
+    setEditingTicket(null);
+  };
 
   const renderDashboardTab = () => (
     <>
@@ -337,6 +385,15 @@ export default function UserDashboard() {
                   </td>
                   <td style={s.td}>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      {normalizedStatus === 'OPEN' && (
+                        <button
+                          type="button"
+                          style={s.actionBtnSecondary}
+                          onClick={() => openEditIncidentModal(ticket)}
+                        >
+                          Edit ticket
+                        </button>
+                      )}
                       <button
                         type="button"
                         style={s.actionBtn}
@@ -408,8 +465,22 @@ export default function UserDashboard() {
     <div style={s.layout}>
       <IncidentModal
         open={isIncidentModalOpen}
-        onClose={() => setIsIncidentModalOpen(false)}
-        onSubmitTicket={handleIncidentSubmit}
+        onClose={closeIncidentModal}
+        onSubmitTicket={editingTicket ? handleIncidentUpdate : handleIncidentSubmit}
+        mode={editingTicket ? 'edit' : 'create'}
+        initialValues={editingTicketFormValues}
+        initialAttachments={editingTicket ? (editingTicket.imageDataUrls || []).map((dataUrl, index) => ({
+          name: editingTicket.imageNames?.[index] || `Attachment ${index + 1}`,
+          dataUrl,
+        })) : []}
+        submitLabel={editingTicket ? 'Save Changes' : 'Submit Ticket'}
+        currentTicketId={editingTicket?.ticketId || editingTicket?.id || ''}
+        onSubmitted={() => {
+          if (editingTicket) {
+            setTicketNotice({ type: 'success', message: 'Ticket updated successfully' });
+            closeIncidentModal();
+          }
+        }}
       />
 
       {previewImageUrl && (
@@ -471,7 +542,7 @@ export default function UserDashboard() {
             <span style={s.quickActionsLabel}>Quick Actions</span>
             <div style={s.quickActionsBtns}>
               <button style={s.primaryBtn}>+ Book Resource</button>
-              <button style={s.dangerBtn} onClick={() => setIsIncidentModalOpen(true)}>
+              <button style={s.dangerBtn} onClick={openCreateIncidentModal}>
                 Report Incident
               </button>
             </div>
@@ -742,6 +813,16 @@ const s = {
     border: '1px solid #bfdbfe',
     background: '#eff6ff',
     color: '#1d4ed8',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  actionBtnSecondary: {
+    padding: '7px 12px',
+    borderRadius: 8,
+    border: '1px solid #cbd5e1',
+    background: '#fff',
+    color: '#334155',
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',

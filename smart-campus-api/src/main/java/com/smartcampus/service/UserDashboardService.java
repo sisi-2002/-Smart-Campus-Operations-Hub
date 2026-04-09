@@ -1,6 +1,7 @@
 package com.smartcampus.service;
 
 import com.smartcampus.dto.request.CreateIncidentTicketRequest;
+import com.smartcampus.dto.response.IncidentTicketDetailsDto;
 import com.smartcampus.dto.response.TicketCommentDto;
 import com.smartcampus.dto.response.UserDashboardResponse;
 import com.smartcampus.entity.IncidentTicket;
@@ -53,6 +54,66 @@ public class UserDashboardService {
         );
     }
 
+        public Map<String, String> updateIncidentTicket(String email, String ticketId, CreateIncidentTicketRequest request) {
+                User user = userRepository.findByEmail(email)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+
+                IncidentTicket ticket = incidentTicketRepository.findById(ticketId)
+                                .or(() -> incidentTicketRepository.findByTicketId(ticketId))
+                                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+
+                if (!user.getId().equals(ticket.getUserId())) {
+                        throw new RuntimeException("You can only edit your own tickets");
+                }
+
+                if (!"OPEN".equalsIgnoreCase(normalizeStatus(ticket.getStatus()))) {
+                        throw new RuntimeException("Only open tickets can be edited");
+                }
+
+                ticket.setLocation(trimToNull(request.getResourceLocation()));
+                ticket.setCategory(trimToNull(request.getCategory()));
+                ticket.setPriority(trimToNull(request.getPriority()));
+                ticket.setDescription(trimToNull(request.getDescription()));
+                ticket.setPreferredContact(trimToNull(request.getPreferredContact()));
+                ticket.setImageNames(request.getImageNames() == null ? List.of() : request.getImageNames());
+                ticket.setImageDataUrls(request.getImageDataUrls() == null ? List.of() : request.getImageDataUrls());
+
+                IncidentTicket savedTicket = incidentTicketRepository.save(ticket);
+
+                return Map.of(
+                                "message", "Incident ticket updated successfully",
+                                "id", savedTicket.getId(),
+                                "ticketId", defaultValue(savedTicket.getTicketId(), savedTicket.getId()),
+                                "status", defaultValue(savedTicket.getStatus(), "OPEN")
+                );
+        }
+
+                    public IncidentTicketDetailsDto getIncidentTicket(String email, String ticketId) {
+                        User user = userRepository.findByEmail(email)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+
+                        IncidentTicket ticket = incidentTicketRepository.findById(ticketId)
+                                .or(() -> incidentTicketRepository.findByTicketId(ticketId))
+                                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+
+                        if (!user.getId().equals(ticket.getUserId())) {
+                            throw new RuntimeException("You can only view your own tickets");
+                        }
+
+                        return IncidentTicketDetailsDto.builder()
+                                .id(ticket.getId())
+                                .ticketId(defaultValue(ticket.getTicketId(), ticket.getId()))
+                                .resourceLocation(defaultValue(ticket.getLocation(), ""))
+                                .category(defaultValue(ticket.getCategory(), ""))
+                                .priority(defaultValue(ticket.getPriority(), ""))
+                                .description(defaultValue(ticket.getDescription(), ""))
+                                .preferredContact(defaultValue(ticket.getPreferredContact(), ""))
+                                .imageNames(ticket.getImageNames() == null ? List.of() : ticket.getImageNames())
+                                .imageDataUrls(ticket.getImageDataUrls() == null ? List.of() : ticket.getImageDataUrls())
+                                .status(defaultValue(ticket.getStatus(), "OPEN"))
+                                .build();
+                    }
+
     public UserDashboardResponse getOverview(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -99,6 +160,9 @@ public class UserDashboardService {
                         .ticketId(defaultValue(t.getTicketId(), t.getId()))
                         .location(defaultValue(t.getLocation(), "-"))
                         .category(defaultValue(t.getCategory(), "-"))
+                        .priority(defaultValue(t.getPriority(), "-"))
+                        .description(defaultValue(t.getDescription(), "No description provided"))
+                        .preferredContact(defaultValue(t.getPreferredContact(), "-"))
                         .imageNames(t.getImageNames() == null ? List.of() : t.getImageNames())
                         .imageDataUrls(t.getImageDataUrls() == null ? List.of() : t.getImageDataUrls())
                         .comments(TicketCommentDto.fromList(t.getComments()))
@@ -114,6 +178,9 @@ public class UserDashboardService {
                         .ticketId(defaultValue(t.getTicketId(), t.getId()))
                         .location(defaultValue(t.getLocation(), "-"))
                         .category(defaultValue(t.getCategory(), "-"))
+                        .priority(defaultValue(t.getPriority(), "-"))
+                        .description(defaultValue(t.getDescription(), "No description provided"))
+                        .preferredContact(defaultValue(t.getPreferredContact(), "-"))
                         .imageNames(t.getImageNames() == null ? List.of() : t.getImageNames())
                         .imageDataUrls(t.getImageDataUrls() == null ? List.of() : t.getImageDataUrls())
                         .comments(TicketCommentDto.fromList(t.getComments()))
@@ -152,6 +219,11 @@ public class UserDashboardService {
     private boolean equalsIgnoreCase(String a, String b) {
         return a != null && b != null && a.trim().equalsIgnoreCase(b.trim());
     }
+
+        private String normalizeStatus(String status) {
+                String normalized = trimToNull(status);
+                return normalized == null ? "OPEN" : normalized.toUpperCase();
+        }
 
     private String defaultValue(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;

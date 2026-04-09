@@ -12,7 +12,22 @@ const initialFormState = {
   preferredContact: '',
 };
 
-export default function IncidentModal({ open, onClose, onSubmitTicket }) {
+export default function IncidentModal({
+  open,
+  onClose,
+  onSubmitTicket,
+  mode = 'create',
+  initialValues = initialFormState,
+  initialAttachments = [],
+  submitLabel,
+  onSubmitted,
+  currentTicketId = '',
+}) {
+  const resolvedSubmitLabel = submitLabel || (mode === 'edit' ? 'Save Changes' : 'Submit Ticket');
+  const title = mode === 'edit' ? 'Edit Incident Ticket' : 'Report a New Incident';
+  const subtitle = mode === 'edit'
+    ? 'Update the ticket details while it is still open.'
+    : 'Submit a detailed report so the operations team can respond quickly.';
   const [formData, setFormData] = useState(initialFormState);
   const [attachments, setAttachments] = useState([]);
   const [attachmentError, setAttachmentError] = useState('');
@@ -20,6 +35,38 @@ export default function IncidentModal({ open, onClose, onSubmitTicket }) {
   const [submitMessage, setSubmitMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (open) {
+      setFormData({
+        resourceLocation: initialValues.resourceLocation || '',
+        category: initialValues.category || '',
+        priority: initialValues.priority || '',
+        description: initialValues.description || '',
+        preferredContact: initialValues.preferredContact || '',
+      });
+      setAttachments(Array.isArray(initialAttachments) ? initialAttachments : []);
+      setAttachmentError('');
+      setSubmitError('');
+      setSubmitMessage('');
+      setIsSubmitting(false);
+
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
+    setFormData(initialFormState);
+    setAttachments([]);
+    setAttachmentError('');
+    setSubmitError('');
+    setSubmitMessage('');
+    setIsSubmitting(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }, [open, initialAttachments, initialValues]);
 
   useEffect(() => {
     if (!open) {
@@ -111,6 +158,9 @@ export default function IncidentModal({ open, onClose, onSubmitTicket }) {
           ? `Ticket ${createdTicketId} submitted successfully.`
           : 'Ticket submitted successfully.'
       );
+      if (onSubmitted) {
+        onSubmitted(response);
+      }
     } catch (err) {
       // Handle different error response formats
       const errorMessage = 
@@ -142,8 +192,11 @@ export default function IncidentModal({ open, onClose, onSubmitTicket }) {
       <div style={styles.modal} onClick={(event) => event.stopPropagation()}>
         <div style={styles.header}>
           <div>
-            <h2 style={styles.title}>Report a New Incident</h2>
-            <p style={styles.subtitle}>Submit a detailed report so the operations team can respond quickly.</p>
+            <h2 style={styles.title}>{title}</h2>
+            <p style={styles.subtitle}>{subtitle}</p>
+            {mode === 'edit' && currentTicketId && (
+              <div style={styles.ticketRef}>Editing ticket {currentTicketId}</div>
+            )}
           </div>
           <button type="button" style={styles.closeButton} onClick={handleCancel} aria-label="Close modal">
             ×
@@ -265,7 +318,7 @@ export default function IncidentModal({ open, onClose, onSubmitTicket }) {
               Cancel
             </button>
             <button type="submit" style={styles.submitButton} disabled={isSubmitting}>
-              {isSubmitting ? 'Submitting...' : 'Submit Ticket'}
+              {isSubmitting ? 'Submitting...' : resolvedSubmitLabel}
             </button>
           </div>
         </form>
@@ -315,6 +368,17 @@ const styles = {
     color: '#64748b',
     fontSize: 14,
     lineHeight: 1.5,
+  },
+  ticketRef: {
+    display: 'inline-flex',
+    marginTop: 8,
+    padding: '4px 10px',
+    borderRadius: 999,
+    background: '#eef2ff',
+    border: '1px solid #c7d2fe',
+    color: '#3730a3',
+    fontSize: 12,
+    fontWeight: 700,
   },
   closeButton: {
     width: 40,

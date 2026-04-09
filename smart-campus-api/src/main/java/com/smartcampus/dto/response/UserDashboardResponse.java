@@ -63,6 +63,9 @@ public class UserDashboardResponse {
         private String ticketId;
         private String location;
         private String category;
+        private String priority;
+        private String description;
+        private String preferredContact;
         private List<String> imageNames;
         private List<String> imageDataUrls;
         private List<TicketCommentDto> comments;
