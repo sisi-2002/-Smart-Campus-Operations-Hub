@@ -38,6 +38,7 @@ export default function AdminDashboard() {
   const [userToDelete, setUserToDelete] = useState(null); // Added for custom delete modal
   const [tickets, setTickets] = useState([]);
   const [ticketsLoaded, setTicketsLoaded] = useState(false);
+  const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [ticketDraft, setTicketDraft] = useState({
     status: 'OPEN',
@@ -80,12 +81,45 @@ export default function AdminDashboard() {
           ? ticketsRes.data.data
           : [];
 
+      const isRenderableImageSrc = (value) => (
+        typeof value === 'string'
+        && (
+          value.startsWith('data:image/')
+          || value.startsWith('http://')
+          || value.startsWith('https://')
+          || value.startsWith('blob:')
+        )
+      );
+
+      let cachedImageEntries = [];
+      try {
+        cachedImageEntries = JSON.parse(localStorage.getItem('incidentTicketImageCache') || '[]');
+      } catch {
+        cachedImageEntries = [];
+      }
+      const cacheByTicketId = new Map(cachedImageEntries.map((entry) => [entry.ticketId, entry]));
+
       const usersById = new Map((users || []).map((u) => [u.id, u]));
       const mappedTickets = ticketList.map((ticket) => {
         const reporter = usersById.get(ticket.userId);
+        const ticketKey = ticket.ticketId || ticket.id;
+        const cached = cacheByTicketId.get(ticketKey) || {};
+        const apiImageDataUrls = Array.isArray(ticket.imageDataUrls) ? ticket.imageDataUrls : [];
+        const cacheImageDataUrls = Array.isArray(cached.imageDataUrls) ? cached.imageDataUrls : [];
+        const imageNames = Array.isArray(ticket.imageNames) ? ticket.imageNames : [];
+        const cacheImageNames = Array.isArray(cached.imageNames) ? cached.imageNames : [];
+
+        const mergedImageNames = imageNames.length ? imageNames : cacheImageNames;
+        const mergedImageDataUrls = apiImageDataUrls.length ? apiImageDataUrls : cacheImageDataUrls;
+
+        const imageAttachments = [
+          ...mergedImageDataUrls,
+          ...mergedImageNames.filter(isRenderableImageSrc),
+        ].filter(isRenderableImageSrc);
+
         return {
           id: ticket.id,
-          ticketId: ticket.ticketId || ticket.id,
+          ticketId: ticketKey,
           resourceLocation: ticket.location || '-',
           category: ticket.category || '-',
           priority: ticket.priority || '-',
@@ -96,7 +130,8 @@ export default function AdminDashboard() {
           reporterEmail: reporter?.email || '-',
           assignedTechnician: '',
           resolutionNotes: '',
-          imageAttachments: Array.isArray(ticket.imageDataUrls) ? ticket.imageDataUrls : [],
+          imageAttachments,
+          attachmentNames: mergedImageNames.filter((name) => !isRenderableImageSrc(name)),
         };
       });
 
@@ -204,6 +239,10 @@ export default function AdminDashboard() {
     const matchStatus = statusFilter === 'ALL' || (statusFilter === 'ACTIVE' ? u.enabled : !u.enabled);
     return matchSearch && matchRole && matchStatus;
   });
+
+  const availableTechnicians = users
+    .filter((u) => u.role === 'TECHNICIAN' && u.enabled)
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const handleLogout = () => { logout(); navigate('/'); };
 
@@ -508,6 +547,22 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {previewImageUrl && (
+        <div style={s.previewOverlay} onClick={() => setPreviewImageUrl('')}>
+          <div style={s.previewModal} onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              style={s.previewCloseButton}
+              onClick={() => setPreviewImageUrl('')}
+              aria-label="Close image preview"
+            >
+              ×
+            </button>
+            <img src={previewImageUrl} alt="Incident attachment preview" style={s.previewImage} />
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirmation Modal */}
       {userToDelete && (
         <div style={s.modalOverlay}>
@@ -558,7 +613,19 @@ export default function AdminDashboard() {
                 {selectedTicket.imageAttachments?.length ? (
                   <div style={s.evidenceGrid}>
                     {selectedTicket.imageAttachments.slice(0, 3).map((src, idx) => (
-                      <img key={`${selectedTicket.id}-img-${idx}`} src={src} alt={`Evidence ${idx + 1}`} style={s.evidenceImage} />
+                      <img
+                        key={`${selectedTicket.id}-img-${idx}`}
+                        src={src}
+                        alt={`Evidence ${idx + 1}`}
+                        style={s.evidenceImage}
+                        onClick={() => setPreviewImageUrl(src)}
+                      />
+                    ))}
+                  </div>
+                ) : selectedTicket.attachmentNames?.length ? (
+                  <div style={s.attachmentNamesWrap}>
+                    {selectedTicket.attachmentNames.slice(0, 5).map((name) => (
+                      <span key={`${selectedTicket.id}-${name}`} style={s.imageNameChip}>{name}</span>
                     ))}
                   </div>
                 ) : (
@@ -584,12 +651,21 @@ export default function AdminDashboard() {
 
                 <label style={s.ticketField}>
                   <span style={s.ticketFieldLabel}>Assign Technician</span>
-                  <input
-                    style={s.searchInput}
+                  <select
+                    style={s.filterSelect}
                     value={ticketDraft.assignedTechnician}
-                    placeholder="Enter technician name"
                     onChange={(e) => setTicketDraft((prev) => ({ ...prev, assignedTechnician: e.target.value }))}
-                  />
+                    disabled={!availableTechnicians.length}
+                  >
+                    <option value="">
+                      {availableTechnicians.length ? 'Select technician' : 'No technicians available'}
+                    </option>
+                    {availableTechnicians.map((tech) => (
+                      <option key={tech.id} value={tech.name}>
+                        {tech.name} ({tech.email})
+                      </option>
+                    ))}
+                  </select>
                 </label>
               </div>
 
@@ -745,8 +821,14 @@ const s = {
   ticketSectionTitle: { fontSize:13, fontWeight:700, color:'#1e293b', marginBottom:8 },
   ticketDescription: { margin:0, fontSize:14, lineHeight:1.55, color:'#334155' },
   evidenceGrid: { display:'grid', gridTemplateColumns:'repeat(3, minmax(0, 1fr))', gap:10 },
-  evidenceImage: { width:'100%', height:150, objectFit:'cover', borderRadius:10, border:'1px solid #cbd5e1', background:'#f8fafc' },
+  evidenceImage: { width:'100%', height:150, objectFit:'cover', borderRadius:10, border:'1px solid #cbd5e1', background:'#f8fafc', cursor:'zoom-in' },
+  attachmentNamesWrap: { display:'flex', flexWrap:'wrap', gap:8 },
+  imageNameChip: { padding:'6px 10px', borderRadius:999, border:'1px solid #cbd5e1', background:'#f8fafc', fontSize:12, color:'#475569' },
   noEvidenceBox: { background:'#f8fafc', border:'1px dashed #cbd5e1', borderRadius:8, padding:'12px', fontSize:13, color:'#64748b' },
+  previewOverlay: { position:'fixed', inset:0, background:'rgba(15,23,42,0.8)', zIndex:1100, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px' },
+  previewModal: { position:'relative', maxWidth:'90vw', maxHeight:'90vh', display:'flex', alignItems:'center', justifyContent:'center' },
+  previewCloseButton: { position:'absolute', top:-12, right:-12, width:34, height:34, borderRadius:'50%', border:'none', background:'#fff', color:'#0f172a', fontSize:24, lineHeight:1, cursor:'pointer', boxShadow:'0 8px 20px rgba(0,0,0,0.25)' },
+  previewImage: { maxWidth:'90vw', maxHeight:'90vh', borderRadius:12, objectFit:'contain', boxShadow:'0 12px 32px rgba(0,0,0,0.4)' },
   ticketFormGrid: { display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(260px, 1fr))', gap:12 },
   ticketField: { display:'flex', flexDirection:'column', gap:8 },
   ticketFieldLabel: { fontSize:12, color:'#475569', fontWeight:600 },
