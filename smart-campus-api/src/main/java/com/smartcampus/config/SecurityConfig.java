@@ -61,6 +61,7 @@ public class SecurityConfig {
                     "/error"
                 ).permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/chatbot/**").authenticated()  // ✅ logged in users only
                 .anyRequest().authenticated()
             )
             .formLogin(AbstractHttpConfigurer::disable)

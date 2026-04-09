@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -5,9 +6,14 @@ export default function DashboardPage() {
   const { user, logout, isAdmin } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const handleLogoutClick = () => { setShowLogoutConfirm(true); };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
     logout();
-    navigate('/login');
+    navigate('/');
   };
 
   return (
@@ -76,7 +82,7 @@ export default function DashboardPage() {
             </div>
             <span>Smart<span style={{ background: 'linear-gradient(135deg, #6366f1, #06b6d4)', WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>Campus</span></span>
           </div>
-          <button style={styles.logoutBtn} onClick={handleLogout}>Logout</button>
+          <button style={styles.logoutBtn} onClick={handleLogoutClick}>Logout</button>
         </div>
 
         {/* Welcome Card */}
@@ -181,6 +187,23 @@ export default function DashboardPage() {
           </div>
         )}
       </div>
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalCard}>
+            <div style={styles.modalIcon}>👋</div>
+            <h3 style={styles.modalTitle}>Log Out</h3>
+            <p style={styles.modalDest}>
+              Are you sure you want to log out of your account?
+            </p>
+            <div style={styles.modalActions}>
+              <button style={styles.cancelBtn} onClick={() => setShowLogoutConfirm(false)}>No</button>
+              <button style={styles.confirmBtn} onClick={confirmLogout}>Yes</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Inject Global Animations */}
       <style>{`
@@ -425,7 +448,7 @@ const styles = {
     alignItems: 'center',
     gap: '1rem',
     cursor: 'pointer',
-    transition: 'all 0.2s ease',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
     ':hover': {
       transform: 'translateY(-2px)',
       borderColor: 'rgba(16, 185, 129, 0.5)',
@@ -444,6 +467,69 @@ const styles = {
   adminBookingContent: {
     flex: 1,
     color: '#6ee7b7',
+  modalOverlay: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(15,23,42,0.6)',
+    backdropFilter: 'blur(4px)',
+    zIndex: 1000,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  modalCard: {
+    background: '#1e293b',
+    borderRadius: '20px',
+    padding: '2.5rem 2.5rem',
+    width: '100%',
+    maxWidth: '400px',
+    textAlign: 'center',
+    boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+    border: '1px solid rgba(255,255,255,0.1)'
+  },
+  modalIcon: {
+    fontSize: '48px',
+    marginBottom: '16px'
+  },
+  modalTitle: {
+    margin: '0 0 12px',
+    fontSize: '22px',
+    color: '#f8fafc',
+    fontWeight: 700
+  },
+  modalDest: {
+    margin: '0 0 32px',
+    fontSize: '14px',
+    color: '#94a3b8',
+    lineHeight: 1.6
+  },
+  modalActions: {
+    display: 'flex',
+    gap: '12px',
+    justifyContent: 'center'
+  },
+  cancelBtn: {
+    padding: '12px 24px',
+    borderRadius: '10px',
+    border: '1px solid #334155',
+    background: 'transparent',
+    color: '#cbd5e1',
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontSize: '14px',
+    transition: 'all 0.2s'
+  },
+  confirmBtn: {
+    padding: '12px 24px',
+    borderRadius: '10px',
+    border: 'none',
+    background: '#4f46e5',
+    color: '#fff',
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontSize: '14px',
+    boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)',
+    transition: 'all 0.2s'
   },
 };
 

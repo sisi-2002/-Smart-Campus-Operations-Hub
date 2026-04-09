@@ -112,10 +112,12 @@
             <artifactId>core</artifactId>
             <version>3.5.2</version>
         </dependency>
+
+        <!-- For calling Groq API -->
         <dependency>
-    <groupId>org.springframework.boot</groupId>
-    <artifactId>spring-boot-starter-web</artifactId>
-</dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webflux</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
