@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/tickets/{ticketId}/comments")
+@RequestMapping({"/api/tickets/{ticketId}/comments", "/api/dashboard/tickets/{ticketId}/comments"})
 @RequiredArgsConstructor
 public class TicketCommentController {
 

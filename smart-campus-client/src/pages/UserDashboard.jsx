@@ -12,6 +12,7 @@ export default function UserDashboard() {
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [expandedTicketId, setExpandedTicketId] = useState('');
+  const [ticketNotice, setTicketNotice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [hiddenTicketIds, setHiddenTicketIds] = useState(() => {
@@ -128,6 +129,12 @@ export default function UserDashboard() {
   useEffect(() => {
     fetchOverview();
   }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'tickets' && ticketNotice) {
+      setTicketNotice(null);
+    }
+  }, [activeTab, ticketNotice]);
 
   const userDetails = useMemo(() => {
     return {
@@ -264,6 +271,11 @@ export default function UserDashboard() {
   const renderTicketsTab = () => (
     <div style={s.tableWrap}>
       <div style={s.sectionHeader}>My Incident Reports</div>
+      {ticketNotice && (
+        <div style={ticketNotice.type === 'error' ? s.ticketErrorBanner : s.ticketSuccessBanner}>
+          {ticketNotice.message}
+        </div>
+      )}
       <table style={s.table}>
         <thead>
           <tr style={s.thead}>
@@ -377,8 +389,10 @@ export default function UserDashboard() {
                                 : item
                             )),
                           }));
+                          setTicketNotice(null);
                         }}
-                        onError={(message) => setError(message || 'Failed to update comments')}
+                        onError={(message) => setTicketNotice({ type: 'error', message: message || 'Failed to update comments' })}
+                        onSuccess={(message) => setTicketNotice({ type: 'success', message: message || 'Comment updated' })}
                       />
                     </td>
                   </tr>
@@ -597,6 +611,26 @@ const s = {
     padding: '10px 14px',
     borderRadius: 10,
     fontSize: 13,
+    fontWeight: 600,
+  },
+  ticketErrorBanner: {
+    margin: '12px 16px 0',
+    background: '#fef2f2',
+    border: '1px solid #fecaca',
+    color: '#991b1b',
+    padding: '9px 12px',
+    borderRadius: 8,
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  ticketSuccessBanner: {
+    margin: '12px 16px 0',
+    background: '#ecfdf5',
+    border: '1px solid #a7f3d0',
+    color: '#065f46',
+    padding: '9px 12px',
+    borderRadius: 8,
+    fontSize: 12,
     fontWeight: 600,
   },
   userCard: {
