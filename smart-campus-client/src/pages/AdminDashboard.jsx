@@ -23,7 +23,7 @@ const TICKET_STATUS_STYLE = {
   REJECTED: { background: '#f3e8ff', color: '#6b21a8' },
 };
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
   const { user, logout }      = useAuth();
   const navigate               = useNavigate();
   const [users, setUsers]      = useState([]);
@@ -747,7 +747,7 @@ export default function AdminDashboard() {
             <p style={s.headerSub}>Manage campus resources and users</p>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
-            <span style={s.adminBadge}>ADMIN</span>
+            <span style={s.adminBadge}>{dashboardBadge}</span>
             <span style={{ fontSize:14, color:'#64748b' }}>{user?.name}</span>
             <button style={s.logoutBtn} onClick={handleLogout}>Logout</button>
           </div>

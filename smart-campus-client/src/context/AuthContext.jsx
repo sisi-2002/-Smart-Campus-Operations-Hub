@@ -41,9 +41,11 @@ export function AuthProvider({ children }) {
   };
 
   const isAdmin = () => user?.role === 'ADMIN';
+  const isManager = () => user?.role === 'MANAGER';
   const isTechnician = () => user?.role === 'TECHNICIAN';
   const getDashboardPath = () => {
     if (user?.role === 'ADMIN') return '/admin';
+    if (user?.role === 'MANAGER') return '/manager';
     if (user?.role === 'TECHNICIAN') return '/technician';
     return '/dashboard';
   };
@@ -51,7 +53,7 @@ export function AuthProvider({ children }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, logout, isAdmin, isTechnician, getDashboardPath, isAuthenticated }}>
+      value={{ user, loading, login, logout, isAdmin, isManager, isTechnician, getDashboardPath, isAuthenticated }}>
       {children}
     </AuthContext.Provider>
   );

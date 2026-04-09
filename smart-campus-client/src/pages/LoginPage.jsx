@@ -84,6 +84,8 @@ export default function LoginPage() {
         login(token, userData);
         const nextPath = userData.role === 'ADMIN'
           ? '/admin'
+          : userData.role === 'MANAGER'
+            ? '/'
           : userData.role === 'TECHNICIAN'
             ? '/technician'
             : '/dashboard';

@@ -25,6 +25,8 @@ export default function OAuth2CallbackPage() {
         login(token, userData);
         const nextPath = userData.role === 'ADMIN'
           ? '/admin'
+          : userData.role === 'MANAGER'
+            ? '/'
           : userData.role === 'TECHNICIAN'
             ? '/technician'
             : '/dashboard';

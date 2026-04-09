@@ -32,6 +32,7 @@ public class AuthService {
     // Adjust these enum values to match whatever you named them in your Role.java file
     private static final Set<Role> MFA_REQUIRED_ROLES = Set.of(
         Role.ADMIN, 
+        Role.MANAGER,
         Role.TECHNICIAN
     );
 
