@@ -27,7 +27,7 @@ api.interceptors.response.use(
     if (status === 401) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      window.location.href = '/login?error=session_expired';
+      window.location.href = '/auth?mode=login&error=session_expired';
       return Promise.reject(error);
     }
 

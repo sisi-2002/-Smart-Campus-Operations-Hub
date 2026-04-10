@@ -38,11 +38,11 @@ export function AuthProvider({ children }) {
     setUser(null);
 
     if (reason === 'idle') {
-      window.location.href = '/login?error=idle_timeout';
+      window.location.href = '/auth?mode=login&error=idle_timeout';
       return;
     }
 
-    window.location.href = '/login';
+    window.location.href = '/';
   }, []);
 
   const resetIdleTimer = useCallback(() => {
@@ -64,6 +64,16 @@ export function AuthProvider({ children }) {
   };
 
   const isAdmin = () => user?.role === 'ADMIN';
+  const isManager = () => user?.role === 'MANAGER';
+  const isTechnician = () => user?.role === 'TECHNICIAN';
+
+  const getDashboardPath = () => {
+    if (user?.role === 'ADMIN') return '/admin';
+    if (user?.role === 'MANAGER') return '/manager';
+    if (user?.role === 'TECHNICIAN') return '/technician';
+    return '/dashboard';
+  };
+
   const isAuthenticated = () => !!user;
 
   useEffect(() => {
@@ -112,6 +122,9 @@ export function AuthProvider({ children }) {
         login,
         logout,
         isAdmin,
+        isManager,
+        isTechnician,
+        getDashboardPath,
         isAuthenticated,
       }}
     >

@@ -12,7 +12,7 @@ export default function OAuth2CallbackPage() {
     const token = searchParams.get('token');
 
     if (!token) {
-      navigate('/login?error=oauth2_failed');
+      navigate('/auth?mode=login&error=oauth2_failed');
       return;
     }
 
@@ -23,11 +23,16 @@ export default function OAuth2CallbackPage() {
       .then((res) => {
         const { token: _, ...userData } = res.data;
         login(token, userData);
-        navigate('/');
+        const nextPath = userData.role === 'ADMIN'
+          ? '/admin'
+          : userData.role === 'TECHNICIAN'
+            ? '/technician'
+            : '/';
+        navigate(nextPath, { replace: true });
       })
       .catch(() => {
         localStorage.removeItem('token');
-        navigate('/login?error=oauth2_failed');
+        navigate('/auth?mode=login&error=oauth2_failed');
       });
   }, []);
 

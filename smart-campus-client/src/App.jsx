@@ -2,16 +2,18 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import HomePage from './pages/HomePage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
-import DashboardPage from './pages/DashboardPage';
+
+import UserDashboard from './pages/UserDashboard';
 import OAuth2CallbackPage from './pages/OAuth2CallbackPage';
+import TechnicianDashboard from './pages/TechnicianDashboard';
+import ManagerDashboard from './pages/ManagerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import BookingList from './components/Bookings/BookingList';
 import CreateBooking from './components/Bookings/CreateBooking';
 import ResourceManagement from './components/Admin/ResourceManagement';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import ChatBot from './components/ChatBot';
+import AuthPage from './pages/AuthPage';
 
 function AppRoutes() {
   const { user } = useAuth();
@@ -21,8 +23,8 @@ function AppRoutes() {
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/auth" element={<AuthPage />} />
+
         <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
         <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
@@ -31,7 +33,7 @@ function AppRoutes() {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <DashboardPage />
+              <UserDashboard />
             </ProtectedRoute>
           }
         />
@@ -55,7 +57,7 @@ function AppRoutes() {
           }
         />
 
-        {/* Admin Routes - ADMIN only */}
+        {/* Admin Routes */}
         <Route
           path="/admin"
           element={
@@ -79,6 +81,26 @@ function AppRoutes() {
           element={
             <ProtectedRoute requiredRole="ADMIN">
               <BookingList isAdmin={true} />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Manager Routes */}
+        <Route
+          path="/manager"
+          element={
+            <ProtectedRoute requiredRole="MANAGER">
+              <ManagerDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Technician Routes */}
+        <Route
+          path="/technician"
+          element={
+            <ProtectedRoute requiredRole="TECHNICIAN">
+              <TechnicianDashboard />
             </ProtectedRoute>
           }
         />

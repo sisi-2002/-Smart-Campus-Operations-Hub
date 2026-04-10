@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 
 export default function HomePage() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isManager, isTechnician, getDashboardPath } = useAuth();
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -24,14 +24,12 @@ export default function HomePage() {
 
   return (
     <div style={s.page}>
-      {/* Animated Background */}
       <div style={s.bgGradient}>
         <div style={s.bgBlob1} />
         <div style={s.bgBlob2} />
         <div style={s.bgBlob3} />
       </div>
 
-      {/* Header */}
       <header style={{ ...s.header, ...(scrolled && s.headerScrolled) }}>
         <div style={s.headerInner}>
           <Link to="/" style={s.brand}>
@@ -55,8 +53,8 @@ export default function HomePage() {
           <div style={s.headerActions}>
             {!user ? (
               <>
-                <Link to="/login" style={s.linkBtn}>Sign In</Link>
-                <Link to="/register" style={s.primaryBtn}>Get Started</Link>
+                <Link to="/auth?mode=login" style={s.linkBtn}>Sign In</Link>
+                <Link to="/auth?mode=register" style={s.primaryBtn}>Get Started</Link>
               </>
             ) : (
               <>
@@ -66,11 +64,11 @@ export default function HomePage() {
                   </div>
                   <div style={s.userInfo}>
                     <span style={s.userName}>{user.name?.split(' ')[0] || 'User'}</span>
-                    <span style={s.userRole}>{isAdmin() ? 'Admin' : 'User'}</span>
+                    <span style={s.userRole}>{isAdmin() ? 'Admin' : isManager() ? 'Manager' : isTechnician() ? 'Technician' : 'User'}</span>
                   </div>
                 </div>
-                <Link to={isAdmin() ? "/admin" : "/dashboard"} style={s.dashboardBtn}>
-                  {isAdmin() ? "Admin Dashboard" : "User Dashboard"}
+                <Link to={getDashboardPath()} style={s.dashboardBtn}>
+                  {isAdmin() ? "Admin Dashboard" : isManager() ? "Manager Dashboard" : isTechnician() ? "Technician Dashboard" : "User Dashboard"}
                 </Link>
                 <button onClick={handleLogoutClick} style={s.ghostBtn}>Logout</button>
               </>
@@ -80,7 +78,6 @@ export default function HomePage() {
       </header>
 
       <main>
-        {/* Hero Section */}
         <section style={s.hero}>
           <div style={s.heroInner}>
             <div style={s.heroContent}>
@@ -89,32 +86,31 @@ export default function HomePage() {
                 Smart Campus Operations Hub 2.0
               </div>
               <h1 style={s.h1}>
-                Book resources.{' '}
-                <span style={s.gradientText}>Report incidents.</span>
+                Book resources. <span style={s.gradientText}>Report incidents.</span>
                 <br />
                 Stay in full control.
               </h1>
               <p style={s.heroP}>
-                A single platform to manage facility bookings, maintenance tickets, 
-                approvals, and real-time notifications — with role-based access and 
+                A single platform to manage facility bookings, maintenance tickets,
+                approvals, and real-time notifications — with role-based access and
                 intelligent workflow automation.
               </p>
 
               <div style={s.heroCtas}>
                 {!user ? (
                   <>
-                    <Link to="/register" style={s.primaryBtnLg}>
+                    <Link to="/auth?mode=register" style={s.primaryBtnLg}>
                       Start Free Trial
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M5 12h14M12 5l7 7-7 7"/>
                       </svg>
                     </Link>
-                    <Link to="/login" style={s.secondaryBtnLg}>Sign In</Link>
+                    <Link to="/auth?mode=login" style={s.secondaryBtnLg}>Sign In</Link>
                   </>
                 ) : (
                   <>
-                    <Link to={isAdmin() ? "/admin" : "/dashboard"} style={s.primaryBtnLg}>
-                      {isAdmin() ? "Go to Admin Dashboard" : "Go to User Dashboard"}
+                    <Link to={getDashboardPath()} style={s.primaryBtnLg}>
+                      {isAdmin() ? "Go to Admin Dashboard" : isManager() ? "Go to Manager Dashboard" : isTechnician() ? "Go to Technician Dashboard" : "Go to User Dashboard"}
                     </Link>
                     <a href="#features" style={s.secondaryBtnLg}>Explore Features</a>
                   </>
@@ -138,7 +134,7 @@ export default function HomePage() {
             </div>
 
             <div style={s.heroVisual}>
-               <div style={s.floatingCard}>
+              <div style={s.floatingCard}>
                 <div style={s.visualCard}>
                   <div style={s.visualHeader}>
                     <div style={s.visualTitle}>Live Activity</div>
@@ -183,14 +179,13 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Features Section */}
         <section id="features" style={s.section}>
           <div style={s.sectionInner}>
             <div style={s.sectionHeader}>
               <span style={s.sectionTag}>Platform Capabilities</span>
               <h2 style={s.h2}>Everything you need to run<br />campus operations seamlessly</h2>
               <p style={s.sectionP}>
-                Designed around clear workflows, auditability, and usability — with a UI that stays simple 
+                Designed around clear workflows, auditability, and usability — with a UI that stays simple
                 even as modules grow.
               </p>
             </div>
@@ -204,7 +199,7 @@ export default function HomePage() {
                 </div>
                 <div style={s.cardTitle}>Facilities & Assets</div>
                 <div style={s.cardText}>
-                  Maintain a comprehensive catalogue of rooms, labs, and equipment with capacity, 
+                  Maintain a comprehensive catalogue of rooms, labs, and equipment with capacity,
                   location, availability windows, and real-time status tracking.
                 </div>
                 <Link to="#" style={s.cardLink}>Learn more →</Link>
@@ -218,7 +213,7 @@ export default function HomePage() {
                 </div>
                 <div style={s.cardTitle}>Booking Management</div>
                 <div style={s.cardText}>
-                  Request bookings with purpose and time range. Admins approve/reject with reasons, 
+                  Request bookings with purpose and time range. Admins approve/reject with reasons,
                   and conflicts are automatically prevented by our smart scheduler.
                 </div>
                 <Link to="#" style={s.cardLink}>Learn more →</Link>
@@ -232,7 +227,7 @@ export default function HomePage() {
                 </div>
                 <div style={s.cardTitle}>Incident Ticketing</div>
                 <div style={s.cardText}>
-                  Report faults with category, priority, and image evidence. Track ticket progress 
+                  Report faults with category, priority, and image evidence. Track ticket progress
                   from OPEN to CLOSED with resolution notes and comments.
                 </div>
                 <Link to="#" style={s.cardLink}>Learn more →</Link>
@@ -246,7 +241,7 @@ export default function HomePage() {
                 </div>
                 <div style={s.cardTitle}>Smart Notifications</div>
                 <div style={s.cardText}>
-                  Get real-time updates for approvals, ticket status changes, and comments — 
+                  Get real-time updates for approvals, ticket status changes, and comments —
                   delivered via in-app notifications and email alerts.
                 </div>
                 <Link to="#" style={s.cardLink}>Learn more →</Link>
@@ -255,7 +250,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Workflows Section */}
         <section id="workflows" style={s.sectionAlt}>
           <div style={s.sectionInner}>
             <div style={s.sectionHeader}>
@@ -343,7 +337,6 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Roles Section */}
         <section id="roles" style={s.section}>
           <div style={s.sectionInner}>
             <div style={s.sectionHeader}>
@@ -392,11 +385,11 @@ export default function HomePage() {
               <div style={s.ctaButtons}>
                 {!user ? (
                   <>
-                    <Link to="/register" style={s.primaryBtnLg}>Create Account</Link>
-                    <Link to="/login" style={s.linkBtn}>Sign In</Link>
+                    <Link to="/auth?mode=register" style={s.primaryBtnLg}>Create Account</Link>
+                    <Link to="/auth?mode=login" style={s.linkBtn}>Sign In</Link>
                   </>
                 ) : (
-                  <Link to={isAdmin() ? "/admin" : "/dashboard"} style={s.primaryBtnLg}>Open Dashboard</Link>
+                  <Link to={getDashboardPath()} style={s.primaryBtnLg}>Open Dashboard</Link>
                 )}
               </div>
             </div>
@@ -404,7 +397,6 @@ export default function HomePage() {
         </section>
       </main>
 
-      {/* Logout Confirmation Modal */}
       {showLogoutConfirm && (
         <div style={s.modalOverlay}>
           <div style={s.modalCard}>
@@ -421,7 +413,6 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Footer */}
       <footer id="contact" style={s.footer}>
         <div style={s.footerInner}>
           <div style={s.footerBrand}>
@@ -467,7 +458,6 @@ export default function HomePage() {
   );
 }
 
-// Styles
 const s = {
   page: {
     minHeight: '100vh',
@@ -565,10 +555,6 @@ const s = {
     color: '#475569',
     fontSize: 15,
     fontWeight: 500,
-    transition: 'color 0.2s',
-    ':hover': {
-      color: '#6366f1',
-    },
   },
 
   headerActions: {
@@ -583,7 +569,6 @@ const s = {
     borderRadius: 12,
     fontSize: 14,
     fontWeight: 500,
-    transition: 'all 0.2s',
     border: '1px solid #e2e8f0',
     background: '#fff',
   },
@@ -595,7 +580,6 @@ const s = {
     borderRadius: 12,
     fontSize: 14,
     fontWeight: 600,
-    transition: 'all 0.2s',
     boxShadow: '0 2px 8px rgba(99,102,241,0.3)',
   },
   ghostBtn: {
@@ -723,7 +707,6 @@ const s = {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 10,
-    transition: 'transform 0.2s, box-shadow 0.2s',
     boxShadow: '0 4px 14px rgba(99,102,241,0.4)',
   },
   secondaryBtnLg: {
@@ -898,12 +881,7 @@ const s = {
     background: '#fff',
     borderRadius: 24,
     padding: 28,
-    transition: 'transform 0.3s, box-shadow 0.3s',
     border: '1px solid #e2e8f0',
-    ':hover': {
-      transform: 'translateY(-4px)',
-      boxShadow: '0 20px 40px rgba(0,0,0,0.08)',
-    },
   },
   cardIconWrapper: {
     marginBottom: 20,
@@ -1032,7 +1010,6 @@ const s = {
     borderRadius: 28,
     padding: 36,
     border: '1px solid #e2e8f0',
-    transition: 'all 0.3s',
   },
   roleIcon: {
     fontSize: 48,
@@ -1048,11 +1025,6 @@ const s = {
     listStyle: 'none',
     padding: 0,
     margin: '0 0 24px 0',
-    'li': {
-      padding: '8px 0',
-      color: '#475569',
-      fontSize: 15,
-    },
   },
   roleBadge: {
     display: 'inline-block',
@@ -1122,15 +1094,6 @@ const s = {
     display: 'flex',
     flexDirection: 'column',
     gap: 12,
-    'a': {
-      color: '#94a3b8',
-      textDecoration: 'none',
-      fontSize: 14,
-      transition: 'color 0.2s',
-      ':hover': {
-        color: '#fff',
-      },
-    },
   },
   footerColTitle: {
     color: '#fff',
@@ -1149,8 +1112,7 @@ const s = {
     fontSize: 13,
     textAlign: 'center',
   },
-  
-  // Modal styles
+
   modalOverlay: {
     position: 'fixed',
     inset: 0,
@@ -1200,8 +1162,7 @@ const s = {
     color: '#cbd5e1',
     fontWeight: 600,
     cursor: 'pointer',
-    fontSize: '14px',
-    transition: 'all 0.2s'
+    fontSize: '14px'
   },
   confirmBtn: {
     padding: '12px 24px',
@@ -1212,12 +1173,10 @@ const s = {
     fontWeight: 600,
     cursor: 'pointer',
     fontSize: '14px',
-    boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)',
-    transition: 'all 0.2s'
+    boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)'
   },
 };
 
-// Add animation keyframes to document
 const styleSheet = document.createElement("style");
 styleSheet.textContent = `
   @keyframes pulse {
@@ -1234,4 +1193,7 @@ styleSheet.textContent = `
     50% { transform: translateY(10px); }
   }
 `;
-document.head.appendChild(styleSheet);
+if (!document.getElementById('home-page-animations')) {
+  styleSheet.id = 'home-page-animations';
+  document.head.appendChild(styleSheet);
+}
