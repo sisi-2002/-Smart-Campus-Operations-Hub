@@ -39,9 +39,6 @@ export default function Navbar() {
         </div>
 
         <div style={s.right}>
-          {/* ✅ Notification bell */}
-          <NotificationPanel />
-
           {/* User info */}
           <div style={s.userInfo}>
             <div style={s.avatar}>
@@ -61,6 +58,7 @@ export default function Navbar() {
           <button style={s.logoutBtn} onClick={() => setShowLogoutConfirm(true)}>
             Logout
           </button>
+          <NotificationPanel />
         </div>
       </nav>
 
