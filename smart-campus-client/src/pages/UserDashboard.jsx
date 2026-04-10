@@ -311,7 +311,10 @@ export default function UserDashboard() {
   const renderTicketsTab = () => (
     <div style={s.ticketsWrap}>
       <div style={s.ticketsHeader}>
-        <div style={s.ticketsTitle}>My Incident Reports</div>
+        <div style={s.ticketsTitleWrap}>
+          <span style={s.ticketsTitleEyebrow}>Ticket Center</span>
+          <div style={s.ticketsTitle}>My Incident Reports</div>
+        </div>
         <div style={s.ticketsHeaderRight}>
           <div style={s.ticketViewToggle}>
             <button
@@ -932,6 +935,24 @@ const s = {
     gap: 10,
     flexWrap: 'wrap',
   },
+  ticketsTitleWrap: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 5,
+  },
+  ticketsTitleEyebrow: {
+    display: 'inline-flex',
+    width: 'fit-content',
+    padding: '3px 8px',
+    borderRadius: 999,
+    border: '1px solid #7c2d1233',
+    background: '#7c2d1214',
+    color: '#7c2d12',
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+  },
   ticketsHeaderRight: {
     display: 'flex',
     alignItems: 'center',
@@ -939,9 +960,11 @@ const s = {
     flexWrap: 'wrap',
   },
   ticketsTitle: {
-    fontSize: 14,
+    fontSize: 24,
     fontWeight: 700,
+    fontFamily: 'Playfair Display, serif',
     color: '#1c1917',
+    letterSpacing: '-0.01em',
   },
   ticketViewToggle: {
     display: 'flex',
