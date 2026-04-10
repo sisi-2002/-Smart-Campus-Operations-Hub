@@ -5,6 +5,7 @@ import api from '../api/axiosInstance';
 import MfaSetupPage from './MfaSetupPage';
 import MfaVerifyPage from './MfaVerifyPage';
 import authBg from '../assets/auth-bg.jpg';
+import ForgotPasswordPage from './ForgotPasswordPage';
 
 export default function AuthPage() {
   const navigate = useNavigate();

@@ -14,104 +14,135 @@ import ResourceManagement from './components/Admin/ResourceManagement';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import ChatBot from './components/ChatBot';
 import AuthPage from './pages/AuthPage';
+import Navbar from './components/Navbar';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
+
+// ✅ Layout wrapper (Navbar + ChatBot)
+function ProtectedLayout({ children }) {
+  return (
+    <div>
+      <Navbar />
+      <div style={{ minHeight: 'calc(100vh - 60px)' }}>
+        {children}
+      </div>
+      <ChatBot />
+    </div>
+  );
+}
 
 function AppRoutes() {
   const { user } = useAuth();
 
   return (
-    <>
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<HomePage />} />
-        <Route path="/auth" element={<AuthPage />} />
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/" element={<HomePage />} />
+      <Route path="/auth" element={<AuthPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
+      <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
-        <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
-        <Route path="/unauthorized" element={<UnauthorizedPage />} />
-
-        {/* Protected Routes - Any authenticated user */}
-        <Route
-          path="/dashboard"
-          element={
-            <ProtectedRoute>
+      {/* Protected Routes - Any authenticated user */}
+      <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+            <ProtectedLayout>
               <UserDashboard />
-            </ProtectedRoute>
-          }
-        />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
 
-        {/* Booking Routes - Any authenticated user */}
-        <Route
-          path="/create-booking"
-          element={
-            <ProtectedRoute>
+      {/* Booking Routes */}
+      <Route
+        path="/create-booking"
+        element={
+          <ProtectedRoute>
+            <ProtectedLayout>
               <CreateBooking />
-            </ProtectedRoute>
-          }
-        />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          path="/my-bookings"
-          element={
-            <ProtectedRoute>
+      <Route
+        path="/my-bookings"
+        element={
+          <ProtectedRoute>
+            <ProtectedLayout>
               <BookingList isAdmin={false} />
-            </ProtectedRoute>
-          }
-        />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
 
-        {/* Admin Routes */}
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute requiredRole="ADMIN">
+      {/* Admin Routes */}
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute requiredRole="ADMIN">
+            <ProtectedLayout>
               <AdminDashboard />
-            </ProtectedRoute>
-          }
-        />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          path="/admin/resources"
-          element={
-            <ProtectedRoute requiredRole="ADMIN">
+      <Route
+        path="/admin/resources"
+        element={
+          <ProtectedRoute requiredRole="ADMIN">
+            <ProtectedLayout>
               <ResourceManagement />
-            </ProtectedRoute>
-          }
-        />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
 
-        <Route
-          path="/admin/bookings"
-          element={
-            <ProtectedRoute requiredRole="ADMIN">
+      <Route
+        path="/admin/bookings"
+        element={
+          <ProtectedRoute requiredRole="ADMIN">
+            <ProtectedLayout>
               <BookingList isAdmin={true} />
-            </ProtectedRoute>
-          }
-        />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
 
-        {/* Manager Routes */}
-        <Route
-          path="/manager"
-          element={
-            <ProtectedRoute requiredRole="MANAGER">
+      {/* Manager Routes */}
+      <Route
+        path="/manager"
+        element={
+          <ProtectedRoute requiredRole="MANAGER">
+            <ProtectedLayout>
               <ManagerDashboard />
-            </ProtectedRoute>
-          }
-        />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
 
-        {/* Technician Routes */}
-        <Route
-          path="/technician"
-          element={
-            <ProtectedRoute requiredRole="TECHNICIAN">
+      {/* Technician Routes */}
+      <Route
+        path="/technician"
+        element={
+          <ProtectedRoute requiredRole="TECHNICIAN">
+            <ProtectedLayout>
               <TechnicianDashboard />
-            </ProtectedRoute>
-          }
-        />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
 
-        {/* Redirect all unknown routes */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+      {/* Redirect unknown routes */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
 
-      {/* Show chatbot only when logged in */}
-      {user && <ChatBot />}
-    </>
+    
+
+
+
   );
 }
 
