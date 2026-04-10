@@ -12,6 +12,8 @@ import com.smartcampus.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -91,9 +93,10 @@ public class TechnicianService {
                 String currentStatus = normalizeStatus(ticket.getStatus());
                 String requestedStatus = trimToNull(request.getStatus());
                 String effectiveNotes = trimToNull(request.getResolutionNotes());
+                String normalizedNextStatus = null;
 
                 if (requestedStatus != null) {
-                        String normalizedNextStatus = requestedStatus.toUpperCase();
+                        normalizedNextStatus = requestedStatus.toUpperCase();
                         validateTechnicianTransition(currentStatus, normalizedNextStatus);
 
                         if ("RESOLVED".equals(normalizedNextStatus) && effectiveNotes == null) {
@@ -106,6 +109,16 @@ public class TechnicianService {
 
                         ticket.setStatus(normalizedNextStatus);
         }
+
+                if (ticket.getFirstResponseAt() == null) {
+                        ticket.setFirstResponseAt(LocalDateTime.now());
+                }
+
+                if ("RESOLVED".equals(normalizedNextStatus)
+                                && !"RESOLVED".equals(currentStatus)
+                                && ticket.getResolvedAt() == null) {
+                        ticket.setResolvedAt(LocalDateTime.now());
+                }
 
         if (request.getResolutionNotes() != null) {
             String notes = request.getResolutionNotes().trim();
@@ -175,6 +188,9 @@ public class TechnicianService {
     }
 
     private AdminIncidentTicketDto toTicketDto(IncidentTicket ticket, User reporter) {
+                Long firstResponseMinutes = computeDurationMinutes(ticket.getCreatedAt(), ticket.getFirstResponseAt());
+                Long resolutionMinutes = computeDurationMinutes(ticket.getCreatedAt(), ticket.getResolvedAt());
+
         return AdminIncidentTicketDto.builder()
                 .id(ticket.getId())
                 .userId(ticket.getUserId())
@@ -192,8 +208,19 @@ public class TechnicianService {
                 .assignedTechnicianId(ticket.getAssignedTechnicianId())
                 .assignedTechnicianName(ticket.getAssignedTechnicianName())
                 .resolutionNotes(ticket.getResolutionNotes())
+                                .firstResponseAt(ticket.getFirstResponseAt())
+                                .resolvedAt(ticket.getResolvedAt())
+                                .timeToFirstResponseMinutes(firstResponseMinutes)
+                                .timeToResolutionMinutes(resolutionMinutes)
                                 .comments(TicketCommentDto.fromList(ticket.getComments()))
                 .createdAt(ticket.getCreatedAt())
                 .build();
     }
+
+        private Long computeDurationMinutes(LocalDateTime start, LocalDateTime end) {
+                if (start == null || end == null || end.isBefore(start)) {
+                        return null;
+                }
+                return Duration.between(start, end).toMinutes();
+        }
 }

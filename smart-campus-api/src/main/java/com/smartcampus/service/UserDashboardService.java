@@ -13,7 +13,9 @@ import com.smartcampus.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -100,6 +102,9 @@ public class UserDashboardService {
                             throw new RuntimeException("You can only view your own tickets");
                         }
 
+                                                Long firstResponseMinutes = computeDurationMinutes(ticket.getCreatedAt(), ticket.getFirstResponseAt());
+                                                Long resolutionMinutes = computeDurationMinutes(ticket.getCreatedAt(), ticket.getResolvedAt());
+
                         return IncidentTicketDetailsDto.builder()
                                 .id(ticket.getId())
                                 .ticketId(defaultValue(ticket.getTicketId(), ticket.getId()))
@@ -111,6 +116,11 @@ public class UserDashboardService {
                                 .imageNames(ticket.getImageNames() == null ? List.of() : ticket.getImageNames())
                                 .imageDataUrls(ticket.getImageDataUrls() == null ? List.of() : ticket.getImageDataUrls())
                                 .status(defaultValue(ticket.getStatus(), "OPEN"))
+                                .createdAt(ticket.getCreatedAt())
+                                .firstResponseAt(ticket.getFirstResponseAt())
+                                .resolvedAt(ticket.getResolvedAt())
+                                .timeToFirstResponseMinutes(firstResponseMinutes)
+                                .timeToResolutionMinutes(resolutionMinutes)
                                 .build();
                     }
 
@@ -191,6 +201,11 @@ public class UserDashboardService {
                         .imageDataUrls(t.getImageDataUrls() == null ? List.of() : t.getImageDataUrls())
                         .comments(TicketCommentDto.fromList(t.getComments()))
                         .status(defaultValue(t.getStatus(), "Open"))
+                        .createdAt(t.getCreatedAt())
+                        .firstResponseAt(t.getFirstResponseAt())
+                        .resolvedAt(t.getResolvedAt())
+                        .timeToFirstResponseMinutes(computeDurationMinutes(t.getCreatedAt(), t.getFirstResponseAt()))
+                        .timeToResolutionMinutes(computeDurationMinutes(t.getCreatedAt(), t.getResolvedAt()))
                         .build())
                 .toList();
 
@@ -209,6 +224,11 @@ public class UserDashboardService {
                         .imageDataUrls(t.getImageDataUrls() == null ? List.of() : t.getImageDataUrls())
                         .comments(TicketCommentDto.fromList(t.getComments()))
                         .status(defaultValue(t.getStatus(), "Open"))
+                        .createdAt(t.getCreatedAt())
+                        .firstResponseAt(t.getFirstResponseAt())
+                        .resolvedAt(t.getResolvedAt())
+                        .timeToFirstResponseMinutes(computeDurationMinutes(t.getCreatedAt(), t.getFirstResponseAt()))
+                        .timeToResolutionMinutes(computeDurationMinutes(t.getCreatedAt(), t.getResolvedAt()))
                         .build())
                 .toList();
 
@@ -252,6 +272,13 @@ public class UserDashboardService {
     private String defaultValue(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value;
     }
+
+        private Long computeDurationMinutes(LocalDateTime start, LocalDateTime end) {
+                if (start == null || end == null || end.isBefore(start)) {
+                        return null;
+                }
+                return Duration.between(start, end).toMinutes();
+        }
 
         private String trimToNull(String value) {
                 if (value == null) {
