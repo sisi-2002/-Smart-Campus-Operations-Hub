@@ -27,11 +27,12 @@ public class AuthService {
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
     private final MfaService mfaService;
+    private final NotificationService notificationService;
 
     // ✅ Roles that REQUIRE 2FA
     // Adjust these enum values to match whatever you named them in your Role.java file
     private static final Set<Role> MFA_REQUIRED_ROLES = Set.of(
-        Role.ADMIN, 
+        Role.ADMIN,
         Role.TECHNICIAN,
         Role.MANAGER
     );
@@ -53,6 +54,9 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+
+        // ✅ Send welcome notification on registration
+        notificationService.sendWelcomeNotification(user.getId(), user.getName());
 
         String token = jwtUtil.generateToken(
             user.getEmail(), user.getRole().name(), user.getId());
