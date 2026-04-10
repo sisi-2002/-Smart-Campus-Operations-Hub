@@ -53,20 +53,22 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
-                    "/api/auth/register", // ✅ Explicitly mapped
-                    "/api/auth/login",    // ✅ Explicitly mapped
-                    "/api/auth/login/verify-mfa",  // ✅ add this
+                    "/api/auth/register",
+                    "/api/auth/login",
+                    "/api/auth/login/verify-mfa",
+                    "/api/auth/**",
+                    "/api/auth/password/**",   // ✅ add this
                     "/oauth2/**",
                     "/login/oauth2/**",
                     "/error"
                 ).permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/chatbot/**").authenticated()  // ✅ logged in users only
+                .requestMatchers("/api/notifications/**").authenticated()
+                .requestMatchers("/api/chatbot/**").authenticated()
                 .anyRequest().authenticated()
             )
             .formLogin(AbstractHttpConfigurer::disable)
             .oauth2Login(oauth2 -> oauth2
-                // ✅ Use cookie-based storage for OAuth2 state (fixes STATELESS bug)
                 .authorizationEndpoint(endpoint ->
                     endpoint.authorizationRequestRepository(cookieAuthRequestRepository))
                 .userInfoEndpoint(userInfo ->
@@ -107,6 +109,7 @@ public class SecurityConfig {
             List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
+
         UrlBasedCorsConfigurationSource source =
             new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

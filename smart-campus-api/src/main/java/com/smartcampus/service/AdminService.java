@@ -32,6 +32,7 @@ public class AdminService {
     private final UserRepository userRepository;
     private final IncidentTicketRepository incidentTicketRepository;
     private final MongoTemplate mongoTemplate;
+    private final NotificationService notificationService;
 
     // GET all users — safe fields only
     public List<UserSummaryDto> getAllUsers() {
@@ -85,6 +86,10 @@ public class AdminService {
         }
 
         userRepository.save(user);
+
+        // ✅ Notify user their role changed
+        notificationService.sendRoleChangedNotification(userId, newRole.name());
+
         return toDto(user);
     }
 
@@ -92,8 +97,13 @@ public class AdminService {
     public UserSummaryDto toggleUserStatus(String userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
         user.setEnabled(!user.isEnabled());
         userRepository.save(user);
+
+        // ✅ Notify user their account status changed
+        notificationService.sendAccountStatusNotification(userId, user.isEnabled());
+
         return toDto(user);
     }
 
@@ -322,7 +332,10 @@ public class AdminService {
 
     private List<String> safeStringList(Object value) {
         if (value instanceof List<?> list) {
-            return list.stream().map(item -> item == null ? null : String.valueOf(item)).filter(item -> item != null && !item.isBlank()).toList();
+            return list.stream()
+                    .map(item -> item == null ? null : String.valueOf(item))
+                    .filter(item -> item != null && !item.isBlank())
+                    .toList();
         }
         return List.of();
     }

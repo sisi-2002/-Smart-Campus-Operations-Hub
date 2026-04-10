@@ -327,7 +327,7 @@ const TICKET_STATUS_STYLE = {
 };
 
 export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('users');
@@ -340,7 +340,6 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [updating, setUpdating] = useState(null);
   const [userToDelete, setUserToDelete] = useState(null);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [bmFilter, setBmFilter] = useState('ALL');
   const [bmViewMode, setBmViewMode] = useState('list');
   const [tickets, setTickets] = useState([]);
@@ -557,16 +556,6 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
   const availableTechnicians = users
     .filter((u) => u.role === 'TECHNICIAN' && u.enabled)
     .sort((a, b) => a.name.localeCompare(b.name));
-
-  const handleLogoutClick = () => {
-    setShowLogoutConfirm(true);
-  };
-
-  const confirmLogout = () => {
-    setShowLogoutConfirm(false);
-    logout();
-    navigate('/');
-  };
 
   const getAllowedStatusOptions = (currentStatus) => {
     if (currentStatus === 'OPEN' || currentStatus === 'PENDING') {
@@ -1010,31 +999,6 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
         </div>
       )}
 
-      {showLogoutConfirm && (
-        <div style={s.modalOverlay}>
-          <div style={s.modalCard}>
-            <div style={s.modalIcon}>👋</div>
-            <h3 style={s.modalTitle}>Log Out</h3>
-            <p style={s.modalDest}>Are you sure you want to log out of your account?</p>
-            <div style={s.modalActions}>
-              <button style={s.cancelBtn} onClick={() => setShowLogoutConfirm(false)}>
-                No
-              </button>
-              <button
-                style={{
-                  ...s.confirmDeleteBtn,
-                  background: '#4f46e5',
-                  boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)',
-                }}
-                onClick={confirmLogout}
-              >
-                Yes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {selectedTicket && (
         <div style={s.modalOverlay}>
           <div style={s.ticketModalCard}>
@@ -1215,13 +1179,6 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
               {activeTab === 'analytics' && 'Analytics Dashboard'}
             </h1>
             <p style={s.headerSub}>Manage campus resources and users</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={s.adminBadge}>{dashboardBadge}</span>
-            <span style={{ fontSize: 14, color: '#64748b' }}>{user?.name}</span>
-            <button style={s.logoutBtn} onClick={handleLogoutClick}>
-              Logout
-            </button>
           </div>
         </div>
 

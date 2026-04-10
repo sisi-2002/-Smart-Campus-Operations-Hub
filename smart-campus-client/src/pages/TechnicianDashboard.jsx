@@ -14,7 +14,7 @@ const STATUS_STYLE = {
 };
 
 export default function TechnicianDashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -180,11 +180,6 @@ export default function TechnicianDashboard() {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
-  };
-
   return (
     <div style={s.layout}>
       {toast && (
@@ -295,11 +290,6 @@ export default function TechnicianDashboard() {
         <div>
           <h1 style={s.headerTitle}>Technician Dashboard</h1>
           <p style={s.headerSub}>Assigned incidents and resolution workflow</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={s.techBadge}>TECHNICIAN</span>
-          <span style={{ fontSize: 14, color: '#64748b' }}>{overview.technician?.name || user?.name}</span>
-          <button style={s.logoutBtn} onClick={handleLogout}>Logout</button>
         </div>
       </div>
 
