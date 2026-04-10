@@ -16,11 +16,10 @@ import ChatBot from './components/ChatBot';
 import AuthPage from './pages/AuthPage';
 import BookingCalendar from './components/Bookings/BookingCalendar';
 import BookingAnalytics from './components/Bookings/BookingAnalytics';
-
 import Navbar from './components/Navbar';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 
-// ✅ Layout wrapper (Navbar + ChatBot)
+// Layout wrapper
 function ProtectedLayout({ children }) {
   return (
     <div>
@@ -75,25 +74,17 @@ function AppRoutes() {
           <ProtectedRoute>
             <ProtectedLayout>
               <BookingList isAdmin={false} />
-            </ProtectedRoute>
-          }
-        />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
 
-        {/* Calendar View Route - Any authenticated user */}
-        <Route
-          path="/calendar"
-          element={
-            <ProtectedRoute>
+      <Route
+        path="/calendar"
+        element={
+          <ProtectedRoute>
+            <ProtectedLayout>
               <BookingCalendar isAdmin={false} />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Admin Routes */}
-        <Route
-          path="/admin"
-          element={
-            <ProtectedRoute requiredRole="ADMIN">
             </ProtectedLayout>
           </ProtectedRoute>
         }
@@ -128,35 +119,28 @@ function AppRoutes() {
           <ProtectedRoute requiredRole="ADMIN">
             <ProtectedLayout>
               <BookingList isAdmin={true} />
-            </ProtectedRoute>
-          }
-        />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
 
-        {/* Admin Calendar View */}
-        <Route
-          path="/admin/calendar"
-          element={
-            <ProtectedRoute requiredRole="ADMIN">
+      <Route
+        path="/admin/calendar"
+        element={
+          <ProtectedRoute requiredRole="ADMIN">
+            <ProtectedLayout>
               <BookingCalendar isAdmin={true} />
-            </ProtectedRoute>
-          }
-        />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
 
-        {/* Admin Analytics Dashboard */}
-        <Route
-          path="/admin/analytics"
-          element={
-            <ProtectedRoute requiredRole="ADMIN">
+      <Route
+        path="/admin/analytics"
+        element={
+          <ProtectedRoute requiredRole="ADMIN">
+            <ProtectedLayout>
               <BookingAnalytics />
-            </ProtectedRoute>
-          }
-        />
-
-        {/* Manager Routes */}
-        <Route
-          path="/manager"
-          element={
-            <ProtectedRoute requiredRole="MANAGER">
             </ProtectedLayout>
           </ProtectedRoute>
         }
@@ -189,11 +173,6 @@ function AppRoutes() {
       {/* Redirect unknown routes */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-
-    
-
-
-
   );
 }
 
