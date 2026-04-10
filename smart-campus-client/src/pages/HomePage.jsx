@@ -120,7 +120,7 @@ export default function HomePage() {
               <div style={s.heroStats}>
                 <div style={s.stat}>
                   <div style={s.statNum}>500+</div>
-                  <div style={s.statLabel}>Resources Managed</div>
+                  <div style={s.statLabel}>Incidents Resolved</div>
                 </div>
                 <div style={s.stat}>
                   <div style={s.statNum}>98%</div>

@@ -17,6 +17,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.*;
 
@@ -62,6 +63,7 @@ public class SecurityConfig {
                     "/login/oauth2/**",
                     "/error"
                 ).permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/resources/**").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/notifications/**").authenticated()
                 .requestMatchers("/api/chatbot/**").authenticated()

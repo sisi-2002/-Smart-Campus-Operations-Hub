@@ -73,7 +73,6 @@ export function AuthProvider({ children }) {
     if (user?.role === 'TECHNICIAN') return '/technician';
     return '/dashboard';
   };
-
   const isAuthenticated = () => !!user;
 
   useEffect(() => {

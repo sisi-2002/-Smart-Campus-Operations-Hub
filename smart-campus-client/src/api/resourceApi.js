@@ -27,12 +27,12 @@ const resourceApi = {
     return api.get('/resources/search', { params: { q: query } });
   },
 
-  // Create resource (Admin only)
+  // Create resource (Admin or Manager)
   createResource: (resourceData) => {
     return api.post('/resources', resourceData);
   },
 
-  // Update resource (Admin only)
+  // Update resource (Admin or Manager)
   updateResource: (id, resourceData) => {
     return api.put(`/resources/${id}`, resourceData);
   },

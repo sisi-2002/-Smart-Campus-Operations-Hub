@@ -1,5 +1,5 @@
-import AdminDashboard from './AdminDashboard';
+import ResourceManagement from '../components/Admin/ResourceManagement';
 
 export default function ManagerDashboard() {
-  return <AdminDashboard dashboardBadge="MANAGER" />;
+  return <ResourceManagement canCreate={true} canDelete={false} roleLabel="Manager" />;
 }

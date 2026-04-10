@@ -3,13 +3,23 @@ package com.smartcampus.controller;
 import com.smartcampus.entity.Resource;
 import com.smartcampus.entity.ResourceStatus;
 import com.smartcampus.service.ResourceService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -20,7 +30,6 @@ public class ResourceController {
 
     private final ResourceService resourceService;
 
-    // Get all resources (public)
     @GetMapping
     public ResponseEntity<List<Resource>> getAllResources(
             @RequestParam(required = false) String type,
@@ -29,67 +38,51 @@ public class ResourceController {
         return ResponseEntity.ok(resources);
     }
 
-    // Get available resources (active only)
     @GetMapping("/available")
     public ResponseEntity<List<Resource>> getAvailableResources() {
-        List<Resource> resources = resourceService.getAvailableResources();
-        return ResponseEntity.ok(resources);
+        return ResponseEntity.ok(resourceService.getAvailableResources());
     }
 
-    // Get resource by ID
     @GetMapping("/{id}")
     public ResponseEntity<Resource> getResourceById(@PathVariable String id) {
-        Resource resource = resourceService.getResourceById(id);
-        return ResponseEntity.ok(resource);
+        return ResponseEntity.ok(resourceService.getResourceById(id));
     }
 
-    // Get resources by type
     @GetMapping("/type/{type}")
     public ResponseEntity<List<Resource>> getResourcesByType(@PathVariable String type) {
-        List<Resource> resources = resourceService.getResourcesByType(type);
-        return ResponseEntity.ok(resources);
+        return ResponseEntity.ok(resourceService.getResourcesByType(type));
     }
 
-    // Search resources
     @GetMapping("/search")
     public ResponseEntity<List<Resource>> searchResources(@RequestParam String query) {
-        List<Resource> resources = resourceService.searchResources(query);
-        return ResponseEntity.ok(resources);
+        return ResponseEntity.ok(resourceService.searchResources(query));
     }
 
-    // Create resource (Admin only)
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<Resource> createResource(@Valid @RequestBody Resource resource) {
         Resource created = resourceService.createResource(resource);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    // Update resource (Admin only)
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Resource> updateResource(
-            @PathVariable String id,
-            @Valid @RequestBody Resource resource) {
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<Resource> updateResource(@PathVariable String id, @Valid @RequestBody Resource resource) {
         Resource updated = resourceService.updateResource(id, resource);
         return ResponseEntity.ok(updated);
     }
 
-    // Delete resource (Admin only)
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<Resource> updateResourceStatus(@PathVariable String id, @RequestParam ResourceStatus status) {
+        Resource updated = resourceService.updateResourceStatus(id, status);
+        return ResponseEntity.ok(updated);
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteResource(@PathVariable String id) {
         resourceService.deleteResource(id);
         return ResponseEntity.noContent().build();
-    }
-
-    // Update resource status (Admin only)
-    @PatchMapping("/{id}/status")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Resource> updateResourceStatus(
-            @PathVariable String id,
-            @RequestParam ResourceStatus status) {
-        Resource updated = resourceService.updateResourceStatus(id, status);
-        return ResponseEntity.ok(updated);
     }
 }

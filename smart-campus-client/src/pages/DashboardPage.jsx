@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function DashboardPage() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isManager } = useAuth();
   const navigate = useNavigate();
 
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -221,25 +221,47 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {isAdmin() && (
+        {(isAdmin() || isManager()) && (
           <div style={styles.adminGrid}>
-            <div
-              style={styles.adminCard}
-              data-card-hover="true"
-              onClick={() => navigate('/admin')}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => e.key === 'Enter' && navigate('/admin')}
-            >
-              <div style={styles.adminIcon}>⚙️</div>
-              <div style={styles.adminContent}>
-                <strong style={{ fontSize: '1rem' }}>Admin Dashboard</strong>
-                <p style={{ margin: '4px 0 0', fontSize: '0.85rem', opacity: 0.8 }}>
-                  Manage users and system settings
-                </p>
+            {isAdmin() && (
+              <div
+                style={styles.adminCard}
+                data-card-hover="true"
+                onClick={() => navigate('/admin')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && navigate('/admin')}
+              >
+                <div style={styles.adminIcon}>⚙️</div>
+                <div style={styles.adminContent}>
+                  <strong style={{ fontSize: '1rem' }}>Admin Dashboard</strong>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.85rem', opacity: 0.8 }}>
+                    Manage users and system settings
+                  </p>
+                </div>
+                <div style={styles.arrowIcon}>→</div>
               </div>
-              <div style={styles.arrowIcon}>→</div>
-            </div>
+            )}
+
+            {isManager() && (
+              <div
+                style={styles.managerCard}
+                data-card-hover="true"
+                onClick={() => navigate('/manager')}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => e.key === 'Enter' && navigate('/manager')}
+              >
+                <div style={styles.managerIcon}>🏢</div>
+                <div style={styles.managerContent}>
+                  <strong style={{ fontSize: '1rem' }}>Manager Dashboard</strong>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.85rem', opacity: 0.8 }}>
+                    Manage resources and oversee bookings
+                  </p>
+                </div>
+                <div style={styles.arrowIcon}>→</div>
+              </div>
+            )}
 
             <div
               style={styles.adminBookingCard}
@@ -523,6 +545,32 @@ const styles = {
   adminContent: {
     flex: 1,
     color: '#fde68a',
+  },
+  managerCard: {
+    background: 'rgba(147, 51, 234, 0.08)',
+    backdropFilter: 'blur(12px)',
+    borderRadius: '20px',
+    padding: '1.25rem',
+    border: '1px solid rgba(147, 51, 234, 0.25)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+  },
+  managerIcon: {
+    fontSize: '2rem',
+    background: 'rgba(147,51,234,0.15)',
+    width: '48px',
+    height: '48px',
+    borderRadius: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  managerContent: {
+    flex: 1,
+    color: '#d8b4fe',
   },
   adminBookingCard: {
     background: 'rgba(16, 185, 129, 0.08)',
