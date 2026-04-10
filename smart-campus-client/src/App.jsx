@@ -14,6 +14,9 @@ import ResourceManagement from './components/Admin/ResourceManagement';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import ChatBot from './components/ChatBot';
 import AuthPage from './pages/AuthPage';
+import BookingCalendar from './components/Bookings/BookingCalendar';
+import BookingAnalytics from './components/Bookings/BookingAnalytics';
+
 import Navbar from './components/Navbar';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 
@@ -72,6 +75,25 @@ function AppRoutes() {
           <ProtectedRoute>
             <ProtectedLayout>
               <BookingList isAdmin={false} />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Calendar View Route - Any authenticated user */}
+        <Route
+          path="/calendar"
+          element={
+            <ProtectedRoute>
+              <BookingCalendar isAdmin={false} />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Routes */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute requiredRole="ADMIN">
             </ProtectedLayout>
           </ProtectedRoute>
         }
@@ -106,6 +128,35 @@ function AppRoutes() {
           <ProtectedRoute requiredRole="ADMIN">
             <ProtectedLayout>
               <BookingList isAdmin={true} />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Calendar View */}
+        <Route
+          path="/admin/calendar"
+          element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <BookingCalendar isAdmin={true} />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Analytics Dashboard */}
+        <Route
+          path="/admin/analytics"
+          element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <BookingAnalytics />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Manager Routes */}
+        <Route
+          path="/manager"
+          element={
+            <ProtectedRoute requiredRole="MANAGER">
             </ProtectedLayout>
           </ProtectedRoute>
         }

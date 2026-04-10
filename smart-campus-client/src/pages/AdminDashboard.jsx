@@ -12,6 +12,8 @@ import {
 } from '../api/adminApi';
 import TicketCommentsPanel from '../components/TicketCommentsPanel';
 import BookingList from '../components/Bookings/BookingList';
+import BookingCalendar from '../components/Bookings/BookingCalendar';
+import BookingAnalytics from '../components/Bookings/BookingAnalytics';
 import ResourceManagement from '../components/Admin/ResourceManagement';
 
 const ROLES = ['USER', 'TECHNICIAN', 'MANAGER', 'ADMIN'];
@@ -86,6 +88,38 @@ const bookingCSS = `
 @keyframes bm-pulse {
   0%,100% { box-shadow: 0 0 0 2px #34d39944; }
   50% { box-shadow: 0 0 0 5px #34d39900; }
+}
+
+.bm-view-toggle {
+  display: flex;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e4dfd4;
+}
+.bm-view-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #e4dfd4;
+  background: #fff;
+  font-family: 'Epilogue', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #78716c;
+  cursor: pointer;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bm-view-btn:hover {
+  background: #faf9f7;
+  border-color: #d0ccc5;
+}
+.bm-view-btn.active {
+  background: #0d7a6b;
+  color: #fff;
+  border-color: #0d7a6b;
 }
 
 .bm-stats {
@@ -307,6 +341,7 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
   const [updating, setUpdating] = useState(null);
   const [userToDelete, setUserToDelete] = useState(null);
   const [bmFilter, setBmFilter] = useState('ALL');
+  const [bmViewMode, setBmViewMode] = useState('list');
   const [tickets, setTickets] = useState([]);
   const [ticketsLoaded, setTicketsLoaded] = useState(false);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
@@ -1124,6 +1159,12 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
           >
             🎫 Ticket Management
           </button>
+          <button
+            style={activeTab === 'analytics' ? s.navItemActive : s.navItem}
+            onClick={() => setActiveTab('analytics')}
+          >
+            📊 Analytics Dashboard
+          </button>
         </nav>
       </div>
 
@@ -1135,6 +1176,7 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
               {activeTab === 'resources' && 'Resource Management'}
               {activeTab === 'bookings' && 'Booking Management'}
               {activeTab === 'tickets' && 'Ticket Management'}
+              {activeTab === 'analytics' && 'Analytics Dashboard'}
             </h1>
             <p style={s.headerSub}>Manage campus resources and users</p>
           </div>
@@ -1163,79 +1205,102 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
                 </div>
               </div>
 
-              <div className="bm-stats">
-                {[
-                  { label: 'Total Bookings', val: stats?.totalBookings ?? '—', dot: '#6366f1' },
-                  { label: 'Pending Approval', val: stats?.pendingBookings ?? '—', dot: '#f59e0b' },
-                  { label: 'Active Today', val: stats?.activeToday ?? '—', dot: '#10b981' },
-                  { label: 'Cancelled', val: stats?.cancelled ?? '—', dot: '#ef4444' },
-                ].map((st) => (
-                  <div key={st.label} className="bm-stat">
-                    <div className="bm-stat-val">{st.val}</div>
-                    <div className="bm-stat-label">
-                      <span className="bm-stat-dot" style={{ background: st.dot }} />
-                      {st.label}
-                    </div>
-                  </div>
-                ))}
+              <div className="bm-view-toggle">
+                <button
+                  className={`bm-view-btn ${bmViewMode === 'list' ? 'active' : ''}`}
+                  onClick={() => setBmViewMode('list')}
+                >
+                  📋 List View
+                </button>
+                <button
+                  className={`bm-view-btn ${bmViewMode === 'calendar' ? 'active' : ''}`}
+                  onClick={() => setBmViewMode('calendar')}
+                >
+                  📅 Calendar View
+                </button>
               </div>
 
-              <div className="bm-toolbar">
-                <div className="bm-toolbar-left">
-                  <span className="bm-toolbar-label">Filter by status</span>
-                  <div className="bm-ftabs">
+              {bmViewMode === 'list' && (
+                <>
+                  <div className="bm-stats">
                     {[
-                      { key: 'ALL', label: 'All', count: stats?.totalBookings },
-                      { key: 'PENDING', label: 'Pending', count: stats?.pendingBookings },
-                      { key: 'APPROVED', label: 'Approved', count: stats?.approvedBookings },
-                      { key: 'CANCELLED', label: 'Cancelled', count: stats?.cancelled },
-                    ].map((f) => (
-                      <button
-                        key={f.key}
-                        className={`bm-ftab ${bmFilter === f.key ? 'on' : ''}`}
-                        onClick={() => setBmFilter(f.key)}
-                      >
-                        {f.label}
-                        {f.count !== undefined && f.count !== null && (
-                          <span className="bm-ftab-count">{f.count}</span>
-                        )}
-                      </button>
+                      { label: 'Total Bookings', val: stats?.totalBookings ?? '—', dot: '#6366f1' },
+                      { label: 'Pending Approval', val: stats?.pendingBookings ?? '—', dot: '#f59e0b' },
+                      { label: 'Active Today', val: stats?.activeToday ?? '—', dot: '#10b981' },
+                      { label: 'Cancelled', val: stats?.cancelled ?? '—', dot: '#ef4444' },
+                    ].map((st) => (
+                      <div key={st.label} className="bm-stat">
+                        <div className="bm-stat-val">{st.val}</div>
+                        <div className="bm-stat-label">
+                          <span className="bm-stat-dot" style={{ background: st.dot }} />
+                          {st.label}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </div>
-                <div className="bm-toolbar-right">
-                  <div className="bm-admin-chip">🔒 Admin — All Users Visible</div>
-                </div>
-              </div>
 
-              <div className="bm-active-filter-bar">
-                Showing:&nbsp;
-                <span className={`bm-active-filter-chip ${bmFilter === 'ALL' ? 'all' : ''}`}>
-                  {FILTER_LABELS[bmFilter]}
-                </span>
-                {bmFilter !== 'ALL' && (
-                  <button
-                    onClick={() => setBmFilter('ALL')}
-                    style={{
-                      marginLeft: 6,
-                      fontSize: 11,
-                      color: '#94a3b8',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textDecoration: 'underline',
-                    }}
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
+                  <div className="bm-toolbar">
+                    <div className="bm-toolbar-left">
+                      <span className="bm-toolbar-label">Filter by status</span>
+                      <div className="bm-ftabs">
+                        {[
+                          { key: 'ALL', label: 'All', count: stats?.totalBookings },
+                          { key: 'PENDING', label: 'Pending', count: stats?.pendingBookings },
+                          { key: 'APPROVED', label: 'Approved', count: stats?.approvedBookings },
+                          { key: 'CANCELLED', label: 'Cancelled', count: stats?.cancelled },
+                        ].map((f) => (
+                          <button
+                            key={f.key}
+                            className={`bm-ftab ${bmFilter === f.key ? 'on' : ''}`}
+                            onClick={() => setBmFilter(f.key)}
+                          >
+                            {f.label}
+                            {f.count !== undefined && f.count !== null && (
+                              <span className="bm-ftab-count">{f.count}</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="bm-toolbar-right">
+                      <div className="bm-admin-chip">🔒 Admin — All Users Visible</div>
+                    </div>
+                  </div>
+
+                  <div className="bm-active-filter-bar">
+                    Showing:&nbsp;
+                    <span className={`bm-active-filter-chip ${bmFilter === 'ALL' ? 'all' : ''}`}>
+                      {FILTER_LABELS[bmFilter]}
+                    </span>
+                    {bmFilter !== 'ALL' && (
+                      <button
+                        onClick={() => setBmFilter('ALL')}
+                        style={{
+                          marginLeft: 6,
+                          fontSize: 11,
+                          color: '#94a3b8',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                        }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
 
               <div className="bm-list-body">
-                <BookingList
-                  isAdmin={true}
-                  statusFilter={bmFilter === 'ALL' ? null : bmFilter}
-                />
+                {bmViewMode === 'list' ? (
+                  <BookingList
+                    isAdmin={true}
+                    statusFilter={bmFilter === 'ALL' ? null : bmFilter}
+                  />
+                ) : (
+                  <BookingCalendar isAdmin={true} />
+                )}
               </div>
 
               <div className="bm-footer-note">
@@ -1245,6 +1310,12 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
           )}
 
           {activeTab === 'tickets' && renderTicketsTab()}
+
+          {activeTab === 'analytics' && (
+            <div style={s.tabContent}>
+              <BookingAnalytics />
+            </div>
+          )}
         </div>
       </div>
     </div>
