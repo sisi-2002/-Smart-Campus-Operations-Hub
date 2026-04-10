@@ -19,6 +19,12 @@
       "name": "app.cors.allowed-origins",
       "type": "java.lang.String",
       "description": "Comma-separated list of allowed CORS origins"
+    },
+    {
+      "name": "app.password-reset.expiry-minutes",
+      "type": "java.lang.Integer",
+      "description": "Password reset OTP expiry in minutes"
     }
+
   ]
 }

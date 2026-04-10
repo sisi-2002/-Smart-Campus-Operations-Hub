@@ -15,6 +15,7 @@ import UnauthorizedPage from './pages/UnauthorizedPage';
 import ChatBot from './components/ChatBot';
 import AuthPage from './pages/AuthPage';
 import Navbar from './components/Navbar';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 
 // ✅ Layout wrapper (Navbar + ChatBot)
 function ProtectedLayout({ children }) {
@@ -37,6 +38,7 @@ function AppRoutes() {
       {/* Public Routes */}
       <Route path="/" element={<HomePage />} />
       <Route path="/auth" element={<AuthPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
@@ -136,6 +138,11 @@ function AppRoutes() {
       {/* Redirect unknown routes */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+
+    
+
+
+
   );
 }
 
