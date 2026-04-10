@@ -1,14 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  getNotifications,
-  getUnreadCount,
-  markAsRead,
-  markAllAsRead,
-  deleteNotification,
-  clearAll,
-} from '../api/notificationApi';
 import { useAuth } from '../context/AuthContext';
+import { useNotification } from '../context/NotificationContext';
 
 // ─── Icon map per notification type ───────────────────────────────
 const TYPE_CONFIG = {
@@ -50,14 +43,20 @@ const timeAgo = (dateStr) => {
 };
 
 export default function NotificationPanel() {
-  const { user }                            = useAuth();
-  const navigate                            = useNavigate();
-  const [open, setOpen]                     = useState(false);
-  const [notifications, setNotifications]   = useState([]);
-  const [unreadCount, setUnreadCount]       = useState(0);
-  const [loading, setLoading]               = useState(false);
-  const [filter, setFilter]                 = useState('ALL');
-  const panelRef                            = useRef(null);
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState('ALL');
+  const panelRef = useRef(null);
+  
+  const { 
+    notifications, 
+    unreadCount, 
+    loading,
+    markAsRead,
+    markAllAsRead,
+    deleteNotification,
+    clearAll
+  } = useNotification();
 
   // Close panel when clicking outside
   useEffect(() => {
@@ -70,80 +69,28 @@ export default function NotificationPanel() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  // Poll unread count every 30 seconds
-  useEffect(() => {
-    fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Fetch notifications when panel opens
-  useEffect(() => {
-    if (open) fetchNotifications();
-  }, [open]);
-
-  const fetchUnreadCount = async () => {
-    try {
-      const res = await getUnreadCount();
-      setUnreadCount(res.data.count);
-    } catch {}
-  };
-
-  const fetchNotifications = async () => {
-    setLoading(true);
-    try {
-      const res = await getNotifications();
-      setNotifications(res.data);
-    } catch {
-      setNotifications([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleMarkAsRead = async (id, e) => {
     e.stopPropagation();
-    try {
-      await markAsRead(id);
-      setNotifications(prev =>
-        prev.map(n => n.id === id ? { ...n, read: true } : n));
-      setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch {}
+    markAsRead(id);
   };
 
   const handleMarkAllRead = async () => {
-    try {
-      await markAllAsRead();
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
-      setUnreadCount(0);
-    } catch {}
+    markAllAsRead();
   };
 
   const handleDelete = async (id, e) => {
     e.stopPropagation();
-    try {
-      await deleteNotification(id);
-      const deleted = notifications.find(n => n.id === id);
-      setNotifications(prev => prev.filter(n => n.id !== id));
-      if (deleted && !deleted.read) setUnreadCount(prev => Math.max(0, prev - 1));
-    } catch {}
+    deleteNotification(id);
   };
 
   const handleClearAll = async () => {
-    try {
-      await clearAll();
-      setNotifications([]);
-      setUnreadCount(0);
-    } catch {}
+    clearAll();
   };
 
   const handleNotificationClick = async (n) => {
     // Mark as read
     if (!n.read) {
-      await markAsRead(n.id);
-      setNotifications(prev =>
-        prev.map(x => x.id === n.id ? { ...x, read: true } : x));
-      setUnreadCount(prev => Math.max(0, prev - 1));
+      markAsRead(n.id);
     }
 
     // Navigate to related page

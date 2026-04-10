@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { NotificationProvider } from './context/NotificationContext';
+import NotificationToasts from './components/NotificationToasts';
 import ProtectedRoute from './components/ProtectedRoute';
 import HomePage from './pages/HomePage';
 
@@ -142,9 +144,12 @@ function AppRoutes() {
 export default function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <NotificationProvider>
+        <BrowserRouter>
+          <AppRoutes />
+          <NotificationToasts />
+        </BrowserRouter>
+      </NotificationProvider>
     </AuthProvider>
   );
 }

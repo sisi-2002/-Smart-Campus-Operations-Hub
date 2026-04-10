@@ -38,6 +38,7 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final ResourceRepository resourceRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
     private final JwtUtil jwtUtil;
     
     @Transactional
@@ -79,6 +80,8 @@ public class BookingService {
         Booking savedBooking = bookingRepository.save(booking);
         log.info("Booking created successfully with id: {}", savedBooking.getId());
         
+        notificationService.sendBookingCreatedNotifications(currentUser, savedBooking.getId(), savedBooking.getResourceName());
+        
         return mapToResponse(savedBooking);
     }
     
@@ -115,6 +118,15 @@ public class BookingService {
         
         booking.setUpdatedAt(LocalDateTime.now());
         Booking updatedBooking = bookingRepository.save(booking);
+        
+        notificationService.sendBookingDecisionNotifications(
+            currentUser, 
+            updatedBooking.getUser().getId(), 
+            updatedBooking.getId(), 
+            updatedBooking.getResourceName(), 
+            approved, 
+            rejectionReason
+        );
         
         return mapToResponse(updatedBooking);
     }
@@ -293,6 +305,8 @@ public class BookingService {
         Booking updatedBooking = bookingRepository.save(booking);
         log.info("Booking {} cancelled by user {}", id, currentUser.getEmail());
         
+        notificationService.sendBookingCancelledNotifications(currentUser, updatedBooking.getId(), updatedBooking.getResourceName());
+
         return mapToResponse(updatedBooking);
     }
     

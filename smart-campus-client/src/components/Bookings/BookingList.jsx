@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
 import bookingApi from '../../api/bookingApi';
 
 const BookingList = ({ isAdmin = false }) => {
   const { user } = useAuth();
+  const { showLocalToast } = useNotification();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -11,6 +13,9 @@ const BookingList = ({ isAdmin = false }) => {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState('');
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false);
   const [currentBookingId, setCurrentBookingId] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -40,23 +45,37 @@ const BookingList = ({ isAdmin = false }) => {
     fetchBookings();
   }, [fetchBookings]);
 
+<<<<<<< Updated upstream
   const handleApprove = async (bookingId) => {
     if (!window.confirm('Are you sure you want to approve this booking?')) {
       return;
     }
     
+=======
+  const handleApproveClick = (bookingId) => {
+    setCurrentBookingId(bookingId);
+    setShowApproveModal(true);
+  };
+
+  const handleConfirmApprove = async () => {
+>>>>>>> Stashed changes
     setActionLoading(true);
     try {
-      console.log('Approving booking:', bookingId);
-      const response = await bookingApi.approveBooking(bookingId, true, null);
+      console.log('Approving booking:', currentBookingId);
+      const response = await bookingApi.approveBooking(currentBookingId, true, null);
       console.log('Approve response:', response.data);
+<<<<<<< Updated upstream
       
       alert('Booking approved successfully!');
+=======
+      showLocalToast('Success', 'Booking approved successfully!', 'SYSTEM_ANNOUNCEMENT');
+      setShowApproveModal(false);
+>>>>>>> Stashed changes
       await fetchBookings();
     } catch (err) {
       console.error('Error approving booking:', err);
       const errorMsg = err.response?.data?.error || err.response?.data?.message || 'Failed to approve booking';
-      alert(errorMsg);
+      showLocalToast('Error', errorMsg, 'SYSTEM_ANNOUNCEMENT');
     } finally {
       setActionLoading(false);
     }
@@ -70,7 +89,7 @@ const BookingList = ({ isAdmin = false }) => {
 
   const handleConfirmReject = async () => {
     if (!rejectionReason.trim()) {
-      alert('Please provide a rejection reason');
+      showLocalToast('Warning', 'Please provide a rejection reason.', 'SYSTEM_ANNOUNCEMENT');
       return;
     }
     
@@ -79,32 +98,40 @@ const BookingList = ({ isAdmin = false }) => {
       console.log('Rejecting booking:', currentBookingId, 'Reason:', rejectionReason);
       const response = await bookingApi.approveBooking(currentBookingId, false, rejectionReason);
       console.log('Reject response:', response.data);
+<<<<<<< Updated upstream
       
       alert('Booking rejected successfully!');
+=======
+      showLocalToast('Success', 'Booking rejected successfully!', 'SYSTEM_ANNOUNCEMENT');
+>>>>>>> Stashed changes
       setShowRejectModal(false);
       await fetchBookings();
     } catch (err) {
       console.error('Error rejecting booking:', err);
-      alert('Failed to reject booking');
+      showLocalToast('Error', 'Failed to reject booking.', 'SYSTEM_ANNOUNCEMENT');
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleCancel = async (bookingId) => {
-    const reason = prompt('Please enter cancellation reason (optional):');
-    if (window.confirm('Are you sure you want to cancel this booking?')) {
-      setActionLoading(true);
-      try {
-        await bookingApi.cancelBooking(bookingId, reason || 'Cancelled by user');
-        alert('Booking cancelled successfully!');
-        await fetchBookings();
-      } catch (err) {
-        console.error('Error cancelling booking:', err);
-        alert(err.response?.data?.message || 'Failed to cancel booking');
-      } finally {
-        setActionLoading(false);
-      }
+  const handleCancelClick = (bookingId) => {
+    setCurrentBookingId(bookingId);
+    setCancellationReason('');
+    setShowCancelModal(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    setActionLoading(true);
+    try {
+      await bookingApi.cancelBooking(currentBookingId, cancellationReason || 'Cancelled by user');
+      showLocalToast('Success', 'Booking cancelled successfully!', 'SYSTEM_ANNOUNCEMENT');
+      setShowCancelModal(false);
+      await fetchBookings();
+    } catch (err) {
+      console.error('Error cancelling booking:', err);
+      showLocalToast('Error', err.response?.data?.message || 'Failed to cancel booking', 'SYSTEM_ANNOUNCEMENT');
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -159,6 +186,7 @@ const BookingList = ({ isAdmin = false }) => {
         <div style={styles.emptyState}>
           No bookings found
         </div>
+<<<<<<< Updated upstream
       ) : (
         <div style={styles.grid}>
           {bookings.map((booking) => (
@@ -167,6 +195,162 @@ const BookingList = ({ isAdmin = false }) => {
                 <div>
                   <h3 style={styles.resourceName}>{booking.resourceName}</h3>
                   <span style={styles.resourceType}>{booking.resourceType}</span>
+=======
+
+        {/* Loading */}
+        {loading && (
+          <div className="bl-loading">
+            {[1,2,3].map(k => <SkeletonCard key={k}/>)}
+          </div>
+        )}
+
+        {/* Error */}
+        {!loading && error && (
+          <div className="bl-error">
+            <span style={{fontSize:16,flexShrink:0}}>⚠</span>
+            {error}
+          </div>
+        )}
+
+        {/* Empty */}
+        {!loading && !error && bookings.length === 0 && (
+          <div className="bl-empty">
+            <div className="bl-empty-icon">📋</div>
+            <div className="bl-empty-title">No bookings found</div>
+            <div className="bl-empty-sub">
+              {filter !== 'all'
+                ? `No ${filter} bookings to display.`
+                : isAdmin ? 'There are no bookings in the system yet.' : "You haven't made any bookings yet."
+              }
+            </div>
+          </div>
+        )}
+
+        {/* Grid */}
+        {!loading && !error && bookings.length > 0 && (
+          <div className="bl-grid">
+            {bookings.map((booking, i) => (
+              <div
+                key={booking.id}
+                className="bl-card"
+                style={{animationDelay:`${i * 0.04}s`}}
+              >
+                {/* Card head */}
+                <div className="bl-card-head">
+                  <div>
+                    <div className="bl-res-name">{booking.resourceName}</div>
+                    <div className="bl-res-type">{booking.resourceType}</div>
+                  </div>
+                  <span className={`bl-badge bl-badge-${booking.status}`}>
+                    {booking.status}
+                  </span>
+                </div>
+
+                {/* Card body */}
+                <div className="bl-card-body">
+                  <div className="bl-row">
+                    <span className="bl-row-key">📅</span>
+                    <span className="bl-row-val">
+                      {formatDate(booking.startTime)} – {formatDate(booking.endTime)}
+                    </span>
+                  </div>
+
+                  <div className="bl-row">
+                    <span className="bl-row-key">📝</span>
+                    <span className="bl-row-val">{booking.purpose}</span>
+                  </div>
+
+                  {booking.expectedAttendees > 0 && (
+                    <div className="bl-row">
+                      <span className="bl-row-key">👥</span>
+                      <span className="bl-row-val">{booking.expectedAttendees} people</span>
+                    </div>
+                  )}
+
+                  {!isAdmin && booking.userName && (
+                    <div className="bl-row">
+                      <span className="bl-row-key">👤</span>
+                      <span className="bl-row-val">{booking.userName}</span>
+                    </div>
+                  )}
+
+                  {isAdmin && booking.userName && (
+                    <div className="bl-row">
+                      <span className="bl-row-key">👤</span>
+                      <span className="bl-row-val">{booking.userName} ({booking.userEmail})</span>
+                    </div>
+                  )}
+
+                  {booking.specialRequests && (
+                    <div className="bl-row">
+                      <span className="bl-row-key">💬</span>
+                      <span className="bl-row-val">{booking.specialRequests}</span>
+                    </div>
+                  )}
+
+                  {booking.rejectionReason && (
+                    <div className="bl-reason-box reject">
+                      <span style={{flexShrink:0}}>❌</span>
+                      <span><strong>Rejection:</strong> {booking.rejectionReason}</span>
+                    </div>
+                  )}
+
+                  {booking.cancellationReason && (
+                    <div className="bl-reason-box cancel">
+                      <span style={{flexShrink:0}}>⚠️</span>
+                      <span><strong>Cancelled:</strong> {booking.cancellationReason}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Card footer / actions */}
+                <div className="bl-card-foot">
+                  {isAdmin && booking.status === 'PENDING' && (
+                    <>
+                      <button
+                        className="bl-btn bl-btn-approve"
+                        onClick={() => handleApproveClick(booking.id)}
+                        disabled={actionLoading}
+                      >
+                        {actionLoading ? <span className="bl-spinner"/> : '✓'} Approve
+                      </button>
+                      <button
+                        className="bl-btn bl-btn-reject"
+                        onClick={() => handleRejectClick(booking.id)}
+                        disabled={actionLoading}
+                      >
+                        ✗ Reject
+                      </button>
+                    </>
+                  )}
+
+                  {booking.status === 'APPROVED' && booking.canCancel && (
+                    <button
+                      className="bl-btn bl-btn-cancel"
+                      onClick={() => handleCancelClick(booking.id)}
+                      disabled={actionLoading}
+                    >
+                      Cancel Booking
+                    </button>
+                  )}
+
+                  {!isAdmin && booking.status === 'PENDING' && booking.canCancel && (
+                    <button
+                      className="bl-btn bl-btn-cancel"
+                      onClick={() => handleCancelClick(booking.id)}
+                      disabled={actionLoading}
+                    >
+                      Cancel Request
+                    </button>
+                  )}
+
+                  <button
+                    className="bl-btn bl-btn-view"
+                    onClick={() => setSelectedBooking(booking)}
+                  >
+                    View Details
+                  </button>
+>>>>>>> Stashed changes
                 </div>
                 <span style={{
                   ...styles.statusBadge,
@@ -351,9 +535,113 @@ const BookingList = ({ isAdmin = false }) => {
               </div>
             </div>
           </div>
+<<<<<<< Updated upstream
         </div>
       )}
     </div>
+=======
+        )}
+
+        {/* ── Reject Modal ── */}
+        {showRejectModal && (
+          <div className="bl-overlay" onClick={() => setShowRejectModal(false)}>
+            <div className="bl-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="bl-modal-head">
+                <span className="bl-modal-title">Reject Booking</span>
+                <button className="bl-modal-close" onClick={() => setShowRejectModal(false)}>×</button>
+              </div>
+              <div className="bl-modal-body">
+                <div className="bl-reason-box reject" style={{marginBottom:16}}>
+                  <span style={{flexShrink:0}}>⚠</span>
+                  <span>Please provide a clear reason. This will be sent to the user.</span>
+                </div>
+                <label className="bl-reject-label">Rejection Reason <span style={{color:'var(--danger)'}}>*</span></label>
+                <textarea
+                  className="bl-reject-textarea"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="e.g. Resource unavailable for maintenance, conflicting event scheduled…"
+                  rows="4"
+                />
+                <div className="bl-modal-actions">
+                  <button className="bl-btn-cancel-modal" onClick={() => setShowRejectModal(false)}>
+                    Cancel
+                  </button>
+                  <button className="bl-btn-confirm-reject" onClick={handleConfirmReject}>
+                    {actionLoading ? 'Rejecting…' : 'Confirm Reject'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Cancel Modal ── */}
+        {showCancelModal && (
+          <div className="bl-overlay" onClick={() => setShowCancelModal(false)}>
+            <div className="bl-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="bl-modal-head">
+                <span className="bl-modal-title">Cancel Booking</span>
+                <button className="bl-modal-close" onClick={() => setShowCancelModal(false)}>×</button>
+              </div>
+              <div className="bl-modal-body">
+                <div className="bl-reason-box cancel" style={{marginBottom:16}}>
+                  <span style={{flexShrink:0}}>⚠️</span>
+                  <span>Are you sure you want to cancel this booking? This action cannot be undone.</span>
+                </div>
+                <label className="bl-reject-label">Cancellation Reason (Optional)</label>
+                <textarea
+                  className="bl-reject-textarea"
+                  value={cancellationReason}
+                  onChange={(e) => setCancellationReason(e.target.value)}
+                  placeholder="e.g. Plans changed, no longer needed…"
+                  rows="4"
+                  style={{borderColor: "var(--border)"}}
+                  onFocus={(e) => e.target.style.borderColor = "var(--warn)"}
+                  onBlur={(e) => e.target.style.borderColor = "var(--border)"}
+                />
+                <div className="bl-modal-actions">
+                  <button className="bl-btn-cancel-modal" onClick={() => setShowCancelModal(false)}>
+                    Go Back
+                  </button>
+                  <button className="bl-btn-confirm-reject" onClick={handleConfirmCancel} style={{backgroundColor: "var(--warn)"}}>
+                    {actionLoading ? 'Cancelling…' : 'Confirm Cancel'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Approve Modal ── */}
+        {showApproveModal && (
+          <div className="bl-overlay" onClick={() => setShowApproveModal(false)}>
+            <div className="bl-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="bl-modal-head">
+                <span className="bl-modal-title">Approve Booking</span>
+                <button className="bl-modal-close" onClick={() => setShowApproveModal(false)}>×</button>
+              </div>
+              <div className="bl-modal-body">
+                <div className="bl-reason-box" style={{marginBottom:16, background: '#d1fae5', color: '#065f46', border: '1px solid #a7f3d0'}}>
+                  <span style={{flexShrink:0}}>✓</span>
+                  <span>Are you sure you want to approve this booking? The user will be notified.</span>
+                </div>
+                <div className="bl-modal-actions">
+                  <button className="bl-btn-cancel-modal" onClick={() => setShowApproveModal(false)}>
+                    Cancel
+                  </button>
+                  <button className="bl-btn-confirm-reject" onClick={handleConfirmApprove} style={{backgroundColor: '#059669'}}>
+                    {actionLoading ? 'Approving…' : 'Confirm Approve'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </>
+>>>>>>> Stashed changes
   );
 };
 
