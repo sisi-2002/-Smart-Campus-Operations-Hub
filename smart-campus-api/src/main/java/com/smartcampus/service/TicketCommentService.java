@@ -26,6 +26,7 @@ public class TicketCommentService {
 
     private final UserRepository userRepository;
     private final IncidentTicketRepository incidentTicketRepository;
+    private final NotificationService notificationService;
 
     public List<TicketCommentDto> listComments(String email, String ticketId) {
         User actor = findUserByEmail(email);
@@ -87,6 +88,8 @@ public class TicketCommentService {
         comments.add(created);
         ticket.setComments(comments);
         incidentTicketRepository.save(ticket);
+
+        notificationService.sendCommentAddedNotifications(actor, ticket.getUserId(), ticket.getAssignedTechnicianId(), ticket.getId());
 
         return TicketCommentDto.from(created);
     }

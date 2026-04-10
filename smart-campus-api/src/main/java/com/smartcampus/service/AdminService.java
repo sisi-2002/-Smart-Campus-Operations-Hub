@@ -139,7 +139,10 @@ public class AdminService {
         }
     }
 
-    public AdminIncidentTicketDto updateIncidentTicket(String ticketId, UpdateIncidentTicketRequest request) {
+    public AdminIncidentTicketDto updateIncidentTicket(String adminEmail, String ticketId, UpdateIncidentTicketRequest request) {
+        User adminUser = userRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new RuntimeException("Admin user not found: " + adminEmail));
+
         IncidentTicket ticket = incidentTicketRepository.findById(ticketId)
             .or(() -> incidentTicketRepository.findByTicketId(ticketId))
             .orElseThrow(() -> new RuntimeException("Ticket not found"));
@@ -167,12 +170,19 @@ public class AdminService {
             ticket.setStatus(normalizedNextStatus);
         }
 
+        boolean assignmentChanged = false;
         if (request.getAssignedTechnicianId() != null) {
             String technicianId = request.getAssignedTechnicianId().trim();
             if (technicianId.isEmpty()) {
+                if (ticket.getAssignedTechnicianId() != null) {
+                    assignmentChanged = true;
+                }
                 ticket.setAssignedTechnicianId(null);
                 ticket.setAssignedTechnicianName(null);
             } else {
+                if (!technicianId.equals(ticket.getAssignedTechnicianId())) {
+                    assignmentChanged = true;
+                }
                 User technician = userRepository.findById(technicianId)
                         .orElseThrow(() -> new RuntimeException("Technician not found"));
                 if (technician.getRole() != Role.TECHNICIAN) {
@@ -202,6 +212,15 @@ public class AdminService {
         }
 
         IncidentTicket saved = incidentTicketRepository.save(ticket);
+
+        if (assignmentChanged && saved.getAssignedTechnicianId() != null) {
+            notificationService.sendTicketAssignedNotifications(adminUser, saved.getAssignedTechnicianId(), saved.getUserId(), saved.getId(), saved.getCategory());
+        }
+
+        if (requestedStatus != null && !currentStatus.equalsIgnoreCase(saved.getStatus())) {
+            notificationService.sendTicketStatusUpdatedNotifications(adminUser, saved.getUserId(), saved.getAssignedTechnicianId(), saved.getId(), currentStatus, saved.getStatus());
+        }
+
         return toIncidentTicketDto(saved);
     }
 

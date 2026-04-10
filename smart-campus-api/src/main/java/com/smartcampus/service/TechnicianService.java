@@ -25,6 +25,7 @@ public class TechnicianService {
 
     private final UserRepository userRepository;
     private final IncidentTicketRepository incidentTicketRepository;
+    private final NotificationService notificationService;
 
     public TechnicianDashboardResponse getOverview(String email) {
         User technician = findTechnicianByEmail(email);
@@ -126,6 +127,11 @@ public class TechnicianService {
         }
 
         IncidentTicket saved = incidentTicketRepository.save(ticket);
+
+        if (requestedStatus != null && !currentStatus.equalsIgnoreCase(saved.getStatus())) {
+            notificationService.sendTicketStatusUpdatedNotifications(technician, saved.getUserId(), technician.getId(), saved.getId(), currentStatus, saved.getStatus());
+        }
+
         User reporter = userRepository.findById(saved.getUserId()).orElse(null);
         return toTicketDto(saved, reporter);
     }

@@ -12,6 +12,7 @@ public enum NotificationType {
     // ─── Ticket notifications ────────────────────────────────────────
     // MODULE C: These are triggered from TicketService
     TICKET_CREATED,         // Admin/Technician notified when ticket opened
+    TICKET_UPDATED,         // Admin/Manager/User notified when details updated
     TICKET_ASSIGNED,        // Technician notified when ticket assigned to them
     TICKET_STATUS_UPDATED,  // User notified when their ticket status changes
     TICKET_RESOLVED,        // User notified when ticket is resolved

@@ -45,6 +45,9 @@ public class User {
     @Builder.Default
     private boolean mfaRequired = false;         // does this role need 2FA?
 
+    @Builder.Default
+    private boolean firstLogin = true;           // track first-time login
+
     @CreatedDate
     private LocalDateTime createdAt;
 }

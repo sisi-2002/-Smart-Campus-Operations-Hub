@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
 import bookingApi from '../../api/bookingApi';
 
 /* ─── Stylesheet ─────────────────────────────────────────────────────── */
@@ -346,8 +346,14 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
   const [selectedBooking, setSelectedBooking] = useState(null);
+
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+
+  const [cancellationReason, setCancellationReason] = useState('');
+  const [showCancelModal, setShowCancelModal] = useState(false);
+
+  const [showApproveModal, setShowApproveModal] = useState(false);
   const [currentBookingId, setCurrentBookingId] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
@@ -363,6 +369,7 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
   const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
+
       let response;
 
       if (isAdmin) {
@@ -375,8 +382,8 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
       setBookings(response.data);
       setError(null);
     } catch (err) {
-      setError('Failed to load bookings');
       console.error('Error fetching bookings:', err);
+      setError('Failed to load bookings');
     } finally {
       setLoading(false);
     }
@@ -397,8 +404,11 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
       await fetchBookings();
     } catch (err) {
       console.error('Error approving booking:', err);
-      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'Failed to approve booking';
-      alert(errorMsg);
+      const errorMsg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        'Failed to approve booking';
+      showLocalToast('Error', errorMsg, 'SYSTEM_ANNOUNCEMENT');
     } finally {
       setActionLoading(false);
     }
@@ -412,7 +422,7 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
 
   const handleConfirmReject = async () => {
     if (!rejectionReason.trim()) {
-      alert('Please provide a rejection reason');
+      showLocalToast('Warning', 'Please provide a rejection reason.', 'SYSTEM_ANNOUNCEMENT');
       return;
     }
     setActionLoading(true);
@@ -422,29 +432,48 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
       console.log('Reject response:', response.data);
       alert('Booking rejected successfully!');
       setShowRejectModal(false);
+      setCurrentBookingId(null);
       await fetchBookings();
     } catch (err) {
       console.error('Error rejecting booking:', err);
-      alert('Failed to reject booking');
+      const errorMsg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        'Failed to reject booking';
+      showLocalToast('Error', errorMsg, 'SYSTEM_ANNOUNCEMENT');
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleCancel = async (bookingId) => {
-    const reason = prompt('Please enter cancellation reason (optional):');
-    if (window.confirm('Are you sure you want to cancel this booking?')) {
-      setActionLoading(true);
-      try {
-        await bookingApi.cancelBooking(bookingId, reason || 'Cancelled by user');
-        alert('Booking cancelled successfully!');
-        await fetchBookings();
-      } catch (err) {
-        console.error('Error cancelling booking:', err);
-        alert(err.response?.data?.message || 'Failed to cancel booking');
-      } finally {
-        setActionLoading(false);
-      }
+  const handleCancelClick = (bookingId) => {
+    setCurrentBookingId(bookingId);
+    setCancellationReason('');
+    setShowCancelModal(true);
+  };
+
+  const handleConfirmCancel = async () => {
+    if (!currentBookingId) return;
+
+    setActionLoading(true);
+    try {
+      await bookingApi.cancelBooking(
+        currentBookingId,
+        cancellationReason || 'Cancelled by user'
+      );
+      showLocalToast('Success', 'Booking cancelled successfully!', 'SYSTEM_ANNOUNCEMENT');
+      setShowCancelModal(false);
+      setCurrentBookingId(null);
+      await fetchBookings();
+    } catch (err) {
+      console.error('Error cancelling booking:', err);
+      showLocalToast(
+        'Error',
+        err?.response?.data?.message || 'Failed to cancel booking',
+        'SYSTEM_ANNOUNCEMENT'
+      );
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -455,7 +484,8 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
       REJECTED:  { background:'rgba(239,68,68,0.2)',   color:'#f87171', border:'1px solid rgba(239,68,68,0.3)' },
       CANCELLED: { background:'rgba(107,114,128,0.2)', color:'#9ca3af', border:'1px solid rgba(107,114,128,0.3)' },
     };
-    return styles[status] || styles.PENDING;
+
+    return stylesMap[status] || stylesMap.PENDING;
   };
 
   const formatDate = (dateString) => new Date(dateString).toLocaleString();

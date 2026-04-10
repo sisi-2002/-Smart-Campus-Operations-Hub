@@ -78,6 +78,16 @@ public class NotificationController {
         return ResponseEntity.ok(Map.of("message", "All notifications cleared"));
     }
 
+    // POST /api/notifications/client - create localized notification
+    @PostMapping("/client")
+    public ResponseEntity<NotificationResponse> createClientNotification(
+            @RequestBody com.smartcampus.dto.request.ClientNotificationRequest request,
+            Authentication auth) {
+        User user = getUser(auth);
+        return ResponseEntity.ok(
+            notificationService.createClientNotification(user.getId(), request));
+    }
+
     // Helper — extract User from Authentication
     private User getUser(Authentication auth) {
         UserDetails ud = (UserDetails) auth.getPrincipal();

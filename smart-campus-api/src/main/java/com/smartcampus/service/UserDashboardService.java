@@ -28,6 +28,7 @@ public class UserDashboardService {
     private final UserRepository userRepository;
     private final ResourceBookingRepository resourceBookingRepository;
     private final IncidentTicketRepository incidentTicketRepository;
+    private final NotificationService notificationService;
 
     public Map<String, String> createIncidentTicket(String email, CreateIncidentTicketRequest request) {
         User user = userRepository.findByEmail(email)
@@ -48,6 +49,8 @@ public class UserDashboardService {
                 .comments(List.of())
                 .status("OPEN")
                 .build());
+
+        notificationService.sendTicketCreatedNotifications(user, savedTicket.getId(), savedTicket.getCategory(), savedTicket.getPriority());
 
         return Map.of(
                 "message", "Incident ticket created successfully",
@@ -81,6 +84,8 @@ public class UserDashboardService {
                 ticket.setImageDataUrls(request.getImageDataUrls() == null ? List.of() : request.getImageDataUrls());
 
                 IncidentTicket savedTicket = incidentTicketRepository.save(ticket);
+
+                notificationService.sendTicketUpdatedNotifications(user, savedTicket.getId(), savedTicket.getCategory());
 
                 return Map.of(
                                 "message", "Incident ticket updated successfully",
