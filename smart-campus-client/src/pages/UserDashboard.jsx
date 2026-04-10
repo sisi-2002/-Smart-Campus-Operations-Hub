@@ -8,17 +8,77 @@ import BookingList from '../components/Bookings/BookingList';
 
 const HIDDEN_TICKET_STORAGE_KEY = 'incidentTicketHiddenIds';
 
+const formatSlaDuration = (minutes) => {
+  if (!Number.isFinite(minutes) || minutes < 0) {
+    return '-';
+  }
+
+  const totalMinutes = Math.floor(minutes);
+  if (totalMinutes < 60) {
+    return `${totalMinutes}m`;
+  }
+
+  const totalHours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = totalMinutes % 60;
+  if (totalHours < 24) {
+    return remainingMinutes ? `${totalHours}h ${remainingMinutes}m` : `${totalHours}h`;
+  }
+
+  const days = Math.floor(totalHours / 24);
+  const remainingHours = totalHours % 24;
+  return remainingHours ? `${days}d ${remainingHours}h` : `${days}d`;
+};
+
+const formatDateTime = (value) => {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '-';
+  }
+
+  return date.toLocaleString();
+};
+
+const SLA_THRESHOLDS = {
+  firstResponse: { targetMinutes: 60, warningMinutes: 180 },
+  resolution: { targetMinutes: 1440, warningMinutes: 2880 },
+};
+
+const SLA_TONE_STYLE = {
+  pending: { background: '#e2e8f0', color: '#475569' },
+  onTarget: { background: '#dcfce7', color: '#166534' },
+  watch: { background: '#fef3c7', color: '#92400e' },
+  breached: { background: '#fee2e2', color: '#991b1b' },
+};
+
+const getSlaHealth = (minutes, metric) => {
+  const numericMinutes = Number(minutes);
+  if (!Number.isFinite(numericMinutes) || numericMinutes < 0) {
+    return { label: 'Pending', style: SLA_TONE_STYLE.pending };
+  }
+
+  const thresholds = SLA_THRESHOLDS[metric] || SLA_THRESHOLDS.firstResponse;
+  if (numericMinutes <= thresholds.targetMinutes) {
+    return { label: 'On Target', style: SLA_TONE_STYLE.onTarget };
+  }
+  if (numericMinutes <= thresholds.warningMinutes) {
+    return { label: 'Watch', style: SLA_TONE_STYLE.watch };
+  }
+  return { label: 'Breached', style: SLA_TONE_STYLE.breached };
+};
+
 export default function UserDashboard() {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
-  const [isEditingUser, setIsEditingUser] = useState(false);
-  const [editUserForm, setEditUserForm] = useState({ name: '', email: '' });
   const [editingTicket, setEditingTicket] = useState(null);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [expandedTicketId, setExpandedTicketId] = useState('');
+  const [ticketViewMode, setTicketViewMode] = useState('cards');
   const [ticketNotice, setTicketNotice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -163,31 +223,6 @@ export default function UserDashboard() {
     };
   }, [overview.user, user]);
 
-  const startEditingUser = () => {
-    setEditUserForm({
-      name: userDetails.name,
-      email: userDetails.email,
-    });
-    setIsEditingUser(true);
-  };
-
-  const saveUserDetails = async () => {
-    try {
-      await updateUserProfile(editUserForm);
-      setOverview(prev => ({
-        ...prev,
-        user: {
-          ...prev.user,
-          name: editUserForm.name,
-          email: editUserForm.email
-        }
-      }));
-      setIsEditingUser(false);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to update profile');
-    }
-  };
-
   const userStats = [
     { label: 'Upcoming Bookings', value: overview.stats.upcomingBookings, color: '#6366f1' },
     { label: 'Pending Requests', value: overview.stats.pendingRequests, color: '#f59e0b' },
@@ -256,47 +291,6 @@ export default function UserDashboard() {
 
   const renderDashboardTab = () => (
     <>
-      <div style={s.userCard}>
-        <div style={{ ...s.userCardHeader, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span>User Details</span>
-          {isEditingUser ? (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button style={s.secondaryBtn} onClick={() => setIsEditingUser(false)}>Cancel</button>
-              <button style={s.primaryBtn} onClick={saveUserDetails}>Save</button>
-            </div>
-          ) : (
-            <button style={s.secondaryBtn} onClick={startEditingUser}>Edit Details</button>
-          )}
-        </div>
-        <div style={s.userDetailsGrid}>
-          <div style={s.userDetailItem}>
-            <span style={s.detailLabel}>Name</span>
-            {isEditingUser ? (
-              <input 
-                value={editUserForm.name} 
-                onChange={e => setEditUserForm({ ...editUserForm, name: e.target.value })} 
-                style={s.profileInput} 
-              />
-            ) : (
-              <span style={s.detailValue}>{userDetails.name}</span>
-            )}
-          </div>
-          <div style={s.userDetailItem}>
-            <span style={s.detailLabel}>Email</span>
-            {isEditingUser ? (
-              <input 
-                value={editUserForm.email} 
-                onChange={e => setEditUserForm({ ...editUserForm, email: e.target.value })} 
-                style={s.profileInput} 
-              />
-            ) : (
-              <span style={s.detailValue}>{userDetails.email}</span>
-            )}
-          </div>
-          <div style={s.userDetailItem}><span style={s.detailLabel}>Provider</span><span style={s.detailValue}>{userDetails.provider}</span></div>
-        </div>
-      </div>
-
       <div style={s.statsGrid}>
         {userStats.map((stat) => (
           <div key={stat.label} style={s.statCard}>
@@ -377,30 +371,43 @@ export default function UserDashboard() {
   );
 
   const renderTicketsTab = () => (
-    <div style={s.tableWrap}>
-      <div style={s.sectionHeader}>My Incident Reports</div>
+    <div style={s.ticketsWrap}>
+      <div style={s.ticketsHeader}>
+        <div style={s.ticketsTitleWrap}>
+          <span style={s.ticketsTitleEyebrow}>Ticket Center</span>
+          <div style={s.ticketsTitle}>My Incident Reports</div>
+        </div>
+        <div style={s.ticketsHeaderRight}>
+          <div style={s.ticketViewToggle}>
+            <button
+              type="button"
+              style={ticketViewMode === 'cards' ? s.ticketViewBtnActive : s.ticketViewBtn}
+              onClick={() => setTicketViewMode('cards')}
+            >
+              Card View
+            </button>
+            <button
+              type="button"
+              style={ticketViewMode === 'compact' ? s.ticketViewBtnActive : s.ticketViewBtn}
+              onClick={() => setTicketViewMode('compact')}
+            >
+              Compact View
+            </button>
+          </div>
+          <div style={s.ticketsCount}>{visibleTicketsForMyTickets.length}</div>
+        </div>
+      </div>
+
       {ticketNotice && (
         <div style={ticketNotice.type === 'error' ? s.ticketErrorBanner : s.ticketSuccessBanner}>
           {ticketNotice.message}
         </div>
       )}
-      <table style={s.table}>
-        <thead>
-          <tr style={s.thead}>
-            <th style={s.th}>Ticket ID</th>
-            <th style={s.th}>Location</th>
-            <th style={s.th}>Category</th>
-            <th style={s.th}>Pictures</th>
-            <th style={s.th}>Status</th>
-                <th style={s.th}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {visibleTicketsForMyTickets.length === 0 && (
-            <tr style={s.tr}>
-              <td style={s.emptyTd} colSpan={6}>No incident reports found in database.</td>
-            </tr>
-          )}
+
+      {visibleTicketsForMyTickets.length === 0 ? (
+        <div style={s.ticketsEmpty}>No incident reports found in database.</div>
+      ) : ticketViewMode === 'cards' ? (
+        <div style={s.ticketsGrid}>
           {visibleTicketsForMyTickets.map((ticket) => {
             const ticketImages = (ticket.imageDataUrls || []).slice(0, 3);
             const hasImageNamesOnly = ticketImages.length === 0 && (ticket.imageNames || []).length > 0;
@@ -408,16 +415,56 @@ export default function UserDashboard() {
             const canHide = ['RESOLVED', 'CLOSED', 'REJECTED'].includes(normalizedStatus);
             const ticketKey = ticket.ticketId || ticket.id;
             const isExpanded = expandedTicketId === ticketKey;
+            const firstResponseSla = getSlaHealth(ticket.timeToFirstResponseMinutes, 'firstResponse');
+            const resolutionSla = getSlaHealth(ticket.timeToResolutionMinutes, 'resolution');
 
             return (
-              <Fragment key={ticket.id}>
-                <tr style={s.tr}>
-                  <td style={s.td}>
-                    <div style={{ fontWeight: 600 }}>{ticket.ticketId || ticket.id}</div>
-                  </td>
-                  <td style={s.td}>{ticket.location || '-'}</td>
-                  <td style={s.td}>{ticket.category || '-'}</td>
-                  <td style={s.td}>
+              <article key={ticket.id} style={s.ticketCard}>
+                <div style={s.ticketCardHeader}>
+                  <div>
+                    <div style={s.ticketCardId}>{ticket.ticketId || ticket.id}</div>
+                    <div style={s.ticketCardMeta}>{ticket.location || '-'}</div>
+                  </div>
+                  <span style={{ ...s.pill, ...getStatusPillStyle(ticket.status) }}>
+                    {ticket.status || 'Open'}
+                  </span>
+                </div>
+
+                <div style={s.ticketCardBody}>
+                  <div style={s.ticketInfoRow}>
+                    <span style={s.ticketInfoKey}>Category</span>
+                    <span style={s.ticketInfoValue}>{ticket.category || '-'}</span>
+                  </div>
+
+                  <div style={s.ticketInfoRow}>
+                    <span style={s.ticketInfoKey}>Submitted</span>
+                    <span style={s.ticketInfoValue}>{formatDateTime(ticket.createdAt)}</span>
+                  </div>
+
+                  <div style={s.ticketInfoRow}>
+                    <span style={s.ticketInfoKey}>1st Response</span>
+                    <span style={s.ticketInfoValue}>
+                      <span style={s.ticketInfoMetricWrap}>
+                        <span>{formatSlaDuration(ticket.timeToFirstResponseMinutes)}</span>
+                        <span style={{ ...s.ticketSlaBadge, ...firstResponseSla.style }}>{firstResponseSla.label}</span>
+                      </span>
+                      <span style={s.ticketInfoSubValue}>{formatDateTime(ticket.firstResponseAt)}</span>
+                    </span>
+                  </div>
+
+                  <div style={s.ticketInfoRow}>
+                    <span style={s.ticketInfoKey}>Resolution</span>
+                    <span style={s.ticketInfoValue}>
+                      <span style={s.ticketInfoMetricWrap}>
+                        <span>{formatSlaDuration(ticket.timeToResolutionMinutes)}</span>
+                        <span style={{ ...s.ticketSlaBadge, ...resolutionSla.style }}>{resolutionSla.label}</span>
+                      </span>
+                      <span style={s.ticketInfoSubValue}>{formatDateTime(ticket.resolvedAt)}</span>
+                    </span>
+                  </div>
+
+                  <div style={s.ticketInfoRow}>
+                    <span style={s.ticketInfoKey}>Attachments</span>
                     <div style={s.ticketImages}>
                       {ticketImages.length > 0 ? (
                         ticketImages.map((imageUrl, index) => (
@@ -437,114 +484,215 @@ export default function UserDashboard() {
                         <span style={s.mutedText}>No images</span>
                       )}
                     </div>
-                  </td>
-                  <td style={s.td}>
-                    <span style={{ ...s.pill, ...getStatusPillStyle(ticket.status) }}>
-                      {ticket.status || 'Open'}
-                    </span>
-                  </td>
-                  <td style={s.td}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                      {normalizedStatus === 'OPEN' && (
-                        <button
-                          type="button"
-                          style={s.actionBtnSecondary}
-                          onClick={() => openEditIncidentModal(ticket)}
-                        >
-                          Edit ticket
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        style={s.actionBtn}
-                        onClick={() => setExpandedTicketId(isExpanded ? '' : ticketKey)}
-                      >
-                        {isExpanded ? 'Hide comments' : 'View comments'}
-                      </button>
+                  </div>
+                </div>
 
-                      {canHide ? (
-                        <button
-                          type="button"
-                          style={{
-                            padding: '7px 12px',
-                            borderRadius: 8,
-                            border: '1px solid #cbd5e1',
-                            background: '#fff',
-                            color: '#334155',
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                          }}
-                          onClick={() => hideTicketFromView(ticket.ticketId || ticket.id)}
-                        >
-                          Remove from view
-                        </button>
-                      ) : (
-                        <span style={s.mutedText}>Visible to staff</span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                <div style={s.ticketCardActions}>
+                  {normalizedStatus === 'OPEN' && (
+                    <button
+                      type="button"
+                      style={s.actionBtnSecondary}
+                      onClick={() => openEditIncidentModal(ticket)}
+                    >
+                      Edit Ticket
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    style={s.actionBtn}
+                    onClick={() => setExpandedTicketId(isExpanded ? '' : ticketKey)}
+                  >
+                    {isExpanded ? 'Hide Comments' : 'View Comments'}
+                  </button>
+
+                  {canHide ? (
+                    <button
+                      type="button"
+                      style={s.actionBtnSecondary}
+                      onClick={() => hideTicketFromView(ticket.ticketId || ticket.id)}
+                    >
+                      Remove From View
+                    </button>
+                  ) : (
+                    <span style={s.mutedText}>Visible to staff</span>
+                  )}
+                </div>
 
                 {isExpanded && (
-                  <tr style={s.tr}>
-                    <td style={s.td} colSpan={6}>
-                      <TicketCommentsPanel
-                        ticket={ticket}
-                        currentUser={userDetails}
-                        onCommentsChange={(nextComments) => {
-                          setOverview((prev) => ({
-                            ...prev,
-                            activeTickets: prev.activeTickets.map((item) => (
-                              (item.ticketId || item.id) === ticketKey
-                                ? { ...item, comments: nextComments }
-                                : item
-                            )),
-                            incidentTickets: prev.incidentTickets.map((item) => (
-                              (item.ticketId || item.id) === ticketKey
-                                ? { ...item, comments: nextComments }
-                                : item
-                            )),
-                          }));
-                          setTicketNotice(null);
-                        }}
-                        onError={(message) => setTicketNotice({ type: 'error', message: message || 'Failed to update comments' })}
-                        onSuccess={(message) => setTicketNotice({ type: 'success', message: message || 'Comment updated' })}
-                      />
-                    </td>
-                  </tr>
+                  <div style={s.ticketCommentsWrap}>
+                    <TicketCommentsPanel
+                      ticket={ticket}
+                      currentUser={userDetails}
+                      onCommentsChange={(nextComments) => {
+                        setOverview((prev) => ({
+                          ...prev,
+                          activeTickets: prev.activeTickets.map((item) => (
+                            (item.ticketId || item.id) === ticketKey
+                              ? { ...item, comments: nextComments }
+                              : item
+                          )),
+                          incidentTickets: prev.incidentTickets.map((item) => (
+                            (item.ticketId || item.id) === ticketKey
+                              ? { ...item, comments: nextComments }
+                              : item
+                          )),
+                        }));
+                        setTicketNotice(null);
+                      }}
+                      onError={(message) => setTicketNotice({ type: 'error', message: message || 'Failed to update comments' })}
+                      onSuccess={(message) => setTicketNotice({ type: 'success', message: message || 'Comment updated' })}
+                    />
+                  </div>
                 )}
-                </Fragment>
-          )})}
-        </tbody>
-      </table>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={s.ticketCompactWrap}>
+          <table style={s.table}>
+            <thead>
+              <tr style={s.ticketCompactHead}>
+                <th style={s.ticketCompactTh}>Ticket ID</th>
+                <th style={s.ticketCompactTh}>Location</th>
+                <th style={s.ticketCompactTh}>Category</th>
+                <th style={s.ticketCompactTh}>Pictures</th>
+                <th style={s.ticketCompactTh}>Status</th>
+                <th style={s.ticketCompactTh}>1st Response SLA</th>
+                <th style={s.ticketCompactTh}>Resolution SLA</th>
+                <th style={s.ticketCompactTh}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleTicketsForMyTickets.map((ticket) => {
+                const ticketImages = (ticket.imageDataUrls || []).slice(0, 3);
+                const hasImageNamesOnly = ticketImages.length === 0 && (ticket.imageNames || []).length > 0;
+                const normalizedStatus = (ticket.status || '').trim().toUpperCase();
+                const canHide = ['RESOLVED', 'CLOSED', 'REJECTED'].includes(normalizedStatus);
+                const ticketKey = ticket.ticketId || ticket.id;
+                const isExpanded = expandedTicketId === ticketKey;
+                const firstResponseSla = getSlaHealth(ticket.timeToFirstResponseMinutes, 'firstResponse');
+                const resolutionSla = getSlaHealth(ticket.timeToResolutionMinutes, 'resolution');
+
+                return (
+                  <Fragment key={ticket.id}>
+                    <tr key={`${ticket.id}-row`} style={s.tr}>
+                      <td style={s.ticketCompactTd}><div style={{ fontWeight: 600 }}>{ticket.ticketId || ticket.id}</div></td>
+                      <td style={s.ticketCompactTd}>{ticket.location || '-'}</td>
+                      <td style={s.ticketCompactTd}>{ticket.category || '-'}</td>
+                      <td style={s.ticketCompactTd}>
+                        <div style={s.ticketImages}>
+                          {ticketImages.length > 0 ? (
+                            ticketImages.map((imageUrl, index) => (
+                              <img
+                                key={`${ticket.id}-${index}`}
+                                src={imageUrl}
+                                alt={`${ticket.ticketId || ticket.id} attachment ${index + 1}`}
+                                style={s.ticketThumbnail}
+                                onClick={() => setPreviewImageUrl(imageUrl)}
+                              />
+                            ))
+                          ) : hasImageNamesOnly ? (
+                            (ticket.imageNames || []).slice(0, 3).map((imageName) => (
+                              <span key={imageName} style={s.imageNameChip}>{imageName}</span>
+                            ))
+                          ) : (
+                            <span style={s.mutedText}>No images</span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={s.ticketCompactTd}>
+                        <span style={{ ...s.pill, ...getStatusPillStyle(ticket.status) }}>
+                          {ticket.status || 'Open'}
+                        </span>
+                      </td>
+                      <td style={s.ticketCompactTd}>
+                        <div style={s.ticketCompactSlaTopRow}>
+                          <div style={{ ...s.ticketCompactSlaValue, color: firstResponseSla.style.color }}>{formatSlaDuration(ticket.timeToFirstResponseMinutes)}</div>
+                          <span style={{ ...s.ticketCompactSlaBadge, ...firstResponseSla.style }}>{firstResponseSla.label}</span>
+                        </div>
+                        <div style={s.ticketCompactSlaMeta}>{formatDateTime(ticket.firstResponseAt)}</div>
+                      </td>
+                      <td style={s.ticketCompactTd}>
+                        <div style={s.ticketCompactSlaTopRow}>
+                          <div style={{ ...s.ticketCompactSlaValue, color: resolutionSla.style.color }}>{formatSlaDuration(ticket.timeToResolutionMinutes)}</div>
+                          <span style={{ ...s.ticketCompactSlaBadge, ...resolutionSla.style }}>{resolutionSla.label}</span>
+                        </div>
+                        <div style={s.ticketCompactSlaMeta}>{formatDateTime(ticket.resolvedAt)}</div>
+                      </td>
+                      <td style={s.ticketCompactTd}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          {normalizedStatus === 'OPEN' && (
+                            <button
+                              type="button"
+                              style={s.actionBtnSecondary}
+                              onClick={() => openEditIncidentModal(ticket)}
+                            >
+                              Edit Ticket
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            style={s.actionBtn}
+                            onClick={() => setExpandedTicketId(isExpanded ? '' : ticketKey)}
+                          >
+                            {isExpanded ? 'Hide Comments' : 'View Comments'}
+                          </button>
+                          {canHide ? (
+                            <button
+                              type="button"
+                              style={s.actionBtnSecondary}
+                              onClick={() => hideTicketFromView(ticket.ticketId || ticket.id)}
+                            >
+                              Remove From View
+                            </button>
+                          ) : (
+                            <span style={s.mutedText}>Visible to staff</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr key={`${ticket.id}-comments`} style={s.tr}>
+                        <td style={s.ticketCompactTd} colSpan={8}>
+                          <TicketCommentsPanel
+                            ticket={ticket}
+                            currentUser={userDetails}
+                            onCommentsChange={(nextComments) => {
+                              setOverview((prev) => ({
+                                ...prev,
+                                activeTickets: prev.activeTickets.map((item) => (
+                                  (item.ticketId || item.id) === ticketKey
+                                    ? { ...item, comments: nextComments }
+                                    : item
+                                )),
+                                incidentTickets: prev.incidentTickets.map((item) => (
+                                  (item.ticketId || item.id) === ticketKey
+                                    ? { ...item, comments: nextComments }
+                                    : item
+                                )),
+                              }));
+                              setTicketNotice(null);
+                            }}
+                            onError={(message) => setTicketNotice({ type: 'error', message: message || 'Failed to update comments' })}
+                            onSuccess={(message) => setTicketNotice({ type: 'success', message: message || 'Comment updated' })}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 
   return (
     <div style={s.layout}>
-      {showLogoutConfirm && (
-        <div style={s.previewOverlay}>
-          <div style={{ ...s.previewModal, background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0', width: '320px', textAlign: 'center' }}>
-            <h3 style={{ margin: '0 0 16px 0', fontSize: '18px', color: '#0f172a' }}>Confirm Logout</h3>
-            <p style={{ margin: '0 0 24px 0', fontSize: '14px', color: '#64748b' }}>Are you sure you want to log out?</p>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
-              <button 
-                style={s.secondaryBtn} 
-                onClick={() => setShowLogoutConfirm(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                style={s.dangerBtn} 
-                onClick={() => logout()}
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <IncidentModal
         open={isIncidentModalOpen}
@@ -632,12 +780,6 @@ export default function UserDashboard() {
               </button>
               <button style={s.dangerBtn} onClick={openCreateIncidentModal}>
                 Report Incident
-              </button>
-              <button 
-                style={{ ...s.dangerBtn, background: '#475569', boxShadow: 'none' }} 
-                onClick={() => setShowLogoutConfirm(true)}
-              >
-                Logout
               </button>
             </div>
           </div>
@@ -884,6 +1026,240 @@ const s = {
     overflow: 'hidden',
     border: '1px solid #f1f5f9',
   },
+  ticketsWrap: {
+    margin: '1.25rem 2rem 0',
+    background: '#f4f1eb',
+    borderRadius: 12,
+    boxShadow: '0 4px 16px rgba(28,25,23,0.08)',
+    border: '1px solid #e4dfd4',
+    overflow: 'hidden',
+  },
+  ticketsHeader: {
+    padding: '14px 16px',
+    borderBottom: '1px solid #e4dfd4',
+    background: '#faf9f7',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  ticketsTitleWrap: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 5,
+  },
+  ticketsTitleEyebrow: {
+    display: 'inline-flex',
+    width: 'fit-content',
+    padding: '3px 8px',
+    borderRadius: 999,
+    border: '1px solid #7c2d1233',
+    background: '#7c2d1214',
+    color: '#7c2d12',
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+  },
+  ticketsHeaderRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  ticketsTitle: {
+    fontSize: 24,
+    fontWeight: 700,
+    fontFamily: 'Playfair Display, serif',
+    color: '#1c1917',
+    letterSpacing: '-0.01em',
+  },
+  ticketViewToggle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  ticketViewBtn: {
+    padding: '6px 10px',
+    borderRadius: 8,
+    border: '1px solid #e4dfd4',
+    background: '#fff',
+    color: '#78716c',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  ticketViewBtnActive: {
+    padding: '6px 10px',
+    borderRadius: 8,
+    border: '1px solid #7c2d12',
+    background: '#7c2d12',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  ticketsCount: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 30,
+    padding: '3px 10px',
+    borderRadius: 999,
+    border: '1px solid #7c2d1233',
+    background: '#7c2d1214',
+    color: '#7c2d12',
+    fontSize: 12,
+    fontWeight: 700,
+  },
+  ticketsGrid: {
+    padding: 16,
+    background: '#f4f1eb',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+    gap: 12,
+  },
+  ticketCompactWrap: {
+    background: '#fff',
+    borderTop: '1px solid #e4dfd4',
+    overflowX: 'auto',
+  },
+  ticketCompactHead: { background: '#faf9f7' },
+  ticketCompactTh: {
+    padding: '12px 16px',
+    textAlign: 'left',
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#78716c',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    borderBottom: '1px solid #e4dfd4',
+  },
+  ticketCompactTd: {
+    padding: '12px 16px',
+    verticalAlign: 'middle',
+    color: '#44403c',
+    fontSize: 13,
+    borderBottom: '1px solid #f1f0ec',
+  },
+  ticketCompactSlaValue: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#1c1917',
+  },
+  ticketCompactSlaTopRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  ticketCompactSlaBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '2px 8px',
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: 0.2,
+  },
+  ticketCompactSlaMeta: {
+    marginTop: 2,
+    fontSize: 11,
+    color: '#78716c',
+  },
+  ticketsEmpty: {
+    padding: '24px 16px',
+    textAlign: 'center',
+    color: '#78716c',
+    fontSize: 13,
+    background: '#fff',
+  },
+  ticketCard: {
+    border: '1px solid #e4dfd4',
+    borderRadius: 12,
+    background: '#fff',
+    overflow: 'hidden',
+    boxShadow: '0 2px 12px rgba(28,25,23,0.05)',
+  },
+  ticketCardHeader: {
+    padding: '12px 14px',
+    borderBottom: '1px solid #e4dfd4',
+    background: '#faf9f7',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  ticketCardId: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: '#1c1917',
+  },
+  ticketCardMeta: {
+    marginTop: 3,
+    fontSize: 12,
+    color: '#78716c',
+  },
+  ticketCardBody: {
+    padding: '12px 14px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+  ticketInfoRow: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  ticketInfoKey: {
+    minWidth: 84,
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#78716c',
+  },
+  ticketInfoValue: {
+    fontSize: 13,
+    color: '#1c1917',
+    textAlign: 'right',
+    flex: 1,
+  },
+  ticketInfoMetricWrap: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  ticketSlaBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '2px 8px',
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: 0.2,
+  },
+  ticketInfoSubValue: {
+    display: 'block',
+    marginTop: 2,
+    fontSize: 11,
+    color: '#78716c',
+  },
+  ticketCardActions: {
+    padding: '12px 14px',
+    borderTop: '1px solid #e4dfd4',
+    background: '#faf9f7',
+    display: 'flex',
+    gap: 8,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  ticketCommentsWrap: {
+    borderTop: '1px solid #e4dfd4',
+    background: '#f4f1eb',
+    padding: 10,
+  },
   table: { width: '100%', borderCollapse: 'collapse' },
   thead: { background: '#f8fafc' },
   th: {
@@ -919,9 +1295,9 @@ const s = {
   actionBtn: {
     padding: '7px 12px',
     borderRadius: 8,
-    border: '1px solid #bfdbfe',
-    background: '#eff6ff',
-    color: '#1d4ed8',
+    border: '1px solid #7c2d1230',
+    background: '#7c2d1214',
+    color: '#7c2d12',
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
@@ -929,9 +1305,9 @@ const s = {
   actionBtnSecondary: {
     padding: '7px 12px',
     borderRadius: 8,
-    border: '1px solid #cbd5e1',
+    border: '1px solid #d6d3d1',
     background: '#fff',
-    color: '#334155',
+    color: '#57534e',
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',

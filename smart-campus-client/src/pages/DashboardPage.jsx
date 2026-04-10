@@ -200,6 +200,25 @@ export default function DashboardPage() {
             </div>
             <div style={styles.arrowIcon}>→</div>
           </div>
+
+          {/* Calendar View Card - New Addition */}
+          <div
+            style={styles.bookingCard}
+            data-card-hover="true"
+            onClick={() => navigate('/calendar')}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => e.key === 'Enter' && navigate('/calendar')}
+          >
+            <div style={styles.bookingIcon}>📆</div>
+            <div style={styles.bookingContent}>
+              <strong style={{ fontSize: '1rem' }}>Calendar View</strong>
+              <p style={{ margin: '4px 0 0', fontSize: '0.85rem', opacity: 0.8 }}>
+                View your bookings in a monthly calendar layout
+              </p>
+            </div>
+            <div style={styles.arrowIcon}>→</div>
+          </div>
         </div>
 
         {isAdmin() && (
@@ -235,6 +254,25 @@ export default function DashboardPage() {
                 <strong style={{ fontSize: '1rem' }}>Manage All Bookings</strong>
                 <p style={{ margin: '4px 0 0', fontSize: '0.85rem', opacity: 0.8 }}>
                   Approve/reject booking requests
+                </p>
+              </div>
+              <div style={styles.arrowIcon}>→</div>
+            </div>
+
+            {/* Admin Calendar View Card - New Addition */}
+            <div
+              style={styles.adminCalendarCard}
+              data-card-hover="true"
+              onClick={() => navigate('/admin/calendar')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => e.key === 'Enter' && navigate('/admin/calendar')}
+            >
+              <div style={styles.adminCalendarIcon}>📅</div>
+              <div style={styles.adminCalendarContent}>
+                <strong style={{ fontSize: '1rem' }}>Admin Calendar</strong>
+                <p style={{ margin: '4px 0 0', fontSize: '0.85rem', opacity: 0.8 }}>
+                  View all bookings in calendar format
                 </p>
               </div>
               <div style={styles.arrowIcon}>→</div>
@@ -511,6 +549,32 @@ const styles = {
   adminBookingContent: {
     flex: 1,
     color: '#6ee7b7',
+  },
+  adminCalendarCard: {
+    background: 'rgba(139, 92, 246, 0.08)',
+    backdropFilter: 'blur(12px)',
+    borderRadius: '20px',
+    padding: '1.25rem',
+    border: '1px solid rgba(139, 92, 246, 0.25)',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '1rem',
+    cursor: 'pointer',
+    transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+  },
+  adminCalendarIcon: {
+    fontSize: '2rem',
+    background: 'rgba(139,92,246,0.15)',
+    width: '48px',
+    height: '48px',
+    borderRadius: '16px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  adminCalendarContent: {
+    flex: 1,
+    color: '#c4b5fd',
   },
   modalOverlay: {
     position: 'fixed',

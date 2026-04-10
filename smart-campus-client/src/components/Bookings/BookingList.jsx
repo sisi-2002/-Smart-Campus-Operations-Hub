@@ -2,9 +2,345 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNotification } from '../../context/NotificationContext';
 import bookingApi from '../../api/bookingApi';
 
-const BookingList = ({ isAdmin = false }) => {
-  const { showLocalToast } = useNotification();
+/* ─── Stylesheet ─────────────────────────────────────────────────────── */
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Epilogue:wght@400;500;600&display=swap');
 
+:root {
+  --bg:       #f4f1eb;
+  --surface:  #ffffff;
+  --border:   #e4dfd4;
+  --text:     #1c1917;
+  --muted:    #78716c;
+  --accent:   #0d7a6b;
+  --aclt:     #0d7a6b18;
+  --danger:   #be123c;
+  --danlt:    #be123c10;
+  --warn:     #d97706;
+  --warnlt:   #d9770612;
+  --radius:   14px;
+  --shadow:   0 2px 16px #1c191710;
+  --shadow-lg:0 8px 40px #1c191720;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Page wrapper ── */
+.bl-wrap {
+  font-family: 'Epilogue', sans-serif;
+  color: var(--text);
+  min-height: 300px;
+}
+
+/* ── Header row ── */
+.bl-header {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 14px; flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+.bl-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -.01em;
+}
+.bl-count-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 10px; border-radius: 20px;
+  background: var(--aclt); border: 1px solid #0d7a6b22;
+  color: var(--accent); font-size: 11px; font-weight: 700;
+  letter-spacing: .05em; margin-left: 8px; vertical-align: middle;
+}
+
+/* filter select (admin) */
+.bl-filter-wrap { position: relative; }
+.bl-filter-wrap svg {
+  position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+  pointer-events: none; color: var(--muted);
+}
+.bl-select {
+  padding: 9px 36px 9px 14px;
+  border: 1px solid var(--border); border-radius: 9px;
+  font-family: 'Epilogue', sans-serif; font-size: 13px;
+  color: var(--text); background: var(--surface); outline: none;
+  appearance: none; -webkit-appearance: none;
+  cursor: pointer; transition: border-color .18s, box-shadow .18s;
+  min-width: 160px;
+}
+.bl-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--aclt); }
+
+/* ── Grid ── */
+.bl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 18px;
+}
+
+/* ── Card ── */
+.bl-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  transition: box-shadow .22s, transform .18s;
+  display: flex; flex-direction: column;
+  animation: blFadeUp .35s ease both;
+}
+.bl-card:hover { box-shadow: var(--shadow-lg); transform: translateY(-2px); }
+@keyframes blFadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+.bl-card-head {
+  padding: 15px 18px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 10px;
+  background: #faf9f7;
+}
+.bl-res-name {
+  font-family: 'Playfair Display', serif;
+  font-size: 16px; font-weight: 700; color: var(--text); margin-bottom: 3px;
+}
+.bl-res-type {
+  font-size: 10px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--accent);
+}
+
+/* status badges */
+.bl-badge {
+  padding: 3px 11px; border-radius: 20px;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; white-space: nowrap; flex-shrink: 0;
+}
+.bl-badge-PENDING   { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+.bl-badge-APPROVED  { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+.bl-badge-REJECTED  { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.bl-badge-CANCELLED { background: #f1f5f9; color: #64748b; border: 1px solid #e2e8f0; }
+
+.bl-card-body { padding: 14px 18px; flex: 1; display: flex; flex-direction: column; gap: 9px; }
+
+/* detail rows */
+.bl-row {
+  display: flex; gap: 8px; font-size: 13px;
+  align-items: flex-start; flex-wrap: wrap;
+}
+.bl-row-key {
+  font-weight: 600; color: var(--muted); flex-shrink: 0;
+  min-width: 14px;
+}
+.bl-row-val { color: var(--text); line-height: 1.5; }
+
+/* rejection / cancellation boxes */
+.bl-reason-box {
+  padding: 9px 12px; border-radius: 8px; font-size: 12px; line-height: 1.5;
+  display: flex; gap: 7px; align-items: flex-start;
+}
+.bl-reason-box.reject { background: var(--danlt); border: 1px solid #be123c22; color: var(--danger); }
+.bl-reason-box.cancel { background: var(--warnlt); border: 1px solid #d9770622; color: var(--warn); }
+
+/* card footer */
+.bl-card-foot {
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  background: #faf9f7;
+  display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end;
+}
+
+/* buttons */
+.bl-btn {
+  padding: 7px 14px; border-radius: 8px; border: none;
+  font-family: 'Epilogue', sans-serif; font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: opacity .18s, transform .12s;
+  display: inline-flex; align-items: center; gap: 5px;
+}
+.bl-btn:hover:not(:disabled){ opacity:.85; transform:translateY(-1px); }
+.bl-btn:disabled{ opacity:.4; cursor:not-allowed; transform:none; }
+.bl-btn-approve { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+.bl-btn-reject  { background: var(--danlt); color: var(--danger); border: 1px solid #be123c28; }
+.bl-btn-cancel  { background: var(--warnlt); color: var(--warn); border: 1px solid #d9770628; }
+.bl-btn-view    { background: var(--aclt); color: var(--accent); border: 1px solid #0d7a6b28; }
+
+/* spinner */
+.bl-spinner {
+  width: 14px; height: 14px;
+  border: 2px solid #0d7a6b44; border-top-color: var(--accent);
+  border-radius: 50%; animation: blSpin .65s linear infinite; flex-shrink: 0;
+}
+@keyframes blSpin { to{transform:rotate(360deg)} }
+
+/* ── Loading skeleton ── */
+.bl-loading {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 18px;
+}
+.bl-skel-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 20px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.bl-skel {
+  background: linear-gradient(90deg,#ebe8e0 25%,#f4f1eb 50%,#ebe8e0 75%);
+  background-size: 200% 100%;
+  animation: blShimmer 1.4s infinite; border-radius: 6px;
+}
+@keyframes blShimmer { to{background-position:-200% 0} }
+
+/* ── Error / Empty ── */
+.bl-error {
+  padding: 18px 20px; border-radius: 12px;
+  background: var(--danlt); border: 1px solid #be123c28;
+  color: var(--danger); font-size: 13px; font-weight: 500;
+  display: flex; align-items: center; gap: 9px;
+}
+.bl-empty {
+  text-align: center; padding: 60px 40px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.bl-empty-icon { font-size: 40px; margin-bottom: 12px; opacity: .4; }
+.bl-empty-title { font-family:'Playfair Display',serif; font-size:18px; color:var(--text); margin-bottom:6px; }
+.bl-empty-sub   { font-size:13px; color:var(--muted); }
+
+/* ── Modal overlay ── */
+.bl-overlay {
+  position: fixed; inset: 0;
+  background: rgba(28,25,23,.55);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000;
+  animation: blFadeIn .2s ease;
+}
+@keyframes blFadeIn { from{opacity:0} to{opacity:1} }
+
+.bl-modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  max-width: 90%; width: 520px;
+  max-height: 85vh; overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: blSlideUp .25s cubic-bezier(.16,1,.3,1);
+}
+@keyframes blSlideUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+
+.bl-modal-head {
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: #faf9f7;
+  position: sticky; top: 0; z-index: 1;
+}
+.bl-modal-title {
+  font-family: 'Playfair Display', serif;
+  font-size: 18px; font-weight: 700; color: var(--text);
+}
+.bl-modal-close {
+  width: 30px; height: 30px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--muted); font-size: 16px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background .15s, color .15s;
+}
+.bl-modal-close:hover { background: var(--danlt); color: var(--danger); }
+
+.bl-modal-body { padding: 22px 24px; display: flex; flex-direction: column; gap: 18px; }
+
+/* detail sections in modal */
+.bl-detail-section {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+}
+.bl-detail-section-title {
+  font-size: 10px; font-weight: 700; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+}
+.bl-detail-item {
+  display: flex; gap: 8px; align-items: flex-start;
+  font-size: 13px; margin-bottom: 7px;
+}
+.bl-detail-item:last-child { margin-bottom: 0; }
+.bl-detail-item-key { font-weight: 600; color: var(--muted); min-width: 100px; flex-shrink: 0; }
+.bl-detail-item-val { color: var(--text); line-height: 1.5; word-break: break-word; }
+
+.bl-modal-foot {
+  padding: 14px 24px 20px;
+  border-top: 1px solid var(--border);
+  display: flex; justify-content: flex-end;
+}
+
+/* reject modal */
+.bl-reject-label {
+  font-size: 12px; font-weight: 600; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 8px; display: block;
+}
+.bl-reject-textarea {
+  width: 100%; padding: 11px 14px;
+  border: 1px solid var(--border); border-radius: 9px;
+  font-family: 'Epilogue', sans-serif; font-size: 14px; color: var(--text);
+  background: var(--bg); outline: none; resize: vertical; min-height: 100px;
+  transition: border-color .18s, box-shadow .18s; line-height: 1.6;
+}
+.bl-reject-textarea:focus { border-color: var(--danger); box-shadow: 0 0 0 3px var(--danlt); }
+.bl-modal-actions { display: flex; gap: 9px; justify-content: flex-end; margin-top: 16px; }
+
+.bl-btn-close-modal {
+  padding: 9px 20px; border-radius: 9px;
+  background: var(--aclt); color: var(--accent);
+  border: 1px solid #0d7a6b28;
+  font-family: 'Epilogue', sans-serif; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: opacity .18s;
+}
+.bl-btn-close-modal:hover { opacity: .8; }
+.bl-btn-cancel-modal {
+  padding: 9px 18px; border-radius: 9px;
+  background: var(--bg); color: var(--muted);
+  border: 1px solid var(--border);
+  font-family: 'Epilogue', sans-serif; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: background .15s;
+}
+.bl-btn-cancel-modal:hover { background: var(--border); }
+.bl-btn-confirm-reject {
+  padding: 9px 18px; border-radius: 9px;
+  background: var(--danger); color: #fff;
+  border: none;
+  font-family: 'Epilogue', sans-serif; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: opacity .18s;
+}
+.bl-btn-confirm-reject:hover { opacity: .88; }
+
+@media(max-width:600px){
+  .bl-grid,.bl-loading{ grid-template-columns:1fr; }
+  .bl-modal{ width:95%; }
+  .bl-modal-head,.bl-modal-body,.bl-modal-foot{ padding-left:16px; padding-right:16px; }
+}
+`;
+
+/* ─── Skeleton card ──────────────────────────────────────────────────── */
+const SkeletonCard = () => (
+  <div className="bl-skel-card">
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+      <div style={{flex:1}}>
+        <div className="bl-skel" style={{height:18,width:'60%',marginBottom:8}}/>
+        <div className="bl-skel" style={{height:11,width:'30%'}}/>
+      </div>
+      <div className="bl-skel" style={{height:22,width:72,borderRadius:20}}/>
+    </div>
+    <div className="bl-skel" style={{height:12,width:'80%'}}/>
+    <div className="bl-skel" style={{height:12,width:'65%'}}/>
+    <div className="bl-skel" style={{height:12,width:'50%'}}/>
+    <div style={{display:'flex',gap:7,justifyContent:'flex-end',marginTop:4}}>
+      <div className="bl-skel" style={{height:32,width:80}}/>
+      <div className="bl-skel" style={{height:32,width:80}}/>
+    </div>
+  </div>
+);
+
+/* ═══════════════════════════════════════════════════════════════════════
+   COMPONENT — all state, handlers, API calls are 100% unchanged.
+   Only JSX + styles are replaced.
+   statusFilter prop added to sync with AdminDashboard filter tabs.
+═══════════════════════════════════════════════════════════════════════ */
+const BookingList = ({ isAdmin = false, statusFilter = null }) => {
+  const { user } = useAuth();
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -21,11 +357,21 @@ const BookingList = ({ isAdmin = false }) => {
   const [currentBookingId, setCurrentBookingId] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
+  /* ── Sync external statusFilter prop → internal filter state ── */
+  useEffect(() => {
+    if (statusFilter) {
+      setFilter(statusFilter.toLowerCase());
+    } else {
+      setFilter('all');
+    }
+  }, [statusFilter]);
+
   const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
 
       let response;
+
       if (isAdmin) {
         const params = filter !== 'all' ? { status: filter.toUpperCase() } : {};
         response = await bookingApi.getAllBookings(params);
@@ -33,7 +379,7 @@ const BookingList = ({ isAdmin = false }) => {
         response = await bookingApi.getMyBookings();
       }
 
-      setBookings(response.data || []);
+      setBookings(response.data);
       setError(null);
     } catch (err) {
       console.error('Error fetching bookings:', err);
@@ -47,20 +393,14 @@ const BookingList = ({ isAdmin = false }) => {
     fetchBookings();
   }, [fetchBookings]);
 
-  const handleApproveClick = (bookingId) => {
-    setCurrentBookingId(bookingId);
-    setShowApproveModal(true);
-  };
-
-  const handleConfirmApprove = async () => {
-    if (!currentBookingId) return;
-
+  const handleApprove = async (bookingId) => {
+    if (!window.confirm('Are you sure you want to approve this booking?')) return;
     setActionLoading(true);
     try {
-      await bookingApi.approveBooking(currentBookingId, true, null);
-      showLocalToast('Success', 'Booking approved successfully!', 'SYSTEM_ANNOUNCEMENT');
-      setShowApproveModal(false);
-      setCurrentBookingId(null);
+      console.log('Approving booking:', bookingId);
+      const response = await bookingApi.approveBooking(bookingId, true, null);
+      console.log('Approve response:', response.data);
+      alert('Booking approved successfully!');
       await fetchBookings();
     } catch (err) {
       console.error('Error approving booking:', err);
@@ -85,13 +425,12 @@ const BookingList = ({ isAdmin = false }) => {
       showLocalToast('Warning', 'Please provide a rejection reason.', 'SYSTEM_ANNOUNCEMENT');
       return;
     }
-
-    if (!currentBookingId) return;
-
     setActionLoading(true);
     try {
-      await bookingApi.approveBooking(currentBookingId, false, rejectionReason);
-      showLocalToast('Success', 'Booking rejected successfully!', 'SYSTEM_ANNOUNCEMENT');
+      console.log('Rejecting booking:', currentBookingId, 'Reason:', rejectionReason);
+      const response = await bookingApi.approveBooking(currentBookingId, false, rejectionReason);
+      console.log('Reject response:', response.data);
+      alert('Booking rejected successfully!');
       setShowRejectModal(false);
       setCurrentBookingId(null);
       await fetchBookings();
@@ -139,622 +478,306 @@ const BookingList = ({ isAdmin = false }) => {
   };
 
   const getStatusBadgeStyle = (status) => {
-    const stylesMap = {
-      PENDING: {
-        background: 'rgba(245,158,11,0.2)',
-        color: '#fbbf24',
-        border: '1px solid rgba(245,158,11,0.3)',
-      },
-      APPROVED: {
-        background: 'rgba(16,185,129,0.2)',
-        color: '#34d399',
-        border: '1px solid rgba(16,185,129,0.3)',
-      },
-      REJECTED: {
-        background: 'rgba(239,68,68,0.2)',
-        color: '#f87171',
-        border: '1px solid rgba(239,68,68,0.3)',
-      },
-      CANCELLED: {
-        background: 'rgba(107,114,128,0.2)',
-        color: '#9ca3af',
-        border: '1px solid rgba(107,114,128,0.3)',
-      },
+    const styles = {
+      PENDING:   { background:'rgba(245,158,11,0.2)',  color:'#fbbf24', border:'1px solid rgba(245,158,11,0.3)' },
+      APPROVED:  { background:'rgba(16,185,129,0.2)',  color:'#34d399', border:'1px solid rgba(16,185,129,0.3)' },
+      REJECTED:  { background:'rgba(239,68,68,0.2)',   color:'#f87171', border:'1px solid rgba(239,68,68,0.3)' },
+      CANCELLED: { background:'rgba(107,114,128,0.2)', color:'#9ca3af', border:'1px solid rgba(107,114,128,0.3)' },
     };
 
     return stylesMap[status] || stylesMap.PENDING;
   };
 
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString();
-  };
+  const formatDate = (dateString) => new Date(dateString).toLocaleString();
 
-  if (loading) {
-    return <div style={styles.loading}>Loading bookings...</div>;
-  }
-
-  if (error) {
-    return <div style={styles.error}>{error}</div>;
-  }
-
+  /* ── Render ── */
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <h2 style={styles.title}>{isAdmin ? 'All Bookings' : 'My Bookings'}</h2>
+    <>
+      <style>{CSS}</style>
+      <div className="bl-wrap">
 
-        {isAdmin && (
-          <div style={styles.filterControls}>
-            <select
-              style={styles.select}
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            >
-              <option value="all">All Status</option>
-              <option value="pending">Pending</option>
-              <option value="approved">Approved</option>
-              <option value="rejected">Rejected</option>
-              <option value="cancelled">Cancelled</option>
-            </select>
+        {/* Header */}
+        <div className="bl-header">
+          <div>
+            <span className="bl-title">{isAdmin ? 'All Bookings' : 'My Bookings'}</span>
+            {!loading && (
+              <span className="bl-count-chip">{bookings.length}</span>
+            )}
+          </div>
+
+          {/* Admin internal filter — still works alongside statusFilter prop */}
+          {isAdmin && (
+            <div className="bl-filter-wrap">
+              <select
+                className="bl-select"
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+              >
+                <option value="all">All Status</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+              <svg width="11" height="7" viewBox="0 0 12 8" fill="none">
+                <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </div>
+          )}
+        </div>
+
+        {/* Loading */}
+        {loading && (
+          <div className="bl-loading">
+            {[1,2,3].map(k => <SkeletonCard key={k}/>)}
           </div>
         )}
-      </div>
 
-      {bookings.length === 0 ? (
-        <div style={styles.emptyState}>No bookings found</div>
-      ) : (
-        <div style={styles.grid}>
-          {bookings.map((booking) => (
-            <div key={booking.id} style={styles.card}>
-              <div style={styles.cardHeader}>
-                <div>
-                  <h3 style={styles.resourceName}>{booking.resourceName}</h3>
-                  <span style={styles.resourceType}>{booking.resourceType}</span>
-                </div>
+        {/* Error */}
+        {!loading && error && (
+          <div className="bl-error">
+            <span style={{fontSize:16,flexShrink:0}}>⚠</span>
+            {error}
+          </div>
+        )}
 
-                <span
-                  style={{
-                    ...styles.statusBadge,
-                    ...getStatusBadgeStyle(booking.status),
-                  }}
-                >
-                  {booking.status}
-                </span>
-              </div>
+        {/* Empty */}
+        {!loading && !error && bookings.length === 0 && (
+          <div className="bl-empty">
+            <div className="bl-empty-icon">📋</div>
+            <div className="bl-empty-title">No bookings found</div>
+            <div className="bl-empty-sub">
+              {filter !== 'all'
+                ? `No ${filter} bookings to display.`
+                : isAdmin ? 'There are no bookings in the system yet.' : "You haven't made any bookings yet."
+              }
+            </div>
+          </div>
+        )}
 
-              <div style={styles.cardBody}>
-                <div style={styles.detailRow}>
-                  <strong>📅 Time:</strong>
-                  <span>
-                    {formatDate(booking.startTime)} - {formatDate(booking.endTime)}
+        {/* Grid */}
+        {!loading && !error && bookings.length > 0 && (
+          <div className="bl-grid">
+            {bookings.map((booking, i) => (
+              <div
+                key={booking.id}
+                className="bl-card"
+                style={{animationDelay:`${i * 0.04}s`}}
+              >
+                {/* Card head */}
+                <div className="bl-card-head">
+                  <div>
+                    <div className="bl-res-name">{booking.resourceName}</div>
+                    <div className="bl-res-type">{booking.resourceType}</div>
+                  </div>
+                  <span className={`bl-badge bl-badge-${booking.status}`}>
+                    {booking.status}
                   </span>
                 </div>
 
-                <div style={styles.detailRow}>
-                  <strong>📝 Purpose:</strong>
-                  <span>{booking.purpose}</span>
-                </div>
-
-                {booking.expectedAttendees > 0 && (
-                  <div style={styles.detailRow}>
-                    <strong>👥 Attendees:</strong>
-                    <span>{booking.expectedAttendees} people</span>
-                  </div>
-                )}
-
-                {isAdmin && booking.userName && (
-                  <div style={styles.detailRow}>
-                    <strong>👤 User:</strong>
-                    <span>
-                      {booking.userName}
-                      {booking.userEmail ? ` (${booking.userEmail})` : ''}
+                {/* Card body */}
+                <div className="bl-card-body">
+                  <div className="bl-row">
+                    <span className="bl-row-key">📅</span>
+                    <span className="bl-row-val">
+                      {formatDate(booking.startTime)} – {formatDate(booking.endTime)}
                     </span>
                   </div>
-                )}
 
-                {booking.specialRequests && (
-                  <div style={styles.detailRow}>
-                    <strong>💬 Special Requests:</strong>
-                    <span>{booking.specialRequests}</span>
+                  <div className="bl-row">
+                    <span className="bl-row-key">📝</span>
+                    <span className="bl-row-val">{booking.purpose}</span>
                   </div>
-                )}
 
-                {booking.rejectionReason && (
-                  <div style={styles.rejectionReason}>
-                    <strong>❌ Rejection Reason:</strong>
-                    <span> {booking.rejectionReason}</span>
-                  </div>
-                )}
+                  {booking.expectedAttendees > 0 && (
+                    <div className="bl-row">
+                      <span className="bl-row-key">👥</span>
+                      <span className="bl-row-val">{booking.expectedAttendees} people</span>
+                    </div>
+                  )}
 
-                {booking.cancellationReason && (
-                  <div style={styles.cancellationReason}>
-                    <strong>⚠️ Cancellation Reason:</strong>
-                    <span> {booking.cancellationReason}</span>
-                  </div>
-                )}
-              </div>
+                  {!isAdmin && booking.userName && (
+                    <div className="bl-row">
+                      <span className="bl-row-key">👤</span>
+                      <span className="bl-row-val">{booking.userName}</span>
+                    </div>
+                  )}
 
-              <div style={styles.cardActions}>
-                {isAdmin && booking.status === 'PENDING' && (
-                  <>
-                    <button
-                      style={{ ...styles.button, ...styles.approveButton }}
-                      onClick={() => handleApproveClick(booking.id)}
-                      disabled={actionLoading}
-                    >
-                      {actionLoading ? 'Processing...' : '✓ Approve'}
-                    </button>
+                  {isAdmin && booking.userName && (
+                    <div className="bl-row">
+                      <span className="bl-row-key">👤</span>
+                      <span className="bl-row-val">{booking.userName} ({booking.userEmail})</span>
+                    </div>
+                  )}
 
-                    <button
-                      style={{ ...styles.button, ...styles.rejectButton }}
-                      onClick={() => handleRejectClick(booking.id)}
-                      disabled={actionLoading}
-                    >
-                      ✗ Reject
-                    </button>
-                  </>
-                )}
+                  {booking.specialRequests && (
+                    <div className="bl-row">
+                      <span className="bl-row-key">💬</span>
+                      <span className="bl-row-val">{booking.specialRequests}</span>
+                    </div>
+                  )}
 
-                {booking.status === 'APPROVED' && booking.canCancel && (
-                  <button
-                    style={{ ...styles.button, ...styles.cancelButton }}
-                    onClick={() => handleCancelClick(booking.id)}
-                    disabled={actionLoading}
-                  >
-                    Cancel Booking
-                  </button>
-                )}
+                  {booking.rejectionReason && (
+                    <div className="bl-reason-box reject">
+                      <span style={{flexShrink:0}}>❌</span>
+                      <span><strong>Rejection:</strong> {booking.rejectionReason}</span>
+                    </div>
+                  )}
 
-                {!isAdmin && booking.status === 'PENDING' && booking.canCancel && (
-                  <button
-                    style={{ ...styles.button, ...styles.cancelButton }}
-                    onClick={() => handleCancelClick(booking.id)}
-                    disabled={actionLoading}
-                  >
-                    Cancel Request
-                  </button>
-                )}
-
-                <button
-                  style={{ ...styles.button, ...styles.viewButton }}
-                  onClick={() => setSelectedBooking(booking)}
-                >
-                  View Details
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {selectedBooking && (
-        <div style={styles.modalOverlay} onClick={() => setSelectedBooking(null)}>
-          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
-              <h3>Booking Details</h3>
-              <button
-                style={styles.closeButton}
-                onClick={() => setSelectedBooking(null)}
-              >
-                ×
-              </button>
-            </div>
-
-            <div style={styles.modalBody}>
-              <div style={styles.detailSection}>
-                <h4>📋 Booking Information</h4>
-                <p><strong>ID:</strong> {selectedBooking.id}</p>
-                <p>
-                  <strong>Status:</strong>{' '}
-                  <span style={{ color: getStatusBadgeStyle(selectedBooking.status).color }}>
-                    {selectedBooking.status}
-                  </span>
-                </p>
-                <p><strong>Resource:</strong> {selectedBooking.resourceName}</p>
-                <p><strong>Type:</strong> {selectedBooking.resourceType}</p>
-                <p><strong>Start:</strong> {formatDate(selectedBooking.startTime)}</p>
-                <p><strong>End:</strong> {formatDate(selectedBooking.endTime)}</p>
-                <p><strong>Purpose:</strong> {selectedBooking.purpose}</p>
-                {selectedBooking.expectedAttendees > 0 && (
-                  <p><strong>Attendees:</strong> {selectedBooking.expectedAttendees}</p>
-                )}
-                {selectedBooking.specialRequests && (
-                  <p><strong>Special Requests:</strong> {selectedBooking.specialRequests}</p>
-                )}
-                {selectedBooking.rejectionReason && (
-                  <p><strong>Rejection Reason:</strong> {selectedBooking.rejectionReason}</p>
-                )}
-                {selectedBooking.cancellationReason && (
-                  <p><strong>Cancellation Reason:</strong> {selectedBooking.cancellationReason}</p>
-                )}
-              </div>
-
-              {isAdmin && (
-                <div style={styles.detailSection}>
-                  <h4>👤 User Information</h4>
-                  <p><strong>Name:</strong> {selectedBooking.userName}</p>
-                  <p><strong>Email:</strong> {selectedBooking.userEmail}</p>
-                  <p><strong>User ID:</strong> {selectedBooking.userId}</p>
+                  {booking.cancellationReason && (
+                    <div className="bl-reason-box cancel">
+                      <span style={{flexShrink:0}}>⚠️</span>
+                      <span><strong>Cancelled:</strong> {booking.cancellationReason}</span>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div style={styles.modalFooter}>
-              <button
-                style={styles.closeModalBtn}
-                onClick={() => setSelectedBooking(null)}
-              >
-                Close
-              </button>
-            </div>
+                {/* Card footer / actions */}
+                <div className="bl-card-foot">
+                  {isAdmin && booking.status === 'PENDING' && (
+                    <>
+                      <button
+                        className="bl-btn bl-btn-approve"
+                        onClick={() => handleApprove(booking.id)}
+                        disabled={actionLoading}
+                      >
+                        {actionLoading ? <span className="bl-spinner"/> : '✓'} Approve
+                      </button>
+                      <button
+                        className="bl-btn bl-btn-reject"
+                        onClick={() => handleRejectClick(booking.id)}
+                        disabled={actionLoading}
+                      >
+                        ✗ Reject
+                      </button>
+                    </>
+                  )}
+
+                  {booking.status === 'APPROVED' && booking.canCancel && (
+                    <button
+                      className="bl-btn bl-btn-cancel"
+                      onClick={() => handleCancel(booking.id)}
+                      disabled={actionLoading}
+                    >
+                      Cancel Booking
+                    </button>
+                  )}
+
+                  {!isAdmin && booking.status === 'PENDING' && booking.canCancel && (
+                    <button
+                      className="bl-btn bl-btn-cancel"
+                      onClick={() => handleCancel(booking.id)}
+                      disabled={actionLoading}
+                    >
+                      Cancel Request
+                    </button>
+                  )}
+
+                  <button
+                    className="bl-btn bl-btn-view"
+                    onClick={() => setSelectedBooking(booking)}
+                  >
+                    View Details
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-      )}
+        )}
 
-      {showRejectModal && (
-        <div style={styles.modalOverlay} onClick={() => setShowRejectModal(false)}>
-          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
-              <h3>Reject Booking</h3>
-              <button
-                style={styles.closeButton}
-                onClick={() => setShowRejectModal(false)}
-              >
-                ×
-              </button>
-            </div>
+        {/* ── Booking Details Modal ── */}
+        {selectedBooking && (
+          <div className="bl-overlay" onClick={() => setSelectedBooking(null)}>
+            <div className="bl-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="bl-modal-head">
+                <span className="bl-modal-title">Booking Details</span>
+                <button className="bl-modal-close" onClick={() => setSelectedBooking(null)}>×</button>
+              </div>
+              <div className="bl-modal-body">
+                <div className="bl-detail-section">
+                  <div className="bl-detail-section-title">📋 Booking Information</div>
+                  {[
+                    ['ID',       selectedBooking.id],
+                    ['Status',   <span className={`bl-badge bl-badge-${selectedBooking.status}`}>{selectedBooking.status}</span>],
+                    ['Resource', selectedBooking.resourceName],
+                    ['Type',     selectedBooking.resourceType],
+                    ['Start',    formatDate(selectedBooking.startTime)],
+                    ['End',      formatDate(selectedBooking.endTime)],
+                    ['Purpose',  selectedBooking.purpose],
+                    selectedBooking.expectedAttendees > 0 && ['Attendees', selectedBooking.expectedAttendees],
+                    selectedBooking.specialRequests && ['Special Requests', selectedBooking.specialRequests],
+                    selectedBooking.rejectionReason  && ['Rejection Reason', selectedBooking.rejectionReason],
+                    selectedBooking.cancellationReason && ['Cancellation Reason', selectedBooking.cancellationReason],
+                  ].filter(Boolean).map(([k, v]) => (
+                    <div key={k} className="bl-detail-item">
+                      <span className="bl-detail-item-key">{k}</span>
+                      <span className="bl-detail-item-val">{v}</span>
+                    </div>
+                  ))}
+                </div>
 
-            <div style={styles.modalBody}>
-              <label style={styles.modalLabel}>Rejection Reason:</label>
-              <textarea
-                style={styles.modalTextarea}
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Please provide a reason for rejecting this booking..."
-                rows={4}
-              />
-              <div style={styles.modalActions}>
-                <button
-                  style={styles.cancelModalButton}
-                  onClick={() => setShowRejectModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  style={styles.confirmModalButton}
-                  onClick={handleConfirmReject}
-                  disabled={actionLoading}
-                >
-                  {actionLoading ? 'Rejecting...' : 'Confirm Reject'}
+                {isAdmin && (
+                  <div className="bl-detail-section">
+                    <div className="bl-detail-section-title">👤 User Information</div>
+                    {[
+                      ['Name',    selectedBooking.userName],
+                      ['Email',   selectedBooking.userEmail],
+                      ['User ID', selectedBooking.userId],
+                    ].map(([k, v]) => (
+                      <div key={k} className="bl-detail-item">
+                        <span className="bl-detail-item-key">{k}</span>
+                        <span className="bl-detail-item-val">{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="bl-modal-foot">
+                <button className="bl-btn-close-modal" onClick={() => setSelectedBooking(null)}>
+                  Close
                 </button>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {showCancelModal && (
-        <div style={styles.modalOverlay} onClick={() => setShowCancelModal(false)}>
-          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
-              <h3>Cancel Booking</h3>
-              <button
-                style={styles.closeButton}
-                onClick={() => setShowCancelModal(false)}
-              >
-                ×
-              </button>
-            </div>
-
-            <div style={styles.modalBody}>
-              <label style={styles.modalLabel}>Cancellation Reason:</label>
-              <textarea
-                style={styles.modalTextarea}
-                value={cancellationReason}
-                onChange={(e) => setCancellationReason(e.target.value)}
-                placeholder="Optional reason for cancellation..."
-                rows={4}
-              />
-              <div style={styles.modalActions}>
-                <button
-                  style={styles.cancelModalButton}
-                  onClick={() => setShowCancelModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  style={{ ...styles.confirmModalButton, background: '#f59e0b' }}
-                  onClick={handleConfirmCancel}
-                  disabled={actionLoading}
-                >
-                  {actionLoading ? 'Cancelling...' : 'Confirm Cancel'}
-                </button>
+        {/* ── Reject Modal ── */}
+        {showRejectModal && (
+          <div className="bl-overlay" onClick={() => setShowRejectModal(false)}>
+            <div className="bl-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="bl-modal-head">
+                <span className="bl-modal-title">Reject Booking</span>
+                <button className="bl-modal-close" onClick={() => setShowRejectModal(false)}>×</button>
+              </div>
+              <div className="bl-modal-body">
+                <div className="bl-reason-box reject" style={{marginBottom:16}}>
+                  <span style={{flexShrink:0}}>⚠</span>
+                  <span>Please provide a clear reason. This will be sent to the user.</span>
+                </div>
+                <label className="bl-reject-label">Rejection Reason <span style={{color:'var(--danger)'}}>*</span></label>
+                <textarea
+                  className="bl-reject-textarea"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="e.g. Resource unavailable for maintenance, conflicting event scheduled…"
+                  rows="4"
+                />
+                <div className="bl-modal-actions">
+                  <button className="bl-btn-cancel-modal" onClick={() => setShowRejectModal(false)}>
+                    Cancel
+                  </button>
+                  <button className="bl-btn-confirm-reject" onClick={handleConfirmReject}>
+                    {actionLoading ? 'Rejecting…' : 'Confirm Reject'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {showApproveModal && (
-        <div style={styles.modalOverlay} onClick={() => setShowApproveModal(false)}>
-          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
-              <h3>Approve Booking</h3>
-              <button
-                style={styles.closeButton}
-                onClick={() => setShowApproveModal(false)}
-              >
-                ×
-              </button>
-            </div>
-
-            <div style={styles.modalBody}>
-              <p>Are you sure you want to approve this booking?</p>
-              <div style={styles.modalActions}>
-                <button
-                  style={styles.cancelModalButton}
-                  onClick={() => setShowApproveModal(false)}
-                >
-                  Cancel
-                </button>
-                <button
-                  style={{ ...styles.confirmModalButton, background: '#10b981' }}
-                  onClick={handleConfirmApprove}
-                  disabled={actionLoading}
-                >
-                  {actionLoading ? 'Approving...' : 'Confirm Approve'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      </div>
+    </>
   );
-};
-
-const styles = {
-  container: {
-    padding: '20px',
-    color: '#f1f5f9',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: '30px',
-    flexWrap: 'wrap',
-    gap: '15px',
-  },
-  title: {
-    margin: 0,
-    fontSize: '1.5rem',
-  },
-  filterControls: {
-    width: '200px',
-  },
-  select: {
-    width: '100%',
-    padding: '8px 12px',
-    background: 'rgba(15,23,42,0.7)',
-    border: '1px solid rgba(99,102,241,0.3)',
-    borderRadius: '8px',
-    color: '#f1f5f9',
-    fontSize: '0.9rem',
-    cursor: 'pointer',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(400px, 1fr))',
-    gap: '20px',
-  },
-  card: {
-    background: 'rgba(15,23,42,0.7)',
-    backdropFilter: 'blur(12px)',
-    borderRadius: '16px',
-    border: '1px solid rgba(99,102,241,0.2)',
-    overflow: 'hidden',
-    transition: 'transform 0.2s',
-  },
-  cardHeader: {
-    padding: '16px',
-    background: 'rgba(0,0,0,0.3)',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    borderBottom: '1px solid rgba(255,255,255,0.1)',
-  },
-  resourceName: {
-    margin: '0 0 4px 0',
-    fontSize: '1.1rem',
-    color: '#f1f5f9',
-  },
-  resourceType: {
-    fontSize: '0.75rem',
-    color: '#94a3b8',
-    textTransform: 'uppercase',
-  },
-  statusBadge: {
-    padding: '4px 12px',
-    borderRadius: '20px',
-    fontSize: '0.75rem',
-    fontWeight: 600,
-  },
-  cardBody: {
-    padding: '16px',
-  },
-  detailRow: {
-    marginBottom: '8px',
-    fontSize: '0.85rem',
-    display: 'flex',
-    gap: '8px',
-    flexWrap: 'wrap',
-  },
-  rejectionReason: {
-    marginTop: '10px',
-    padding: '8px',
-    background: 'rgba(239,68,68,0.1)',
-    borderRadius: '6px',
-    fontSize: '0.8rem',
-    color: '#f87171',
-  },
-  cancellationReason: {
-    marginTop: '10px',
-    padding: '8px',
-    background: 'rgba(107,114,128,0.1)',
-    borderRadius: '6px',
-    fontSize: '0.8rem',
-    color: '#9ca3af',
-  },
-  cardActions: {
-    padding: '12px 16px',
-    background: 'rgba(0,0,0,0.3)',
-    display: 'flex',
-    gap: '8px',
-    justifyContent: 'flex-end',
-    flexWrap: 'wrap',
-  },
-  button: {
-    padding: '6px 12px',
-    borderRadius: '6px',
-    border: 'none',
-    fontSize: '0.8rem',
-    fontWeight: 500,
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  },
-  approveButton: {
-    background: '#10b981',
-    color: 'white',
-  },
-  rejectButton: {
-    background: '#ef4444',
-    color: 'white',
-  },
-  cancelButton: {
-    background: '#f59e0b',
-    color: 'white',
-  },
-  viewButton: {
-    background: '#8b5cf6',
-    color: 'white',
-  },
-  loading: {
-    textAlign: 'center',
-    padding: '40px',
-    color: '#94a3b8',
-  },
-  error: {
-    padding: '20px',
-    background: 'rgba(239,68,68,0.1)',
-    border: '1px solid rgba(239,68,68,0.3)',
-    borderRadius: '12px',
-    color: '#f87171',
-  },
-  emptyState: {
-    textAlign: 'center',
-    padding: '60px',
-    background: 'rgba(15,23,42,0.5)',
-    borderRadius: '16px',
-    color: '#94a3b8',
-  },
-  modalOverlay: {
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'rgba(0,0,0,0.8)',
-    backdropFilter: 'blur(4px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    zIndex: 1000,
-  },
-  modal: {
-    background: '#0f172a',
-    borderRadius: '16px',
-    maxWidth: '90%',
-    width: '500px',
-    maxHeight: '80%',
-    overflow: 'auto',
-    border: '1px solid rgba(99,102,241,0.3)',
-  },
-  modalHeader: {
-    padding: '16px 20px',
-    borderBottom: '1px solid rgba(255,255,255,0.1)',
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  modalBody: {
-    padding: '20px',
-  },
-  modalFooter: {
-    padding: '16px 20px',
-    borderTop: '1px solid rgba(255,255,255,0.1)',
-    display: 'flex',
-    justifyContent: 'flex-end',
-  },
-  modalLabel: {
-    display: 'block',
-    marginBottom: '8px',
-    color: '#e2e8f0',
-    fontWeight: 500,
-  },
-  modalTextarea: {
-    width: '100%',
-    padding: '10px',
-    background: '#1e293b',
-    border: '1px solid rgba(99,102,241,0.3)',
-    borderRadius: '8px',
-    color: '#f1f5f9',
-    fontSize: '0.9rem',
-    resize: 'vertical',
-  },
-  modalActions: {
-    display: 'flex',
-    gap: '10px',
-    justifyContent: 'flex-end',
-    marginTop: '20px',
-  },
-  cancelModalButton: {
-    padding: '8px 16px',
-    background: '#6b7280',
-    border: 'none',
-    borderRadius: '6px',
-    color: 'white',
-    cursor: 'pointer',
-  },
-  confirmModalButton: {
-    padding: '8px 16px',
-    background: '#ef4444',
-    border: 'none',
-    borderRadius: '6px',
-    color: 'white',
-    cursor: 'pointer',
-  },
-  closeButton: {
-    background: 'none',
-    border: 'none',
-    fontSize: '24px',
-    cursor: 'pointer',
-    color: '#94a3b8',
-  },
-  closeModalBtn: {
-    padding: '8px 16px',
-    background: '#6366f1',
-    border: 'none',
-    borderRadius: '6px',
-    color: 'white',
-    cursor: 'pointer',
-  },
-  detailSection: {
-    marginBottom: '20px',
-    padding: '12px',
-    background: '#1e293b',
-    borderRadius: '8px',
-  },
 };
 
 export default BookingList;

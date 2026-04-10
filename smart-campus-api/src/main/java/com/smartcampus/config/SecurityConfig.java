@@ -57,6 +57,7 @@ public class SecurityConfig {
                     "/api/auth/login",
                     "/api/auth/login/verify-mfa",
                     "/api/auth/**",
+                    "/api/auth/password/**",   // ✅ add this
                     "/oauth2/**",
                     "/login/oauth2/**",
                     "/error"

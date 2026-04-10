@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -12,6 +12,8 @@ import {
 } from '../api/adminApi';
 import TicketCommentsPanel from '../components/TicketCommentsPanel';
 import BookingList from '../components/Bookings/BookingList';
+import BookingCalendar from '../components/Bookings/BookingCalendar';
+import BookingAnalytics from '../components/Bookings/BookingAnalytics';
 import ResourceManagement from '../components/Admin/ResourceManagement';
 
 const ROLES = ['USER', 'TECHNICIAN', 'MANAGER', 'ADMIN'];
@@ -86,6 +88,38 @@ const bookingCSS = `
 @keyframes bm-pulse {
   0%,100% { box-shadow: 0 0 0 2px #34d39944; }
   50% { box-shadow: 0 0 0 5px #34d39900; }
+}
+
+.bm-view-toggle {
+  display: flex;
+  gap: 8px;
+  padding: 12px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e4dfd4;
+}
+.bm-view-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #e4dfd4;
+  background: #fff;
+  font-family: 'Epilogue', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #78716c;
+  cursor: pointer;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bm-view-btn:hover {
+  background: #faf9f7;
+  border-color: #d0ccc5;
+}
+.bm-view-btn.active {
+  background: #0d7a6b;
+  color: #fff;
+  border-color: #0d7a6b;
 }
 
 .bm-stats {
@@ -292,8 +326,92 @@ const TICKET_STATUS_STYLE = {
   REJECTED: { background: '#f3e8ff', color: '#6b21a8' },
 };
 
+const TICKET_FILTER_LABELS = {
+  ALL: 'All Tickets',
+  OPEN: 'Open',
+  IN_PROGRESS: 'In Progress',
+  RESOLVED: 'Resolved',
+  CLOSED: 'Closed',
+  REJECTED: 'Rejected',
+};
+
+const normalizeTicketStatus = (status) => {
+  const normalized = (status || 'OPEN').toString().trim().toUpperCase();
+  return normalized === 'PENDING' ? 'OPEN' : normalized;
+};
+
+const formatSlaDuration = (minutes) => {
+  if (!Number.isFinite(minutes) || minutes < 0) {
+    return '-';
+  }
+
+  const totalMinutes = Math.floor(minutes);
+  if (totalMinutes < 60) {
+    return `${totalMinutes}m`;
+  }
+
+  const totalHours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = totalMinutes % 60;
+  if (totalHours < 24) {
+    return remainingMinutes ? `${totalHours}h ${remainingMinutes}m` : `${totalHours}h`;
+  }
+
+  const days = Math.floor(totalHours / 24);
+  const remainingHours = totalHours % 24;
+  return remainingHours ? `${days}d ${remainingHours}h` : `${days}d`;
+};
+
+const formatDateTime = (value) => {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '-';
+  }
+
+  return date.toLocaleString();
+};
+
+const SLA_THRESHOLDS = {
+  firstResponse: { targetMinutes: 60, warningMinutes: 180 },
+  resolution: { targetMinutes: 1440, warningMinutes: 2880 },
+};
+
+const SLA_BADGE_BASE_STYLE = {
+  padding: '2px 8px',
+  borderRadius: 999,
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: 0.2,
+};
+
+const SLA_TONE_STYLE = {
+  pending: { background: '#e2e8f0', color: '#475569' },
+  onTarget: { background: '#dcfce7', color: '#166534' },
+  watch: { background: '#fef3c7', color: '#92400e' },
+  breached: { background: '#fee2e2', color: '#991b1b' },
+};
+
+const getSlaHealth = (minutes, metric) => {
+  const numericMinutes = Number(minutes);
+  if (!Number.isFinite(numericMinutes) || numericMinutes < 0) {
+    return { label: 'Pending', style: SLA_TONE_STYLE.pending };
+  }
+
+  const thresholds = SLA_THRESHOLDS[metric] || SLA_THRESHOLDS.firstResponse;
+  if (numericMinutes <= thresholds.targetMinutes) {
+    return { label: 'On Target', style: SLA_TONE_STYLE.onTarget };
+  }
+  if (numericMinutes <= thresholds.warningMinutes) {
+    return { label: 'Watch', style: SLA_TONE_STYLE.watch };
+  }
+  return { label: 'Breached', style: SLA_TONE_STYLE.breached };
+};
+
 export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState('users');
@@ -306,10 +424,12 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [updating, setUpdating] = useState(null);
   const [userToDelete, setUserToDelete] = useState(null);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [bmFilter, setBmFilter] = useState('ALL');
+  const [bmViewMode, setBmViewMode] = useState('list');
   const [tickets, setTickets] = useState([]);
   const [ticketsLoaded, setTicketsLoaded] = useState(false);
+  const [ticketFilter, setTicketFilter] = useState('ALL');
+  const [ticketViewMode, setTicketViewMode] = useState('cards');
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [ticketDraft, setTicketDraft] = useState({
@@ -395,7 +515,7 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
           resourceLocation: ticket.location || '-',
           category: ticket.category || '-',
           priority: ticket.priority || '-',
-          status: (ticket.status || 'OPEN').toUpperCase(),
+          status: normalizeTicketStatus(ticket.status),
           description: ticket.description || 'No description provided',
           preferredContact: ticket.preferredContact || '-',
           reporterName: reporter?.name || 'Unknown User',
@@ -403,6 +523,15 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
           assignedTechnicianId: ticket.assignedTechnicianId || '',
           assignedTechnician: ticket.assignedTechnicianName || '',
           resolutionNotes: ticket.resolutionNotes || '',
+          createdAt: ticket.createdAt || null,
+          firstResponseAt: ticket.firstResponseAt || null,
+          resolvedAt: ticket.resolvedAt || null,
+          timeToFirstResponseMinutes: Number.isFinite(ticket.timeToFirstResponseMinutes)
+            ? ticket.timeToFirstResponseMinutes
+            : null,
+          timeToResolutionMinutes: Number.isFinite(ticket.timeToResolutionMinutes)
+            ? ticket.timeToResolutionMinutes
+            : null,
           comments: Array.isArray(ticket.comments) ? ticket.comments : [],
           imageAttachments,
           attachmentNames: mergedImageNames.filter((name) => !isRenderableImageSrc(name)),
@@ -523,18 +652,8 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
     .filter((u) => u.role === 'TECHNICIAN' && u.enabled)
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  const handleLogoutClick = () => {
-    setShowLogoutConfirm(true);
-  };
-
-  const confirmLogout = () => {
-    setShowLogoutConfirm(false);
-    logout();
-    navigate('/');
-  };
-
   const getAllowedStatusOptions = (currentStatus) => {
-    if (currentStatus === 'OPEN' || currentStatus === 'PENDING') {
+    if (currentStatus === 'OPEN') {
       return ['OPEN', 'IN_PROGRESS', 'REJECTED'];
     }
     if (currentStatus === 'IN_PROGRESS') {
@@ -581,7 +700,7 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
 
     const autoProgressStatus =
       Boolean(ticketDraft.assignedTechnician) &&
-      (ticketDraft.status === 'OPEN' || ticketDraft.status === 'PENDING');
+      ticketDraft.status === 'OPEN';
     const nextStatus = autoProgressStatus ? 'IN_PROGRESS' : ticketDraft.status;
     const nextNotes = ticketDraft.resolutionNotes.trim();
     const existingNotes = (selectedTicket.resolutionNotes || '').trim();
@@ -626,6 +745,15 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
           assignedTechnicianId: updatedTicket.assignedTechnicianId || '',
           assignedTechnician: updatedTicket.assignedTechnicianName || selectedTech?.name || '',
           resolutionNotes: updatedTicket.resolutionNotes || '',
+          createdAt: updatedTicket.createdAt || ticket.createdAt || null,
+          firstResponseAt: updatedTicket.firstResponseAt || ticket.firstResponseAt || null,
+          resolvedAt: updatedTicket.resolvedAt || ticket.resolvedAt || null,
+          timeToFirstResponseMinutes: Number.isFinite(updatedTicket.timeToFirstResponseMinutes)
+            ? updatedTicket.timeToFirstResponseMinutes
+            : ticket.timeToFirstResponseMinutes,
+          timeToResolutionMinutes: Number.isFinite(updatedTicket.timeToResolutionMinutes)
+            ? updatedTicket.timeToResolutionMinutes
+            : ticket.timeToResolutionMinutes,
           comments: Array.isArray(updatedTicket.comments) ? updatedTicket.comments : ticket.comments,
         };
       }));
@@ -638,6 +766,15 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
               assignedTechnicianId: updatedTicket.assignedTechnicianId || '',
               assignedTechnician: updatedTicket.assignedTechnicianName || current.assignedTechnician,
               resolutionNotes: updatedTicket.resolutionNotes || '',
+              createdAt: updatedTicket.createdAt || current.createdAt || null,
+              firstResponseAt: updatedTicket.firstResponseAt || current.firstResponseAt || null,
+              resolvedAt: updatedTicket.resolvedAt || current.resolvedAt || null,
+              timeToFirstResponseMinutes: Number.isFinite(updatedTicket.timeToFirstResponseMinutes)
+                ? updatedTicket.timeToFirstResponseMinutes
+                : current.timeToFirstResponseMinutes,
+              timeToResolutionMinutes: Number.isFinite(updatedTicket.timeToResolutionMinutes)
+                ? updatedTicket.timeToResolutionMinutes
+                : current.timeToResolutionMinutes,
               comments: Array.isArray(updatedTicket.comments) ? updatedTicket.comments : current.comments,
             }
           : current
@@ -655,68 +792,276 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
 
   const ticketSummary = {
     total: tickets.length,
-    openPending: tickets.filter((t) => t.status === 'OPEN' || t.status === 'PENDING').length,
+    open: tickets.filter((t) => t.status === 'OPEN').length,
     inProgress: tickets.filter((t) => t.status === 'IN_PROGRESS').length,
     resolvedClosed: tickets.filter((t) => t.status === 'RESOLVED' || t.status === 'CLOSED').length,
   };
 
+  const filteredTickets = useMemo(() => {
+    if (ticketFilter === 'ALL') {
+      return tickets;
+    }
+
+    return tickets.filter((ticket) => ticket.status === ticketFilter);
+  }, [tickets, ticketFilter]);
+
+  const ticketStats = useMemo(() => ([
+    { label: 'Total Tickets', value: ticketSummary.total, dot: '#6366f1' },
+    { label: 'Open', value: ticketSummary.open, dot: '#ef4444' },
+    { label: 'In Progress', value: ticketSummary.inProgress, dot: '#f59e0b' },
+    { label: 'Resolved / Closed', value: ticketSummary.resolvedClosed, dot: '#10b981' },
+  ]), [ticketSummary]);
+
+  const selectedTicketFirstResponseSla = selectedTicket
+    ? getSlaHealth(selectedTicket.timeToFirstResponseMinutes, 'firstResponse')
+    : null;
+  const selectedTicketResolutionSla = selectedTicket
+    ? getSlaHealth(selectedTicket.timeToResolutionMinutes, 'resolution')
+    : null;
+
   const renderTicketsTab = () => (
     <>
-      <div style={s.statsGrid}>
-        {[
-          { label: 'Total Tickets', value: ticketSummary.total, color: '#6366f1' },
-          { label: 'Open / Pending', value: ticketSummary.openPending, color: '#ef4444' },
-          { label: 'In Progress', value: ticketSummary.inProgress, color: '#f59e0b' },
-          { label: 'Resolved / Closed', value: ticketSummary.resolvedClosed, color: '#10b981' },
-        ].map((stat) => (
-          <div key={stat.label} style={s.statCard}>
-            <div style={{ ...s.statNum, color: stat.color }}>{stat.value}</div>
-            <div style={s.statLabel}>{stat.label}</div>
+      <div style={s.ticketShell}>
+        <div style={s.ticketHero}>
+          <div>
+            <div style={s.ticketHeroEyebrow}>Admin Console</div>
+            <div style={s.ticketHeroTitle}>Ticket Management</div>
+            <div style={s.ticketHeroSub}>Track incidents, assign technicians, and close the loop with a booking-style workflow.</div>
           </div>
-        ))}
-      </div>
+          <div style={s.ticketHeroBadge}>
+            <span style={s.ticketHeroBadgeDot} />
+            Full Access View
+          </div>
+        </div>
 
-      <div style={s.tableWrap}>
-        <table style={s.table}>
-          <thead>
-            <tr style={s.thead}>
-              <th style={s.th}>Ticket ID</th>
-              <th style={s.th}>Resource / Location</th>
-              <th style={s.th}>Category</th>
-              <th style={s.th}>Priority</th>
-              <th style={s.th}>Status</th>
-              <th style={s.th}>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tickets.map((ticket) => (
-              <tr key={ticket.id} style={s.tr}>
-                <td style={s.td}><strong>{ticket.ticketId}</strong></td>
-                <td style={s.td}>{ticket.resourceLocation}</td>
-                <td style={s.td}>{ticket.category}</td>
-                <td style={s.td}>{ticket.priority}</td>
-                <td style={s.td}>
-                  <span
-                    style={{
-                      ...s.pill,
-                      ...(TICKET_STATUS_STYLE[ticket.status] || { background: '#e2e8f0', color: '#334155' }),
-                    }}
-                  >
-                    {ticket.status}
-                  </span>
-                </td>
-                <td style={s.td}>
+        <div style={s.ticketViewToggle}>
+          <button
+            style={ticketViewMode === 'cards' ? s.ticketViewBtnActive : s.ticketViewBtn}
+            onClick={() => setTicketViewMode('cards')}
+          >
+            🗂 Cards View
+          </button>
+          <button
+            style={ticketViewMode === 'table' ? s.ticketViewBtnActive : s.ticketViewBtn}
+            onClick={() => setTicketViewMode('table')}
+          >
+            📋 Compact View
+          </button>
+        </div>
+
+        <div style={s.ticketStatsGrid}>
+          {ticketStats.map((stat) => (
+            <div key={stat.label} style={s.ticketStatCard}>
+              <div style={s.ticketStatValue}>{stat.value}</div>
+              <div style={s.ticketStatLabel}>
+                <span style={{ ...s.ticketStatDot, background: stat.dot }} />
+                {stat.label}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={s.ticketToolbar}>
+          <div style={s.ticketToolbarLeft}>
+            <span style={s.ticketToolbarLabel}>Filter by status</span>
+            <div style={s.ticketFilterTabs}>
+              {Object.keys(TICKET_FILTER_LABELS).map((key) => {
+                const count = key === 'ALL' ? ticketSummary.total : tickets.filter((ticket) => ticket.status === key).length;
+                return (
                   <button
-                    style={s.viewDetailsBtn}
-                    onClick={() => openTicketModal(ticket)}
+                    key={key}
+                    style={ticketFilter === key ? s.ticketFilterTabActive : s.ticketFilterTab}
+                    onClick={() => setTicketFilter(key)}
                   >
-                    View Details
+                    {TICKET_FILTER_LABELS[key]}
+                    <span style={ticketFilter === key ? s.ticketFilterCountActive : s.ticketFilterCount}>{count}</span>
                   </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={s.ticketToolbarRight}>
+            <div style={s.ticketAdminChip}>🔒 Admin - All incidents visible</div>
+          </div>
+        </div>
+
+        <div style={s.ticketActiveFilterBar}>
+          Showing:&nbsp;
+          <span style={ticketFilter === 'ALL' ? s.ticketActiveFilterChipAll : s.ticketActiveFilterChip}>
+            {TICKET_FILTER_LABELS[ticketFilter]}
+          </span>
+          {ticketFilter !== 'ALL' && (
+            <button
+              type="button"
+              onClick={() => setTicketFilter('ALL')}
+              style={s.ticketClearFilterBtn}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        <div style={s.ticketListBody}>
+          {!ticketsLoaded ? (
+            <div style={s.ticketSkeletonGrid}>
+              {[1, 2, 3].map((item) => (
+                <div key={item} style={s.ticketSkeletonCard}>
+                  <div style={s.ticketSkeletonTop}>
+                    <div style={{ ...s.ticketSkeletonLine, width: '58%' }} />
+                    <div style={{ ...s.ticketSkeletonLine, width: 76, borderRadius: 20 }} />
+                  </div>
+                  <div style={{ ...s.ticketSkeletonLine, width: '80%' }} />
+                  <div style={{ ...s.ticketSkeletonLine, width: '66%' }} />
+                  <div style={{ ...s.ticketSkeletonLine, width: '42%' }} />
+                  <div style={s.ticketSkeletonThumbs}>
+                    <div style={s.ticketSkeletonThumb} />
+                    <div style={s.ticketSkeletonThumb} />
+                    <div style={s.ticketSkeletonThumb} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filteredTickets.length === 0 ? (
+            <div style={s.ticketEmpty}>
+              <div style={s.ticketEmptyIcon}>🎫</div>
+              <div style={s.ticketEmptyTitle}>No tickets found</div>
+              <div style={s.ticketEmptySub}>
+                {ticketFilter === 'ALL'
+                  ? 'There are no incident tickets in the system yet.'
+                  : 'No tickets match the selected status filter.'}
+              </div>
+            </div>
+          ) : ticketViewMode === 'cards' ? (
+            <div style={s.ticketGrid}>
+              {filteredTickets.map((ticket) => {
+                const imageAttachments = Array.isArray(ticket.imageAttachments) ? ticket.imageAttachments : [];
+                const attachmentNames = Array.isArray(ticket.attachmentNames) ? ticket.attachmentNames : [];
+
+                return (
+                  <article key={ticket.id} style={s.ticketCard}>
+                    <div style={s.ticketCardHead}>
+                      <div style={s.ticketCardHeadLeft}>
+                        <div style={s.ticketCardId}>{ticket.ticketId}</div>
+                        <div style={s.ticketCardMeta}>{ticket.resourceLocation}</div>
+                      </div>
+                      <span
+                        style={{
+                          ...s.ticketBadge,
+                          ...(TICKET_STATUS_STYLE[ticket.status] || { background: '#e2e8f0', color: '#334155' }),
+                        }}
+                      >
+                        {ticket.status}
+                      </span>
+                    </div>
+
+                    <div style={s.ticketCardBody}>
+                      <div style={s.ticketRow}>
+                        <span style={s.ticketRowKey}>Category</span>
+                        <span style={s.ticketRowValue}>{ticket.category}</span>
+                      </div>
+                      <div style={s.ticketRow}>
+                        <span style={s.ticketRowKey}>Priority</span>
+                        <span style={s.ticketRowValue}>{ticket.priority}</span>
+                      </div>
+                      <div style={s.ticketRow}>
+                        <span style={s.ticketRowKey}>Reporter</span>
+                        <span style={s.ticketRowValue}>{ticket.reporterName}</span>
+                      </div>
+                      <div style={s.ticketRow}>
+                        <span style={s.ticketRowKey}>Contact</span>
+                        <span style={s.ticketRowValue}>{ticket.preferredContact}</span>
+                      </div>
+                      <div style={s.ticketDescriptionPreview}>{ticket.description}</div>
+                    </div>
+
+                    <div style={s.ticketEvidenceArea}>
+                      {imageAttachments.length > 0 ? (
+                        <div style={s.ticketThumbGrid}>
+                          {imageAttachments.slice(0, 3).map((src, index) => (
+                            <img
+                              key={`${ticket.id}-thumb-${index}`}
+                              src={src}
+                              alt={`${ticket.ticketId} evidence ${index + 1}`}
+                              style={s.ticketThumb}
+                              onClick={() => setPreviewImageUrl(src)}
+                            />
+                          ))}
+                        </div>
+                      ) : attachmentNames.length > 0 ? (
+                        <div style={s.ticketNameWrap}>
+                          {attachmentNames.slice(0, 4).map((name) => (
+                            <span key={`${ticket.id}-${name}`} style={s.ticketNameChip}>{name}</span>
+                          ))}
+                        </div>
+                      ) : (
+                        <div style={s.ticketNoEvidence}>No evidence uploaded.</div>
+                      )}
+                    </div>
+
+                    <div style={s.ticketCardFoot}>
+                      <button
+                        type="button"
+                        style={s.viewDetailsBtn}
+                        onClick={() => openTicketModal(ticket)}
+                      >
+                        View Details
+                      </button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          ) : (
+            <div style={s.ticketCompactWrap}>
+              <table style={s.ticketCompactTable}>
+                <thead>
+                  <tr style={s.thead}>
+                    <th style={s.th}>Ticket ID</th>
+                    <th style={s.th}>Location</th>
+                    <th style={s.th}>Category</th>
+                    <th style={s.th}>Priority</th>
+                    <th style={s.th}>Status</th>
+                    <th style={s.th}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredTickets.map((ticket) => (
+                    <tr key={ticket.id} style={s.tr}>
+                      <td style={s.td}><strong>{ticket.ticketId}</strong></td>
+                      <td style={s.td}>{ticket.resourceLocation}</td>
+                      <td style={s.td}>{ticket.category}</td>
+                      <td style={s.td}>{ticket.priority}</td>
+                      <td style={s.td}>
+                        <span
+                          style={{
+                            ...s.pill,
+                            ...(TICKET_STATUS_STYLE[ticket.status] || { background: '#e2e8f0', color: '#334155' }),
+                          }}
+                        >
+                          {ticket.status}
+                        </span>
+                      </td>
+                      <td style={s.td}>
+                        <button
+                          type="button"
+                          style={s.viewDetailsBtn}
+                          onClick={() => openTicketModal(ticket)}
+                        >
+                          View Details
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div style={s.ticketFooterNote}>
+          ℹ Review evidence, assign a technician, and update comments directly from the detail panel.
+        </div>
       </div>
     </>
   );
@@ -926,6 +1271,7 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
   return (
     <div style={s.layout}>
       <style>{bookingCSS}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
 
       {toast && (
         <div
@@ -975,31 +1321,6 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
         </div>
       )}
 
-      {showLogoutConfirm && (
-        <div style={s.modalOverlay}>
-          <div style={s.modalCard}>
-            <div style={s.modalIcon}>👋</div>
-            <h3 style={s.modalTitle}>Log Out</h3>
-            <p style={s.modalDest}>Are you sure you want to log out of your account?</p>
-            <div style={s.modalActions}>
-              <button style={s.cancelBtn} onClick={() => setShowLogoutConfirm(false)}>
-                No
-              </button>
-              <button
-                style={{
-                  ...s.confirmDeleteBtn,
-                  background: '#4f46e5',
-                  boxShadow: '0 4px 12px rgba(79, 70, 229, 0.2)',
-                }}
-                onClick={confirmLogout}
-              >
-                Yes
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {selectedTicket && (
         <div style={s.modalOverlay}>
           <div style={s.ticketModalCard}>
@@ -1024,6 +1345,33 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
               <div style={s.ticketSection}>
                 <div style={s.ticketSectionTitle}>Description</div>
                 <p style={s.ticketDescription}>{selectedTicket.description}</p>
+              </div>
+
+              <div style={s.ticketSection}>
+                <div style={s.ticketSectionTitle}>Service-Level Timer</div>
+                <div style={s.ticketInfoGrid}>
+                  <div style={s.ticketInfoItem}><span style={s.ticketInfoLabel}>Submitted</span><span>{formatDateTime(selectedTicket.createdAt)}</span></div>
+                  <div style={s.ticketInfoItem}><span style={s.ticketInfoLabel}>First Response At</span><span>{formatDateTime(selectedTicket.firstResponseAt)}</span></div>
+                  <div style={s.ticketInfoItem}><span style={s.ticketInfoLabel}>Resolved At</span><span>{formatDateTime(selectedTicket.resolvedAt)}</span></div>
+                  <div style={s.ticketInfoItem}>
+                    <span style={s.ticketInfoLabel}>Time To First Response</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      {formatSlaDuration(selectedTicket.timeToFirstResponseMinutes)}
+                      <span style={{ ...SLA_BADGE_BASE_STYLE, ...(selectedTicketFirstResponseSla?.style || SLA_TONE_STYLE.pending) }}>
+                        {selectedTicketFirstResponseSla?.label || 'Pending'}
+                      </span>
+                    </span>
+                  </div>
+                  <div style={s.ticketInfoItem}>
+                    <span style={s.ticketInfoLabel}>Time To Resolution</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      {formatSlaDuration(selectedTicket.timeToResolutionMinutes)}
+                      <span style={{ ...SLA_BADGE_BASE_STYLE, ...(selectedTicketResolutionSla?.style || SLA_TONE_STYLE.pending) }}>
+                        {selectedTicketResolutionSla?.label || 'Pending'}
+                      </span>
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <div style={s.ticketSection}>
@@ -1077,7 +1425,7 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
                       setTicketDraft((prev) => {
                         const shouldMoveToInProgress =
                           Boolean(technicianId) &&
-                          (prev.status === 'OPEN' || prev.status === 'PENDING');
+                          prev.status === 'OPEN';
                         return {
                           ...prev,
                           assignedTechnician: technicianId,
@@ -1160,6 +1508,12 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
           >
             🎫 Ticket Management
           </button>
+          <button
+            style={activeTab === 'analytics' ? s.navItemActive : s.navItem}
+            onClick={() => setActiveTab('analytics')}
+          >
+            📊 Analytics Dashboard
+          </button>
         </nav>
       </div>
 
@@ -1171,15 +1525,9 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
               {activeTab === 'resources' && 'Resource Management'}
               {activeTab === 'bookings' && 'Booking Management'}
               {activeTab === 'tickets' && 'Ticket Management'}
+              {activeTab === 'analytics' && 'Analytics Dashboard'}
             </h1>
             <p style={s.headerSub}>Manage campus resources and users</p>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={s.adminBadge}>{dashboardBadge}</span>
-            <span style={{ fontSize: 14, color: '#64748b' }}>{user?.name}</span>
-            <button style={s.logoutBtn} onClick={handleLogoutClick}>
-              Logout
-            </button>
           </div>
         </div>
 
@@ -1206,79 +1554,102 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
                 </div>
               </div>
 
-              <div className="bm-stats">
-                {[
-                  { label: 'Total Bookings', val: stats?.totalBookings ?? '—', dot: '#6366f1' },
-                  { label: 'Pending Approval', val: stats?.pendingBookings ?? '—', dot: '#f59e0b' },
-                  { label: 'Active Today', val: stats?.activeToday ?? '—', dot: '#10b981' },
-                  { label: 'Cancelled', val: stats?.cancelled ?? '—', dot: '#ef4444' },
-                ].map((st) => (
-                  <div key={st.label} className="bm-stat">
-                    <div className="bm-stat-val">{st.val}</div>
-                    <div className="bm-stat-label">
-                      <span className="bm-stat-dot" style={{ background: st.dot }} />
-                      {st.label}
-                    </div>
-                  </div>
-                ))}
+              <div className="bm-view-toggle">
+                <button
+                  className={`bm-view-btn ${bmViewMode === 'list' ? 'active' : ''}`}
+                  onClick={() => setBmViewMode('list')}
+                >
+                  📋 List View
+                </button>
+                <button
+                  className={`bm-view-btn ${bmViewMode === 'calendar' ? 'active' : ''}`}
+                  onClick={() => setBmViewMode('calendar')}
+                >
+                  📅 Calendar View
+                </button>
               </div>
 
-              <div className="bm-toolbar">
-                <div className="bm-toolbar-left">
-                  <span className="bm-toolbar-label">Filter by status</span>
-                  <div className="bm-ftabs">
+              {bmViewMode === 'list' && (
+                <>
+                  <div className="bm-stats">
                     {[
-                      { key: 'ALL', label: 'All', count: stats?.totalBookings },
-                      { key: 'PENDING', label: 'Pending', count: stats?.pendingBookings },
-                      { key: 'APPROVED', label: 'Approved', count: stats?.approvedBookings },
-                      { key: 'CANCELLED', label: 'Cancelled', count: stats?.cancelled },
-                    ].map((f) => (
-                      <button
-                        key={f.key}
-                        className={`bm-ftab ${bmFilter === f.key ? 'on' : ''}`}
-                        onClick={() => setBmFilter(f.key)}
-                      >
-                        {f.label}
-                        {f.count !== undefined && f.count !== null && (
-                          <span className="bm-ftab-count">{f.count}</span>
-                        )}
-                      </button>
+                      { label: 'Total Bookings', val: stats?.totalBookings ?? '—', dot: '#6366f1' },
+                      { label: 'Pending Approval', val: stats?.pendingBookings ?? '—', dot: '#f59e0b' },
+                      { label: 'Active Today', val: stats?.activeToday ?? '—', dot: '#10b981' },
+                      { label: 'Cancelled', val: stats?.cancelled ?? '—', dot: '#ef4444' },
+                    ].map((st) => (
+                      <div key={st.label} className="bm-stat">
+                        <div className="bm-stat-val">{st.val}</div>
+                        <div className="bm-stat-label">
+                          <span className="bm-stat-dot" style={{ background: st.dot }} />
+                          {st.label}
+                        </div>
+                      </div>
                     ))}
                   </div>
-                </div>
-                <div className="bm-toolbar-right">
-                  <div className="bm-admin-chip">🔒 Admin — All Users Visible</div>
-                </div>
-              </div>
 
-              <div className="bm-active-filter-bar">
-                Showing:&nbsp;
-                <span className={`bm-active-filter-chip ${bmFilter === 'ALL' ? 'all' : ''}`}>
-                  {FILTER_LABELS[bmFilter]}
-                </span>
-                {bmFilter !== 'ALL' && (
-                  <button
-                    onClick={() => setBmFilter('ALL')}
-                    style={{
-                      marginLeft: 6,
-                      fontSize: 11,
-                      color: '#94a3b8',
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textDecoration: 'underline',
-                    }}
-                  >
-                    Clear
-                  </button>
-                )}
-              </div>
+                  <div className="bm-toolbar">
+                    <div className="bm-toolbar-left">
+                      <span className="bm-toolbar-label">Filter by status</span>
+                      <div className="bm-ftabs">
+                        {[
+                          { key: 'ALL', label: 'All', count: stats?.totalBookings },
+                          { key: 'PENDING', label: 'Pending', count: stats?.pendingBookings },
+                          { key: 'APPROVED', label: 'Approved', count: stats?.approvedBookings },
+                          { key: 'CANCELLED', label: 'Cancelled', count: stats?.cancelled },
+                        ].map((f) => (
+                          <button
+                            key={f.key}
+                            className={`bm-ftab ${bmFilter === f.key ? 'on' : ''}`}
+                            onClick={() => setBmFilter(f.key)}
+                          >
+                            {f.label}
+                            {f.count !== undefined && f.count !== null && (
+                              <span className="bm-ftab-count">{f.count}</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="bm-toolbar-right">
+                      <div className="bm-admin-chip">🔒 Admin — All Users Visible</div>
+                    </div>
+                  </div>
+
+                  <div className="bm-active-filter-bar">
+                    Showing:&nbsp;
+                    <span className={`bm-active-filter-chip ${bmFilter === 'ALL' ? 'all' : ''}`}>
+                      {FILTER_LABELS[bmFilter]}
+                    </span>
+                    {bmFilter !== 'ALL' && (
+                      <button
+                        onClick={() => setBmFilter('ALL')}
+                        style={{
+                          marginLeft: 6,
+                          fontSize: 11,
+                          color: '#94a3b8',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                        }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
 
               <div className="bm-list-body">
-                <BookingList
-                  isAdmin={true}
-                  statusFilter={bmFilter === 'ALL' ? null : bmFilter}
-                />
+                {bmViewMode === 'list' ? (
+                  <BookingList
+                    isAdmin={true}
+                    statusFilter={bmFilter === 'ALL' ? null : bmFilter}
+                  />
+                ) : (
+                  <BookingCalendar isAdmin={true} />
+                )}
               </div>
 
               <div className="bm-footer-note">
@@ -1288,6 +1659,12 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
           )}
 
           {activeTab === 'tickets' && renderTicketsTab()}
+
+          {activeTab === 'analytics' && (
+            <div style={s.tabContent}>
+              <BookingAnalytics />
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -1594,6 +1971,496 @@ const s = {
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
+  },
+  ticketShell: {
+    background: '#f4f1eb',
+    border: '1px solid #e4dfd4',
+    borderRadius: 18,
+    overflow: 'hidden',
+    boxShadow: '0 12px 30px rgba(28,25,23,0.08)',
+  },
+  ticketHero: {
+    background: 'linear-gradient(135deg, #7c2d12 0%, #9a3412 100%)',
+    padding: '28px 32px 24px',
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 20,
+    flexWrap: 'wrap',
+  },
+  ticketHeroEyebrow: {
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.18em',
+    textTransform: 'uppercase',
+    color: '#fdba74',
+    marginBottom: 6,
+  },
+  ticketHeroTitle: {
+    fontFamily: 'Playfair Display, serif',
+    fontSize: 26,
+    fontWeight: 700,
+    color: '#fff',
+    letterSpacing: '-0.01em',
+    lineHeight: 1.1,
+  },
+  ticketHeroSub: {
+    fontSize: 13,
+    color: '#ffedd5',
+    marginTop: 5,
+    fontWeight: 400,
+  },
+  ticketHeroBadge: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 7,
+    padding: '8px 16px',
+    borderRadius: 30,
+    background: 'rgba(255,255,255,0.12)',
+    border: '1px solid rgba(255,255,255,0.2)',
+    color: '#ffedd5',
+    fontSize: 12,
+    fontWeight: 600,
+    whiteSpace: 'nowrap',
+  },
+  ticketHeroBadgeDot: {
+    width: 7,
+    height: 7,
+    borderRadius: '50%',
+    background: '#fb923c',
+    boxShadow: '0 0 0 2px rgba(251,146,60,0.25)',
+    animation: 'spin 2s infinite linear',
+  },
+  ticketViewToggle: {
+    display: 'flex',
+    gap: 8,
+    padding: '12px 24px',
+    background: '#fff',
+    borderBottom: '1px solid #e4dfd4',
+  },
+  ticketViewBtn: {
+    padding: '8px 16px',
+    borderRadius: 8,
+    border: '1px solid #e4dfd4',
+    background: '#fff',
+    fontFamily: 'Epilogue, sans-serif',
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#78716c',
+    cursor: 'pointer',
+    transition: 'all 0.15s',
+  },
+  ticketViewBtnActive: {
+    padding: '8px 16px',
+    borderRadius: 8,
+    border: '1px solid #7c2d12',
+    background: '#7c2d12',
+    fontFamily: 'Epilogue, sans-serif',
+    fontSize: 13,
+    fontWeight: 600,
+    color: '#fff',
+    cursor: 'pointer',
+  },
+  ticketStatsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    borderBottom: '1px solid #e4dfd4',
+  },
+  ticketStatCard: {
+    padding: '18px 24px',
+    borderRight: '1px solid #e4dfd4',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    background: '#fff',
+    transition: 'background .18s',
+  },
+  ticketStatValue: {
+    fontFamily: 'Playfair Display, serif',
+    fontSize: 24,
+    fontWeight: 700,
+    color: '#1c1917',
+    lineHeight: 1,
+  },
+  ticketStatLabel: {
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: '#78716c',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 5,
+  },
+  ticketStatDot: {
+    width: 6,
+    height: 6,
+    borderRadius: '50%',
+    flexShrink: 0,
+  },
+  ticketToolbar: {
+    background: '#faf9f7',
+    borderBottom: '1px solid #e4dfd4',
+    padding: '14px 24px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    flexWrap: 'wrap',
+  },
+  ticketToolbarLeft: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  ticketToolbarRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ticketToolbarLabel: {
+    fontSize: 11,
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: '#78716c',
+  },
+  ticketFilterTabs: {
+    display: 'flex',
+    gap: 4,
+    flexWrap: 'wrap',
+  },
+  ticketFilterTab: {
+    padding: '6px 14px',
+    borderRadius: 7,
+    border: '1px solid #e4dfd4',
+    fontFamily: 'Epilogue, sans-serif',
+    fontSize: 12,
+    fontWeight: 500,
+    color: '#78716c',
+    cursor: 'pointer',
+    background: '#fff',
+    transition: 'all .15s',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  ticketFilterTabActive: {
+    padding: '6px 14px',
+    borderRadius: 7,
+    border: '1px solid #7c2d12',
+    fontFamily: 'Epilogue, sans-serif',
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#fff',
+    cursor: 'pointer',
+    background: '#7c2d12',
+    transition: 'all .15s',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  ticketFilterCount: {
+    background: '#e4dfd4',
+    color: '#78716c',
+    fontSize: 10,
+    fontWeight: 700,
+    padding: '1px 6px',
+    borderRadius: 10,
+    minWidth: 20,
+    textAlign: 'center',
+    transition: 'background .15s, color .15s',
+  },
+  ticketFilterCountActive: {
+    background: 'rgba(255,255,255,0.22)',
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 700,
+    padding: '1px 6px',
+    borderRadius: 10,
+    minWidth: 20,
+    textAlign: 'center',
+    transition: 'background .15s, color .15s',
+  },
+  ticketAdminChip: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '5px 12px',
+    borderRadius: 7,
+    background: '#fef3c7',
+    border: '1px solid #fde68a',
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#92400e',
+  },
+  ticketActiveFilterBar: {
+    background: '#fff',
+    borderBottom: '1px solid #e4dfd4',
+    padding: '10px 24px',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    fontSize: 12,
+    color: '#78716c',
+    flexWrap: 'wrap',
+  },
+  ticketActiveFilterChip: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '3px 10px',
+    borderRadius: 6,
+    background: '#0d7a6b18',
+    border: '1px solid #0d7a6b30',
+    color: '#0d7a6b',
+    fontWeight: 600,
+    fontSize: 11,
+    letterSpacing: '0.05em',
+  },
+  ticketActiveFilterChipAll: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 5,
+    padding: '3px 10px',
+    borderRadius: 6,
+    background: '#f1f5f9',
+    border: '1px solid #e2e8f0',
+    color: '#64748b',
+    fontWeight: 600,
+    fontSize: 11,
+    letterSpacing: '0.05em',
+  },
+  ticketClearFilterBtn: {
+    marginLeft: 6,
+    fontSize: 11,
+    color: '#94a3b8',
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    textDecoration: 'underline',
+  },
+  ticketListBody: {
+    background: '#f4f1eb',
+    minHeight: 400,
+    padding: 24,
+  },
+  ticketSkeletonGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+    gap: 18,
+  },
+  ticketSkeletonCard: {
+    background: '#fff',
+    border: '1px solid #e4dfd4',
+    borderRadius: 18,
+    padding: 20,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+  },
+  ticketSkeletonTop: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  ticketSkeletonLine: {
+    height: 12,
+    borderRadius: 6,
+    background: 'linear-gradient(90deg,#ebe8e0 25%,#f4f1eb 50%,#ebe8e0 75%)',
+    backgroundSize: '200% 100%',
+    animation: 'spin 1.4s infinite linear',
+  },
+  ticketSkeletonThumbs: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 8,
+    marginTop: 4,
+  },
+  ticketSkeletonThumb: {
+    height: 76,
+    borderRadius: 10,
+    background: 'linear-gradient(90deg,#ebe8e0 25%,#f4f1eb 50%,#ebe8e0 75%)',
+    backgroundSize: '200% 100%',
+    animation: 'spin 1.4s infinite linear',
+  },
+  ticketEmpty: {
+    textAlign: 'center',
+    padding: '60px 40px',
+    background: '#fff',
+    border: '1px solid #e4dfd4',
+    borderRadius: 18,
+  },
+  ticketEmptyIcon: {
+    fontSize: 40,
+    marginBottom: 12,
+    opacity: 0.45,
+  },
+  ticketEmptyTitle: {
+    fontFamily: 'Playfair Display, serif',
+    fontSize: 18,
+    color: '#1c1917',
+    marginBottom: 6,
+  },
+  ticketEmptySub: {
+    fontSize: 13,
+    color: '#78716c',
+  },
+  ticketGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+    gap: 18,
+  },
+  ticketCard: {
+    background: '#fff',
+    border: '1px solid #e4dfd4',
+    borderRadius: 18,
+    boxShadow: '0 2px 16px rgba(28,25,23,0.06)',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    transition: 'box-shadow .22s, transform .18s',
+  },
+  ticketCardHead: {
+    padding: '15px 18px 12px',
+    borderBottom: '1px solid #e4dfd4',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+    background: '#faf9f7',
+  },
+  ticketCardHeadLeft: {
+    minWidth: 0,
+  },
+  ticketCardId: {
+    fontFamily: 'Playfair Display, serif',
+    fontSize: 16,
+    fontWeight: 700,
+    color: '#1c1917',
+    marginBottom: 3,
+    wordBreak: 'break-word',
+  },
+  ticketCardMeta: {
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    color: '#7c2d12',
+  },
+  ticketBadge: {
+    padding: '3px 11px',
+    borderRadius: 20,
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    whiteSpace: 'nowrap',
+    flexShrink: 0,
+  },
+  ticketCardBody: {
+    padding: '14px 18px',
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 9,
+  },
+  ticketRow: {
+    display: 'flex',
+    gap: 8,
+    fontSize: 13,
+    alignItems: 'flex-start',
+    flexWrap: 'wrap',
+  },
+  ticketRowKey: {
+    fontWeight: 600,
+    color: '#78716c',
+    flexShrink: 0,
+    minWidth: 78,
+  },
+  ticketRowValue: {
+    color: '#1c1917',
+    lineHeight: 1.5,
+  },
+  ticketDescriptionPreview: {
+    marginTop: 4,
+    padding: '10px 12px',
+    borderRadius: 10,
+    background: '#faf9f7',
+    border: '1px solid #e4dfd4',
+    fontSize: 13,
+    lineHeight: 1.55,
+    color: '#44403c',
+  },
+  ticketEvidenceArea: {
+    padding: '0 18px 14px',
+  },
+  ticketThumbGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+    gap: 8,
+  },
+  ticketThumb: {
+    width: '100%',
+    height: 84,
+    objectFit: 'cover',
+    borderRadius: 10,
+    border: '1px solid #e4dfd4',
+    background: '#f8fafc',
+    cursor: 'zoom-in',
+  },
+  ticketNameWrap: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  ticketNameChip: {
+    padding: '6px 10px',
+    borderRadius: 999,
+    border: '1px solid #e4dfd4',
+    background: '#faf9f7',
+    fontSize: 12,
+    color: '#57534e',
+  },
+  ticketNoEvidence: {
+    background: '#faf9f7',
+    border: '1px dashed #d6d3d1',
+    borderRadius: 10,
+    padding: '12px',
+    fontSize: 13,
+    color: '#78716c',
+  },
+  ticketCardFoot: {
+    padding: '12px 18px',
+    borderTop: '1px solid #e4dfd4',
+    background: '#faf9f7',
+    display: 'flex',
+    gap: 7,
+    flexWrap: 'wrap',
+    justifyContent: 'flex-end',
+  },
+  ticketCompactWrap: {
+    background: '#fff',
+    border: '1px solid #e4dfd4',
+    borderRadius: 18,
+    boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+    overflow: 'hidden',
+  },
+  ticketCompactTable: {
+    width: '100%',
+    borderCollapse: 'collapse',
+  },
+  ticketFooterNote: {
+    background: '#fff',
+    borderTop: '1px solid #e4dfd4',
+    padding: '11px 24px',
+    fontSize: 11,
+    color: '#a8a29e',
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
   },
   ticketModalCard: {
     background: '#fff',

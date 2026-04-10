@@ -16,9 +16,12 @@ import ResourceManagement from './components/Admin/ResourceManagement';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import ChatBot from './components/ChatBot';
 import AuthPage from './pages/AuthPage';
+import BookingCalendar from './components/Bookings/BookingCalendar';
+import BookingAnalytics from './components/Bookings/BookingAnalytics';
 import Navbar from './components/Navbar';
+import ForgotPasswordPage from './pages/ForgotPasswordPage';
 
-// ✅ Layout wrapper (Navbar + ChatBot)
+// Layout wrapper
 function ProtectedLayout({ children }) {
   return (
     <div>
@@ -39,6 +42,7 @@ function AppRoutes() {
       {/* Public Routes */}
       <Route path="/" element={<HomePage />} />
       <Route path="/auth" element={<AuthPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/oauth2/callback" element={<OAuth2CallbackPage />} />
       <Route path="/unauthorized" element={<UnauthorizedPage />} />
 
@@ -77,6 +81,17 @@ function AppRoutes() {
         }
       />
 
+      <Route
+        path="/calendar"
+        element={
+          <ProtectedRoute>
+            <ProtectedLayout>
+              <BookingCalendar isAdmin={false} />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
+
       {/* Admin Routes */}
       <Route
         path="/admin"
@@ -106,6 +121,28 @@ function AppRoutes() {
           <ProtectedRoute requiredRole="ADMIN">
             <ProtectedLayout>
               <BookingList isAdmin={true} />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/calendar"
+        element={
+          <ProtectedRoute requiredRole="ADMIN">
+            <ProtectedLayout>
+              <BookingCalendar isAdmin={true} />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/admin/analytics"
+        element={
+          <ProtectedRoute requiredRole="ADMIN">
+            <ProtectedLayout>
+              <BookingAnalytics />
             </ProtectedLayout>
           </ProtectedRoute>
         }
