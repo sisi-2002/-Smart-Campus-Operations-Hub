@@ -15,9 +15,6 @@ public class BookingRequest {
     
     private String resourceType;
     
-    private String resourceName;
-    private String resourceType;
-    
     @NotNull(message = "Start time is required")
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSX")
     private LocalDateTime startTime;

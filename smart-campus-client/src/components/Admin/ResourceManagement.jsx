@@ -594,6 +594,18 @@ const ResourceManagement = ({
   };
   const removeFeature = (i) => patch('features', formData.features.filter((_, idx) => idx !== i));
 
+  const normalizeEnum = (v) => String(v || '')
+    .trim()
+    .toUpperCase()
+    .replace(/[\s-]+/g, '_');
+
+  const parseOptionalInt = (v) => {
+    const text = String(v ?? '').trim();
+    if (!text) return null;
+    if (!/^\d+$/.test(text)) return Number.NaN;
+    return parseInt(text, 10);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!editing && !canCreate) {
@@ -602,7 +614,19 @@ const ResourceManagement = ({
     }
     setSaving(true);
     try {
-      const payload = { ...formData, capacity: parseInt(formData.capacity) || 0 };
+      const parsedFloor = parseOptionalInt(formData.floor);
+      if (Number.isNaN(parsedFloor)) {
+        showToast('Floor must be a valid whole number', 'error');
+        return;
+      }
+
+      const payload = {
+        ...formData,
+        type: normalizeEnum(formData.type),
+        status: normalizeEnum(formData.status),
+        capacity: parseInt(formData.capacity) || 0,
+        floor: parsedFloor
+      };
       if (editing) {
         await resourceApi.updateResource(editing.id, payload);
         showToast('Resource updated!');
@@ -612,7 +636,10 @@ const ResourceManagement = ({
       }
       fetchResources();
       closeDrawer();
-    } catch { showToast('Failed to save resource', 'error'); }
+    } catch (err) {
+      const apiMessage = err?.response?.data?.error || err?.response?.data?.message;
+      showToast(apiMessage || 'Failed to save resource', 'error');
+    }
     finally { setSaving(false); }
   };
 
@@ -842,7 +869,7 @@ const ResourceManagement = ({
                     </div>
                     <div className="rm-field">
                       <label className="rm-flabel">Floor</label>
-                      <input className="rm-input" value={formData.floor}
+                      <input className="rm-input" type="number" min="0" step="1" value={formData.floor}
                         onChange={e => patch('floor', e.target.value)} placeholder="e.g. 2"/>
                     </div>
                     <div className="rm-field span2">

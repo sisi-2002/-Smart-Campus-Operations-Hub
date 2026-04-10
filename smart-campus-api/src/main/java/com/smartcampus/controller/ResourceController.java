@@ -3,13 +3,23 @@ package com.smartcampus.controller;
 import com.smartcampus.entity.Resource;
 import com.smartcampus.entity.ResourceStatus;
 import com.smartcampus.service.ResourceService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -20,14 +30,10 @@ public class ResourceController {
 
     private final ResourceService resourceService;
 
-    // ✅ මේක තමයි ඔයාගේ error එක fix කරන version එක
     @GetMapping
     public ResponseEntity<List<Resource>> getAllResources(
             @RequestParam(required = false) String type,
-            @RequestParam(required = false) String minCapacity,
-            @RequestParam(required = false) String location,
             @RequestParam(required = false) String status) {
-
         List<Resource> resources = resourceService.getAllResources(type, status);
         return ResponseEntity.ok(resources);
     }
@@ -52,10 +58,6 @@ public class ResourceController {
         return ResponseEntity.ok(resourceService.searchResources(query));
     }
 
-<<<<<<< Updated upstream
-    // ===================== MANAGER + ADMIN =====================
-=======
->>>>>>> Stashed changes
     @PostMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<Resource> createResource(@Valid @RequestBody Resource resource) {

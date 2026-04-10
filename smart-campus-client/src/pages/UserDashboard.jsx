@@ -16,6 +16,7 @@ export default function UserDashboard() {
   const [editingTicket, setEditingTicket] = useState(null);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
   const [expandedTicketId, setExpandedTicketId] = useState('');
+  const [ticketViewMode, setTicketViewMode] = useState('cards');
   const [ticketNotice, setTicketNotice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -308,30 +309,43 @@ export default function UserDashboard() {
   );
 
   const renderTicketsTab = () => (
-    <div style={s.tableWrap}>
-      <div style={s.sectionHeader}>My Incident Reports</div>
+    <div style={s.ticketsWrap}>
+      <div style={s.ticketsHeader}>
+        <div style={s.ticketsTitleWrap}>
+          <span style={s.ticketsTitleEyebrow}>Ticket Center</span>
+          <div style={s.ticketsTitle}>My Incident Reports</div>
+        </div>
+        <div style={s.ticketsHeaderRight}>
+          <div style={s.ticketViewToggle}>
+            <button
+              type="button"
+              style={ticketViewMode === 'cards' ? s.ticketViewBtnActive : s.ticketViewBtn}
+              onClick={() => setTicketViewMode('cards')}
+            >
+              Card View
+            </button>
+            <button
+              type="button"
+              style={ticketViewMode === 'compact' ? s.ticketViewBtnActive : s.ticketViewBtn}
+              onClick={() => setTicketViewMode('compact')}
+            >
+              Compact View
+            </button>
+          </div>
+          <div style={s.ticketsCount}>{visibleTicketsForMyTickets.length}</div>
+        </div>
+      </div>
+
       {ticketNotice && (
         <div style={ticketNotice.type === 'error' ? s.ticketErrorBanner : s.ticketSuccessBanner}>
           {ticketNotice.message}
         </div>
       )}
-      <table style={s.table}>
-        <thead>
-          <tr style={s.thead}>
-            <th style={s.th}>Ticket ID</th>
-            <th style={s.th}>Location</th>
-            <th style={s.th}>Category</th>
-            <th style={s.th}>Pictures</th>
-            <th style={s.th}>Status</th>
-                <th style={s.th}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {visibleTicketsForMyTickets.length === 0 && (
-            <tr style={s.tr}>
-              <td style={s.emptyTd} colSpan={6}>No incident reports found in database.</td>
-            </tr>
-          )}
+
+      {visibleTicketsForMyTickets.length === 0 ? (
+        <div style={s.ticketsEmpty}>No incident reports found in database.</div>
+      ) : ticketViewMode === 'cards' ? (
+        <div style={s.ticketsGrid}>
           {visibleTicketsForMyTickets.map((ticket) => {
             const ticketImages = (ticket.imageDataUrls || []).slice(0, 3);
             const hasImageNamesOnly = ticketImages.length === 0 && (ticket.imageNames || []).length > 0;
@@ -341,14 +355,25 @@ export default function UserDashboard() {
             const isExpanded = expandedTicketId === ticketKey;
 
             return (
-              <Fragment key={ticket.id}>
-                <tr style={s.tr}>
-                  <td style={s.td}>
-                    <div style={{ fontWeight: 600 }}>{ticket.ticketId || ticket.id}</div>
-                  </td>
-                  <td style={s.td}>{ticket.location || '-'}</td>
-                  <td style={s.td}>{ticket.category || '-'}</td>
-                  <td style={s.td}>
+              <article key={ticket.id} style={s.ticketCard}>
+                <div style={s.ticketCardHeader}>
+                  <div>
+                    <div style={s.ticketCardId}>{ticket.ticketId || ticket.id}</div>
+                    <div style={s.ticketCardMeta}>{ticket.location || '-'}</div>
+                  </div>
+                  <span style={{ ...s.pill, ...getStatusPillStyle(ticket.status) }}>
+                    {ticket.status || 'Open'}
+                  </span>
+                </div>
+
+                <div style={s.ticketCardBody}>
+                  <div style={s.ticketInfoRow}>
+                    <span style={s.ticketInfoKey}>Category</span>
+                    <span style={s.ticketInfoValue}>{ticket.category || '-'}</span>
+                  </div>
+
+                  <div style={s.ticketInfoRow}>
+                    <span style={s.ticketInfoKey}>Attachments</span>
                     <div style={s.ticketImages}>
                       {ticketImages.length > 0 ? (
                         ticketImages.map((imageUrl, index) => (
@@ -368,87 +393,192 @@ export default function UserDashboard() {
                         <span style={s.mutedText}>No images</span>
                       )}
                     </div>
-                  </td>
-                  <td style={s.td}>
-                    <span style={{ ...s.pill, ...getStatusPillStyle(ticket.status) }}>
-                      {ticket.status || 'Open'}
-                    </span>
-                  </td>
-                  <td style={s.td}>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                      {normalizedStatus === 'OPEN' && (
-                        <button
-                          type="button"
-                          style={s.actionBtnSecondary}
-                          onClick={() => openEditIncidentModal(ticket)}
-                        >
-                          Edit ticket
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        style={s.actionBtn}
-                        onClick={() => setExpandedTicketId(isExpanded ? '' : ticketKey)}
-                      >
-                        {isExpanded ? 'Hide comments' : 'View comments'}
-                      </button>
+                  </div>
+                </div>
 
-                      {canHide ? (
-                        <button
-                          type="button"
-                          style={{
-                            padding: '7px 12px',
-                            borderRadius: 8,
-                            border: '1px solid #cbd5e1',
-                            background: '#fff',
-                            color: '#334155',
-                            fontSize: 12,
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                          }}
-                          onClick={() => hideTicketFromView(ticket.ticketId || ticket.id)}
-                        >
-                          Remove from view
-                        </button>
-                      ) : (
-                        <span style={s.mutedText}>Visible to staff</span>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                <div style={s.ticketCardActions}>
+                  {normalizedStatus === 'OPEN' && (
+                    <button
+                      type="button"
+                      style={s.actionBtnSecondary}
+                      onClick={() => openEditIncidentModal(ticket)}
+                    >
+                      Edit Ticket
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    style={s.actionBtn}
+                    onClick={() => setExpandedTicketId(isExpanded ? '' : ticketKey)}
+                  >
+                    {isExpanded ? 'Hide Comments' : 'View Comments'}
+                  </button>
+
+                  {canHide ? (
+                    <button
+                      type="button"
+                      style={s.actionBtnSecondary}
+                      onClick={() => hideTicketFromView(ticket.ticketId || ticket.id)}
+                    >
+                      Remove From View
+                    </button>
+                  ) : (
+                    <span style={s.mutedText}>Visible to staff</span>
+                  )}
+                </div>
 
                 {isExpanded && (
-                  <tr style={s.tr}>
-                    <td style={s.td} colSpan={6}>
-                      <TicketCommentsPanel
-                        ticket={ticket}
-                        currentUser={userDetails}
-                        onCommentsChange={(nextComments) => {
-                          setOverview((prev) => ({
-                            ...prev,
-                            activeTickets: prev.activeTickets.map((item) => (
-                              (item.ticketId || item.id) === ticketKey
-                                ? { ...item, comments: nextComments }
-                                : item
-                            )),
-                            incidentTickets: prev.incidentTickets.map((item) => (
-                              (item.ticketId || item.id) === ticketKey
-                                ? { ...item, comments: nextComments }
-                                : item
-                            )),
-                          }));
-                          setTicketNotice(null);
-                        }}
-                        onError={(message) => setTicketNotice({ type: 'error', message: message || 'Failed to update comments' })}
-                        onSuccess={(message) => setTicketNotice({ type: 'success', message: message || 'Comment updated' })}
-                      />
-                    </td>
-                  </tr>
+                  <div style={s.ticketCommentsWrap}>
+                    <TicketCommentsPanel
+                      ticket={ticket}
+                      currentUser={userDetails}
+                      onCommentsChange={(nextComments) => {
+                        setOverview((prev) => ({
+                          ...prev,
+                          activeTickets: prev.activeTickets.map((item) => (
+                            (item.ticketId || item.id) === ticketKey
+                              ? { ...item, comments: nextComments }
+                              : item
+                          )),
+                          incidentTickets: prev.incidentTickets.map((item) => (
+                            (item.ticketId || item.id) === ticketKey
+                              ? { ...item, comments: nextComments }
+                              : item
+                          )),
+                        }));
+                        setTicketNotice(null);
+                      }}
+                      onError={(message) => setTicketNotice({ type: 'error', message: message || 'Failed to update comments' })}
+                      onSuccess={(message) => setTicketNotice({ type: 'success', message: message || 'Comment updated' })}
+                    />
+                  </div>
                 )}
-                </Fragment>
-          )})}
-        </tbody>
-      </table>
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <div style={s.ticketCompactWrap}>
+          <table style={s.table}>
+            <thead>
+              <tr style={s.ticketCompactHead}>
+                <th style={s.ticketCompactTh}>Ticket ID</th>
+                <th style={s.ticketCompactTh}>Location</th>
+                <th style={s.ticketCompactTh}>Category</th>
+                <th style={s.ticketCompactTh}>Pictures</th>
+                <th style={s.ticketCompactTh}>Status</th>
+                <th style={s.ticketCompactTh}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleTicketsForMyTickets.map((ticket) => {
+                const ticketImages = (ticket.imageDataUrls || []).slice(0, 3);
+                const hasImageNamesOnly = ticketImages.length === 0 && (ticket.imageNames || []).length > 0;
+                const normalizedStatus = (ticket.status || '').trim().toUpperCase();
+                const canHide = ['RESOLVED', 'CLOSED', 'REJECTED'].includes(normalizedStatus);
+                const ticketKey = ticket.ticketId || ticket.id;
+                const isExpanded = expandedTicketId === ticketKey;
+
+                return (
+                  <Fragment key={ticket.id}>
+                    <tr key={`${ticket.id}-row`} style={s.tr}>
+                      <td style={s.ticketCompactTd}><div style={{ fontWeight: 600 }}>{ticket.ticketId || ticket.id}</div></td>
+                      <td style={s.ticketCompactTd}>{ticket.location || '-'}</td>
+                      <td style={s.ticketCompactTd}>{ticket.category || '-'}</td>
+                      <td style={s.ticketCompactTd}>
+                        <div style={s.ticketImages}>
+                          {ticketImages.length > 0 ? (
+                            ticketImages.map((imageUrl, index) => (
+                              <img
+                                key={`${ticket.id}-${index}`}
+                                src={imageUrl}
+                                alt={`${ticket.ticketId || ticket.id} attachment ${index + 1}`}
+                                style={s.ticketThumbnail}
+                                onClick={() => setPreviewImageUrl(imageUrl)}
+                              />
+                            ))
+                          ) : hasImageNamesOnly ? (
+                            (ticket.imageNames || []).slice(0, 3).map((imageName) => (
+                              <span key={imageName} style={s.imageNameChip}>{imageName}</span>
+                            ))
+                          ) : (
+                            <span style={s.mutedText}>No images</span>
+                          )}
+                        </div>
+                      </td>
+                      <td style={s.ticketCompactTd}>
+                        <span style={{ ...s.pill, ...getStatusPillStyle(ticket.status) }}>
+                          {ticket.status || 'Open'}
+                        </span>
+                      </td>
+                      <td style={s.ticketCompactTd}>
+                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          {normalizedStatus === 'OPEN' && (
+                            <button
+                              type="button"
+                              style={s.actionBtnSecondary}
+                              onClick={() => openEditIncidentModal(ticket)}
+                            >
+                              Edit Ticket
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            style={s.actionBtn}
+                            onClick={() => setExpandedTicketId(isExpanded ? '' : ticketKey)}
+                          >
+                            {isExpanded ? 'Hide Comments' : 'View Comments'}
+                          </button>
+                          {canHide ? (
+                            <button
+                              type="button"
+                              style={s.actionBtnSecondary}
+                              onClick={() => hideTicketFromView(ticket.ticketId || ticket.id)}
+                            >
+                              Remove From View
+                            </button>
+                          ) : (
+                            <span style={s.mutedText}>Visible to staff</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr key={`${ticket.id}-comments`} style={s.tr}>
+                        <td style={s.ticketCompactTd} colSpan={6}>
+                          <TicketCommentsPanel
+                            ticket={ticket}
+                            currentUser={userDetails}
+                            onCommentsChange={(nextComments) => {
+                              setOverview((prev) => ({
+                                ...prev,
+                                activeTickets: prev.activeTickets.map((item) => (
+                                  (item.ticketId || item.id) === ticketKey
+                                    ? { ...item, comments: nextComments }
+                                    : item
+                                )),
+                                incidentTickets: prev.incidentTickets.map((item) => (
+                                  (item.ticketId || item.id) === ticketKey
+                                    ? { ...item, comments: nextComments }
+                                    : item
+                                )),
+                              }));
+                              setTicketNotice(null);
+                            }}
+                            onError={(message) => setTicketNotice({ type: 'error', message: message || 'Failed to update comments' })}
+                            onSuccess={(message) => setTicketNotice({ type: 'success', message: message || 'Comment updated' })}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 
@@ -787,6 +917,194 @@ const s = {
     overflow: 'hidden',
     border: '1px solid #f1f5f9',
   },
+  ticketsWrap: {
+    margin: '1.25rem 2rem 0',
+    background: '#f4f1eb',
+    borderRadius: 12,
+    boxShadow: '0 4px 16px rgba(28,25,23,0.08)',
+    border: '1px solid #e4dfd4',
+    overflow: 'hidden',
+  },
+  ticketsHeader: {
+    padding: '14px 16px',
+    borderBottom: '1px solid #e4dfd4',
+    background: '#faf9f7',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  ticketsTitleWrap: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 5,
+  },
+  ticketsTitleEyebrow: {
+    display: 'inline-flex',
+    width: 'fit-content',
+    padding: '3px 8px',
+    borderRadius: 999,
+    border: '1px solid #7c2d1233',
+    background: '#7c2d1214',
+    color: '#7c2d12',
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+  },
+  ticketsHeaderRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  ticketsTitle: {
+    fontSize: 24,
+    fontWeight: 700,
+    fontFamily: 'Playfair Display, serif',
+    color: '#1c1917',
+    letterSpacing: '-0.01em',
+  },
+  ticketViewToggle: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+  },
+  ticketViewBtn: {
+    padding: '6px 10px',
+    borderRadius: 8,
+    border: '1px solid #e4dfd4',
+    background: '#fff',
+    color: '#78716c',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  ticketViewBtnActive: {
+    padding: '6px 10px',
+    borderRadius: 8,
+    border: '1px solid #7c2d12',
+    background: '#7c2d12',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  ticketsCount: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 30,
+    padding: '3px 10px',
+    borderRadius: 999,
+    border: '1px solid #7c2d1233',
+    background: '#7c2d1214',
+    color: '#7c2d12',
+    fontSize: 12,
+    fontWeight: 700,
+  },
+  ticketsGrid: {
+    padding: 16,
+    background: '#f4f1eb',
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+    gap: 12,
+  },
+  ticketCompactWrap: {
+    background: '#fff',
+    borderTop: '1px solid #e4dfd4',
+    overflowX: 'auto',
+  },
+  ticketCompactHead: { background: '#faf9f7' },
+  ticketCompactTh: {
+    padding: '12px 16px',
+    textAlign: 'left',
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#78716c',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    borderBottom: '1px solid #e4dfd4',
+  },
+  ticketCompactTd: {
+    padding: '12px 16px',
+    verticalAlign: 'middle',
+    color: '#44403c',
+    fontSize: 13,
+    borderBottom: '1px solid #f1f0ec',
+  },
+  ticketsEmpty: {
+    padding: '24px 16px',
+    textAlign: 'center',
+    color: '#78716c',
+    fontSize: 13,
+    background: '#fff',
+  },
+  ticketCard: {
+    border: '1px solid #e4dfd4',
+    borderRadius: 12,
+    background: '#fff',
+    overflow: 'hidden',
+    boxShadow: '0 2px 12px rgba(28,25,23,0.05)',
+  },
+  ticketCardHeader: {
+    padding: '12px 14px',
+    borderBottom: '1px solid #e4dfd4',
+    background: '#faf9f7',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  ticketCardId: {
+    fontSize: 14,
+    fontWeight: 700,
+    color: '#1c1917',
+  },
+  ticketCardMeta: {
+    marginTop: 3,
+    fontSize: 12,
+    color: '#78716c',
+  },
+  ticketCardBody: {
+    padding: '12px 14px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+  ticketInfoRow: {
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  ticketInfoKey: {
+    minWidth: 84,
+    fontSize: 12,
+    fontWeight: 600,
+    color: '#78716c',
+  },
+  ticketInfoValue: {
+    fontSize: 13,
+    color: '#1c1917',
+    textAlign: 'right',
+    flex: 1,
+  },
+  ticketCardActions: {
+    padding: '12px 14px',
+    borderTop: '1px solid #e4dfd4',
+    background: '#faf9f7',
+    display: 'flex',
+    gap: 8,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  ticketCommentsWrap: {
+    borderTop: '1px solid #e4dfd4',
+    background: '#f4f1eb',
+    padding: 10,
+  },
   table: { width: '100%', borderCollapse: 'collapse' },
   thead: { background: '#f8fafc' },
   th: {
@@ -822,9 +1140,9 @@ const s = {
   actionBtn: {
     padding: '7px 12px',
     borderRadius: 8,
-    border: '1px solid #bfdbfe',
-    background: '#eff6ff',
-    color: '#1d4ed8',
+    border: '1px solid #7c2d1230',
+    background: '#7c2d1214',
+    color: '#7c2d12',
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',
@@ -832,9 +1150,9 @@ const s = {
   actionBtnSecondary: {
     padding: '7px 12px',
     borderRadius: 8,
-    border: '1px solid #cbd5e1',
+    border: '1px solid #d6d3d1',
     background: '#fff',
-    color: '#334155',
+    color: '#57534e',
     fontSize: 12,
     fontWeight: 600,
     cursor: 'pointer',

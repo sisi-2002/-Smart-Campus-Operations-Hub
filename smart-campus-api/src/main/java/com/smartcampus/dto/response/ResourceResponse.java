@@ -1,6 +1,8 @@
 package com.smartcampus.dto.response;
 
 import com.smartcampus.entity.Resource;
+import com.smartcampus.entity.ResourceStatus;
+import com.smartcampus.entity.ResourceType;
 import lombok.*;
 
 import java.util.List;
@@ -13,13 +15,13 @@ public class ResourceResponse {
 
     private String id;
     private String name;
-    private Resource.ResourceType type;
+    private ResourceType type;
     private int capacity;
     private String location;
     private String building;
     private Integer floor;
     private List<Resource.AvailabilityWindow> availabilityWindows;
-    private Resource.ResourceStatus status;
+    private ResourceStatus status;
     private String description;
 
     // New fields

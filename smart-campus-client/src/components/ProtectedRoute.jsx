@@ -10,17 +10,11 @@ export default function ProtectedRoute({ children, requiredRole = null }) {
     return <Navigate to="/" replace />;
   }
 
-<<<<<<< Updated upstream
-  if (requiredRole && user.role !== requiredRole) {
-    return <Navigate to="/unauthorized" replace />;
-=======
-  // Logged in but wrong role
   if (requiredRole) {
     const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
     if (!roles.includes(user.role)) {
       return <Navigate to="/unauthorized" replace />;
     }
->>>>>>> Stashed changes
   }
 
   return children;
