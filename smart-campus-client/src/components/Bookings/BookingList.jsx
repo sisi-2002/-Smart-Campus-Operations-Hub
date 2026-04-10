@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
 import bookingApi from '../../api/bookingApi';
 
 /* ─── Stylesheet ─────────────────────────────────────────────────────── */
@@ -25,14 +26,12 @@ const CSS = `
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* ── Page wrapper ── */
 .bl-wrap {
   font-family: 'Epilogue', sans-serif;
   color: var(--text);
   min-height: 300px;
 }
 
-/* ── Header row ── */
 .bl-header {
   display: flex; align-items: center; justify-content: space-between;
   gap: 14px; flex-wrap: wrap;
@@ -50,7 +49,6 @@ const CSS = `
   letter-spacing: .05em; margin-left: 8px; vertical-align: middle;
 }
 
-/* filter select (admin) */
 .bl-filter-wrap { position: relative; }
 .bl-filter-wrap svg {
   position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
@@ -67,14 +65,12 @@ const CSS = `
 }
 .bl-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--aclt); }
 
-/* ── Grid ── */
 .bl-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
   gap: 18px;
 }
 
-/* ── Card ── */
 .bl-card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -103,7 +99,6 @@ const CSS = `
   text-transform: uppercase; color: var(--accent);
 }
 
-/* status badges */
 .bl-badge {
   padding: 3px 11px; border-radius: 20px;
   font-size: 10px; font-weight: 700; letter-spacing: .08em;
@@ -116,7 +111,6 @@ const CSS = `
 
 .bl-card-body { padding: 14px 18px; flex: 1; display: flex; flex-direction: column; gap: 9px; }
 
-/* detail rows */
 .bl-row {
   display: flex; gap: 8px; font-size: 13px;
   align-items: flex-start; flex-wrap: wrap;
@@ -127,7 +121,6 @@ const CSS = `
 }
 .bl-row-val { color: var(--text); line-height: 1.5; }
 
-/* rejection / cancellation boxes */
 .bl-reason-box {
   padding: 9px 12px; border-radius: 8px; font-size: 12px; line-height: 1.5;
   display: flex; gap: 7px; align-items: flex-start;
@@ -135,7 +128,6 @@ const CSS = `
 .bl-reason-box.reject { background: var(--danlt); border: 1px solid #be123c22; color: var(--danger); }
 .bl-reason-box.cancel { background: var(--warnlt); border: 1px solid #d9770622; color: var(--warn); }
 
-/* card footer */
 .bl-card-foot {
   padding: 12px 18px;
   border-top: 1px solid var(--border);
@@ -143,7 +135,6 @@ const CSS = `
   display: flex; gap: 7px; flex-wrap: wrap; justify-content: flex-end;
 }
 
-/* buttons */
 .bl-btn {
   padding: 7px 14px; border-radius: 8px; border: none;
   font-family: 'Epilogue', sans-serif; font-size: 12px; font-weight: 600;
@@ -157,7 +148,6 @@ const CSS = `
 .bl-btn-cancel  { background: var(--warnlt); color: var(--warn); border: 1px solid #d9770628; }
 .bl-btn-view    { background: var(--aclt); color: var(--accent); border: 1px solid #0d7a6b28; }
 
-/* spinner */
 .bl-spinner {
   width: 14px; height: 14px;
   border: 2px solid #0d7a6b44; border-top-color: var(--accent);
@@ -165,7 +155,6 @@ const CSS = `
 }
 @keyframes blSpin { to{transform:rotate(360deg)} }
 
-/* ── Loading skeleton ── */
 .bl-loading {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
@@ -183,7 +172,6 @@ const CSS = `
 }
 @keyframes blShimmer { to{background-position:-200% 0} }
 
-/* ── Error / Empty ── */
 .bl-error {
   padding: 18px 20px; border-radius: 12px;
   background: var(--danlt); border: 1px solid #be123c28;
@@ -199,7 +187,6 @@ const CSS = `
 .bl-empty-title { font-family:'Playfair Display',serif; font-size:18px; color:var(--text); margin-bottom:6px; }
 .bl-empty-sub   { font-size:13px; color:var(--muted); }
 
-/* ── Modal overlay ── */
 .bl-overlay {
   position: fixed; inset: 0;
   background: rgba(28,25,23,.55);
@@ -243,7 +230,6 @@ const CSS = `
 
 .bl-modal-body { padding: 22px 24px; display: flex; flex-direction: column; gap: 18px; }
 
-/* detail sections in modal */
 .bl-detail-section {
   background: var(--bg); border: 1px solid var(--border);
   border-radius: 10px; padding: 14px 16px;
@@ -267,7 +253,6 @@ const CSS = `
   display: flex; justify-content: flex-end;
 }
 
-/* reject modal */
 .bl-reject-label {
   font-size: 12px; font-weight: 600; letter-spacing: .07em;
   text-transform: uppercase; color: var(--muted); margin-bottom: 8px; display: block;
@@ -314,44 +299,47 @@ const CSS = `
 }
 `;
 
-/* ─── Skeleton card ──────────────────────────────────────────────────── */
 const SkeletonCard = () => (
   <div className="bl-skel-card">
     <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
       <div style={{flex:1}}>
-        <div className="bl-skel" style={{height:18,width:'60%',marginBottom:8}}/>
-        <div className="bl-skel" style={{height:11,width:'30%'}}/>
+        <div className="bl-skel" style={{height:18,width:'60%',marginBottom:8}} />
+        <div className="bl-skel" style={{height:11,width:'30%'}} />
       </div>
-      <div className="bl-skel" style={{height:22,width:72,borderRadius:20}}/>
+      <div className="bl-skel" style={{height:22,width:72,borderRadius:20}} />
     </div>
-    <div className="bl-skel" style={{height:12,width:'80%'}}/>
-    <div className="bl-skel" style={{height:12,width:'65%'}}/>
-    <div className="bl-skel" style={{height:12,width:'50%'}}/>
+    <div className="bl-skel" style={{height:12,width:'80%'}} />
+    <div className="bl-skel" style={{height:12,width:'65%'}} />
+    <div className="bl-skel" style={{height:12,width:'50%'}} />
     <div style={{display:'flex',gap:7,justifyContent:'flex-end',marginTop:4}}>
-      <div className="bl-skel" style={{height:32,width:80}}/>
-      <div className="bl-skel" style={{height:32,width:80}}/>
+      <div className="bl-skel" style={{height:32,width:80}} />
+      <div className="bl-skel" style={{height:32,width:80}} />
     </div>
   </div>
 );
 
-/* ═══════════════════════════════════════════════════════════════════════
-   COMPONENT — all state, handlers, API calls are 100% unchanged.
-   Only JSX + styles are replaced.
-   statusFilter prop added to sync with AdminDashboard filter tabs.
-═══════════════════════════════════════════════════════════════════════ */
 const BookingList = ({ isAdmin = false, statusFilter = null }) => {
   const { user } = useAuth();
+  const notificationContext = useNotification();
+
+  const showLocalToast =
+    notificationContext?.showToast ||
+    ((title, message) => {
+      alert(`${title}: ${message}`);
+    });
+
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('all');
   const [selectedBooking, setSelectedBooking] = useState(null);
+
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
-  const [currentBookingId, setCurrentBookingId] = useState(null);
-  const [actionLoading, setActionLoading] = useState(false);
 
-  /* ── Sync external statusFilter prop → internal filter state ── */
+  const [actionLoading, setActionLoading] = useState(false);
+  const [currentBookingId, setCurrentBookingId] = useState(null);
+
   useEffect(() => {
     if (statusFilter) {
       setFilter(statusFilter.toLowerCase());
@@ -363,6 +351,7 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
   const fetchBookings = useCallback(async () => {
     try {
       setLoading(true);
+
       let response;
 
       if (isAdmin) {
@@ -375,8 +364,8 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
       setBookings(response.data);
       setError(null);
     } catch (err) {
-      setError('Failed to load bookings');
       console.error('Error fetching bookings:', err);
+      setError('Failed to load bookings');
     } finally {
       setLoading(false);
     }
@@ -388,17 +377,20 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
 
   const handleApprove = async (bookingId) => {
     if (!window.confirm('Are you sure you want to approve this booking?')) return;
+
     setActionLoading(true);
     try {
-      console.log('Approving booking:', bookingId);
       const response = await bookingApi.approveBooking(bookingId, true, null);
       console.log('Approve response:', response.data);
       alert('Booking approved successfully!');
       await fetchBookings();
     } catch (err) {
       console.error('Error approving booking:', err);
-      const errorMsg = err.response?.data?.error || err.response?.data?.message || 'Failed to approve booking';
-      alert(errorMsg);
+      const errorMsg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        'Failed to approve booking';
+      showLocalToast('Error', errorMsg, 'SYSTEM_ANNOUNCEMENT');
     } finally {
       setActionLoading(false);
     }
@@ -412,20 +404,25 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
 
   const handleConfirmReject = async () => {
     if (!rejectionReason.trim()) {
-      alert('Please provide a rejection reason');
+      showLocalToast('Warning', 'Please provide a rejection reason.', 'SYSTEM_ANNOUNCEMENT');
       return;
     }
+
     setActionLoading(true);
     try {
-      console.log('Rejecting booking:', currentBookingId, 'Reason:', rejectionReason);
       const response = await bookingApi.approveBooking(currentBookingId, false, rejectionReason);
       console.log('Reject response:', response.data);
       alert('Booking rejected successfully!');
       setShowRejectModal(false);
+      setCurrentBookingId(null);
       await fetchBookings();
     } catch (err) {
       console.error('Error rejecting booking:', err);
-      alert('Failed to reject booking');
+      const errorMsg =
+        err?.response?.data?.error ||
+        err?.response?.data?.message ||
+        'Failed to reject booking';
+      showLocalToast('Error', errorMsg, 'SYSTEM_ANNOUNCEMENT');
     } finally {
       setActionLoading(false);
     }
@@ -433,18 +430,22 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
 
   const handleCancel = async (bookingId) => {
     const reason = prompt('Please enter cancellation reason (optional):');
-    if (window.confirm('Are you sure you want to cancel this booking?')) {
-      setActionLoading(true);
-      try {
-        await bookingApi.cancelBooking(bookingId, reason || 'Cancelled by user');
-        alert('Booking cancelled successfully!');
-        await fetchBookings();
-      } catch (err) {
-        console.error('Error cancelling booking:', err);
-        alert(err.response?.data?.message || 'Failed to cancel booking');
-      } finally {
-        setActionLoading(false);
-      }
+    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
+
+    setActionLoading(true);
+    try {
+      await bookingApi.cancelBooking(bookingId, reason || 'Cancelled by user');
+      showLocalToast('Success', 'Booking cancelled successfully!', 'SYSTEM_ANNOUNCEMENT');
+      await fetchBookings();
+    } catch (err) {
+      console.error('Error cancelling booking:', err);
+      showLocalToast(
+        'Error',
+        err?.response?.data?.message || 'Failed to cancel booking',
+        'SYSTEM_ANNOUNCEMENT'
+      );
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -455,27 +456,22 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
       REJECTED:  { background:'rgba(239,68,68,0.2)',   color:'#f87171', border:'1px solid rgba(239,68,68,0.3)' },
       CANCELLED: { background:'rgba(107,114,128,0.2)', color:'#9ca3af', border:'1px solid rgba(107,114,128,0.3)' },
     };
+
     return styles[status] || styles.PENDING;
   };
 
   const formatDate = (dateString) => new Date(dateString).toLocaleString();
 
-  /* ── Render ── */
   return (
     <>
       <style>{CSS}</style>
       <div className="bl-wrap">
-
-        {/* Header */}
         <div className="bl-header">
           <div>
             <span className="bl-title">{isAdmin ? 'All Bookings' : 'My Bookings'}</span>
-            {!loading && (
-              <span className="bl-count-chip">{bookings.length}</span>
-            )}
+            {!loading && <span className="bl-count-chip">{bookings.length}</span>}
           </div>
 
-          {/* Admin internal filter — still works alongside statusFilter prop */}
           {isAdmin && (
             <div className="bl-filter-wrap">
               <select
@@ -490,20 +486,18 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
                 <option value="cancelled">Cancelled</option>
               </select>
               <svg width="11" height="7" viewBox="0 0 12 8" fill="none">
-                <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M1 1l5 5 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
               </svg>
             </div>
           )}
         </div>
 
-        {/* Loading */}
         {loading && (
           <div className="bl-loading">
-            {[1,2,3].map(k => <SkeletonCard key={k}/>)}
+            {[1, 2, 3].map((k) => <SkeletonCard key={k} />)}
           </div>
         )}
 
-        {/* Error */}
         {!loading && error && (
           <div className="bl-error">
             <span style={{fontSize:16,flexShrink:0}}>⚠</span>
@@ -511,7 +505,6 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
           </div>
         )}
 
-        {/* Empty */}
         {!loading && !error && bookings.length === 0 && (
           <div className="bl-empty">
             <div className="bl-empty-icon">📋</div>
@@ -519,22 +512,21 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
             <div className="bl-empty-sub">
               {filter !== 'all'
                 ? `No ${filter} bookings to display.`
-                : isAdmin ? 'There are no bookings in the system yet.' : "You haven't made any bookings yet."
-              }
+                : isAdmin
+                  ? 'There are no bookings in the system yet.'
+                  : "You haven't made any bookings yet."}
             </div>
           </div>
         )}
 
-        {/* Grid */}
         {!loading && !error && bookings.length > 0 && (
           <div className="bl-grid">
             {bookings.map((booking, i) => (
               <div
                 key={booking.id}
                 className="bl-card"
-                style={{animationDelay:`${i * 0.04}s`}}
+                style={{ animationDelay: `${i * 0.04}s` }}
               >
-                {/* Card head */}
                 <div className="bl-card-head">
                   <div>
                     <div className="bl-res-name">{booking.resourceName}</div>
@@ -545,7 +537,6 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
                   </span>
                 </div>
 
-                {/* Card body */}
                 <div className="bl-card-body">
                   <div className="bl-row">
                     <span className="bl-row-key">📅</span>
@@ -602,7 +593,6 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
                   )}
                 </div>
 
-                {/* Card footer / actions */}
                 <div className="bl-card-foot">
                   {isAdmin && booking.status === 'PENDING' && (
                     <>
@@ -611,7 +601,7 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
                         onClick={() => handleApprove(booking.id)}
                         disabled={actionLoading}
                       >
-                        {actionLoading ? <span className="bl-spinner"/> : '✓'} Approve
+                        {actionLoading ? <span className="bl-spinner" /> : '✓'} Approve
                       </button>
                       <button
                         className="bl-btn bl-btn-reject"
@@ -655,7 +645,6 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
           </div>
         )}
 
-        {/* ── Booking Details Modal ── */}
         {selectedBooking && (
           <div className="bl-overlay" onClick={() => setSelectedBooking(null)}>
             <div className="bl-modal" onClick={(e) => e.stopPropagation()}>
@@ -667,16 +656,16 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
                 <div className="bl-detail-section">
                   <div className="bl-detail-section-title">📋 Booking Information</div>
                   {[
-                    ['ID',       selectedBooking.id],
-                    ['Status',   <span className={`bl-badge bl-badge-${selectedBooking.status}`}>{selectedBooking.status}</span>],
+                    ['ID', selectedBooking.id],
+                    ['Status', <span className={`bl-badge bl-badge-${selectedBooking.status}`}>{selectedBooking.status}</span>],
                     ['Resource', selectedBooking.resourceName],
-                    ['Type',     selectedBooking.resourceType],
-                    ['Start',    formatDate(selectedBooking.startTime)],
-                    ['End',      formatDate(selectedBooking.endTime)],
-                    ['Purpose',  selectedBooking.purpose],
+                    ['Type', selectedBooking.resourceType],
+                    ['Start', formatDate(selectedBooking.startTime)],
+                    ['End', formatDate(selectedBooking.endTime)],
+                    ['Purpose', selectedBooking.purpose],
                     selectedBooking.expectedAttendees > 0 && ['Attendees', selectedBooking.expectedAttendees],
                     selectedBooking.specialRequests && ['Special Requests', selectedBooking.specialRequests],
-                    selectedBooking.rejectionReason  && ['Rejection Reason', selectedBooking.rejectionReason],
+                    selectedBooking.rejectionReason && ['Rejection Reason', selectedBooking.rejectionReason],
                     selectedBooking.cancellationReason && ['Cancellation Reason', selectedBooking.cancellationReason],
                   ].filter(Boolean).map(([k, v]) => (
                     <div key={k} className="bl-detail-item">
@@ -690,8 +679,8 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
                   <div className="bl-detail-section">
                     <div className="bl-detail-section-title">👤 User Information</div>
                     {[
-                      ['Name',    selectedBooking.userName],
-                      ['Email',   selectedBooking.userEmail],
+                      ['Name', selectedBooking.userName],
+                      ['Email', selectedBooking.userEmail],
                       ['User ID', selectedBooking.userId],
                     ].map(([k, v]) => (
                       <div key={k} className="bl-detail-item">
@@ -711,7 +700,6 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
           </div>
         )}
 
-        {/* ── Reject Modal ── */}
         {showRejectModal && (
           <div className="bl-overlay" onClick={() => setShowRejectModal(false)}>
             <div className="bl-modal" onClick={(e) => e.stopPropagation()}>
@@ -724,7 +712,9 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
                   <span style={{flexShrink:0}}>⚠</span>
                   <span>Please provide a clear reason. This will be sent to the user.</span>
                 </div>
-                <label className="bl-reject-label">Rejection Reason <span style={{color:'var(--danger)'}}>*</span></label>
+                <label className="bl-reject-label">
+                  Rejection Reason <span style={{color:'var(--danger)'}}>*</span>
+                </label>
                 <textarea
                   className="bl-reject-textarea"
                   value={rejectionReason}
@@ -744,7 +734,6 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
             </div>
           </div>
         )}
-
       </div>
     </>
   );

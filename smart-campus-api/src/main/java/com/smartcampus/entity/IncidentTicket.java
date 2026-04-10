@@ -48,6 +48,10 @@ public class IncidentTicket {
 
     private String resolutionNotes;
 
+    private LocalDateTime firstResponseAt;
+
+    private LocalDateTime resolvedAt;
+
     @CreatedDate
     private LocalDateTime createdAt;
 }

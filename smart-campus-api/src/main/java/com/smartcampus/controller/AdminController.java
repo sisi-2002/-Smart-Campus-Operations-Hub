@@ -9,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -81,14 +82,16 @@ public class AdminController {
     @RequestMapping(value = "/tickets/{ticketId}", method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST})
     public ResponseEntity<AdminIncidentTicketDto> updateIncidentTicket(
             @PathVariable String ticketId,
-            @RequestBody UpdateIncidentTicketRequest request) {
-        return ResponseEntity.ok(adminService.updateIncidentTicket(ticketId, request));
+            @RequestBody UpdateIncidentTicketRequest request,
+            Authentication auth) {
+        return ResponseEntity.ok(adminService.updateIncidentTicket(auth.getName(), ticketId, request));
     }
 
     // PATCH/PUT/POST /api/admin/tickets — fallback update by body id/ticketId
     @RequestMapping(value = "/tickets", method = {RequestMethod.PATCH, RequestMethod.PUT, RequestMethod.POST})
     public ResponseEntity<AdminIncidentTicketDto> updateIncidentTicketByBody(
-            @RequestBody UpdateIncidentTicketRequest request) {
+            @RequestBody UpdateIncidentTicketRequest request,
+            Authentication auth) {
         String idOrTicketId = request.getId();
         if (idOrTicketId == null || idOrTicketId.isBlank()) {
             idOrTicketId = request.getTicketId();
@@ -96,6 +99,6 @@ public class AdminController {
         if (idOrTicketId == null || idOrTicketId.isBlank()) {
             throw new RuntimeException("Ticket id is required");
         }
-        return ResponseEntity.ok(adminService.updateIncidentTicket(idOrTicketId, request));
+        return ResponseEntity.ok(adminService.updateIncidentTicket(auth.getName(), idOrTicketId, request));
     }
 }

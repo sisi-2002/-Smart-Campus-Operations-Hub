@@ -13,6 +13,76 @@ const STATUS_STYLE = {
   REJECTED: { background: '#f3e8ff', color: '#6b21a8' },
 };
 
+const formatSlaDuration = (minutes) => {
+  if (!Number.isFinite(minutes) || minutes < 0) {
+    return '-';
+  }
+
+  const totalMinutes = Math.floor(minutes);
+  if (totalMinutes < 60) {
+    return `${totalMinutes}m`;
+  }
+
+  const totalHours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = totalMinutes % 60;
+  if (totalHours < 24) {
+    return remainingMinutes ? `${totalHours}h ${remainingMinutes}m` : `${totalHours}h`;
+  }
+
+  const days = Math.floor(totalHours / 24);
+  const remainingHours = totalHours % 24;
+  return remainingHours ? `${days}d ${remainingHours}h` : `${days}d`;
+};
+
+const formatDateTime = (value) => {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '-';
+  }
+
+  return date.toLocaleString();
+};
+
+const SLA_THRESHOLDS = {
+  firstResponse: { targetMinutes: 60, warningMinutes: 180 },
+  resolution: { targetMinutes: 1440, warningMinutes: 2880 },
+};
+
+const SLA_BADGE_BASE_STYLE = {
+  padding: '2px 8px',
+  borderRadius: 999,
+  fontSize: 11,
+  fontWeight: 700,
+  letterSpacing: 0.2,
+};
+
+const SLA_TONE_STYLE = {
+  pending: { background: '#e2e8f0', color: '#475569' },
+  onTarget: { background: '#dcfce7', color: '#166534' },
+  watch: { background: '#fef3c7', color: '#92400e' },
+  breached: { background: '#fee2e2', color: '#991b1b' },
+};
+
+const getSlaHealth = (minutes, metric) => {
+  const numericMinutes = Number(minutes);
+  if (!Number.isFinite(numericMinutes) || numericMinutes < 0) {
+    return { label: 'Pending', style: SLA_TONE_STYLE.pending };
+  }
+
+  const thresholds = SLA_THRESHOLDS[metric] || SLA_THRESHOLDS.firstResponse;
+  if (numericMinutes <= thresholds.targetMinutes) {
+    return { label: 'On Target', style: SLA_TONE_STYLE.onTarget };
+  }
+  if (numericMinutes <= thresholds.warningMinutes) {
+    return { label: 'Watch', style: SLA_TONE_STYLE.watch };
+  }
+  return { label: 'Breached', style: SLA_TONE_STYLE.breached };
+};
+
 export default function TechnicianDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -78,6 +148,13 @@ export default function TechnicianDashboard() {
       };
     });
   }, [overview.assignedTickets]);
+
+  const selectedTicketFirstResponseSla = selectedTicket
+    ? getSlaHealth(selectedTicket.timeToFirstResponseMinutes, 'firstResponse')
+    : null;
+  const selectedTicketResolutionSla = selectedTicket
+    ? getSlaHealth(selectedTicket.timeToResolutionMinutes, 'resolution')
+    : null;
 
   const openTicket = (ticket) => {
     setSelectedTicket(ticket);
@@ -160,6 +237,15 @@ export default function TechnicianDashboard() {
               ...ticket,
               status: updated.status || ticketDraft.status,
               resolutionNotes: updated.resolutionNotes || '',
+              createdAt: updated.createdAt || ticket.createdAt || null,
+              firstResponseAt: updated.firstResponseAt || ticket.firstResponseAt || null,
+              resolvedAt: updated.resolvedAt || ticket.resolvedAt || null,
+              timeToFirstResponseMinutes: Number.isFinite(updated.timeToFirstResponseMinutes)
+                ? updated.timeToFirstResponseMinutes
+                : ticket.timeToFirstResponseMinutes,
+              timeToResolutionMinutes: Number.isFinite(updated.timeToResolutionMinutes)
+                ? updated.timeToResolutionMinutes
+                : ticket.timeToResolutionMinutes,
               comments: Array.isArray(updated.comments) ? updated.comments : ticket.comments,
             }
             : ticket
@@ -171,6 +257,15 @@ export default function TechnicianDashboard() {
           ...prev,
           status: updated.status || ticketDraft.status,
           resolutionNotes: updated.resolutionNotes || '',
+          createdAt: updated.createdAt || prev.createdAt || null,
+          firstResponseAt: updated.firstResponseAt || prev.firstResponseAt || null,
+          resolvedAt: updated.resolvedAt || prev.resolvedAt || null,
+          timeToFirstResponseMinutes: Number.isFinite(updated.timeToFirstResponseMinutes)
+            ? updated.timeToFirstResponseMinutes
+            : prev.timeToFirstResponseMinutes,
+          timeToResolutionMinutes: Number.isFinite(updated.timeToResolutionMinutes)
+            ? updated.timeToResolutionMinutes
+            : prev.timeToResolutionMinutes,
           comments: Array.isArray(updated.comments) ? updated.comments : prev.comments,
         }
         : prev);
@@ -221,6 +316,33 @@ export default function TechnicianDashboard() {
               <div style={s.ticketSection}>
                 <div style={s.ticketSectionTitle}>Description</div>
                 <p style={s.ticketDescription}>{selectedTicket.description || 'No description provided'}</p>
+              </div>
+
+              <div style={s.ticketSection}>
+                <div style={s.ticketSectionTitle}>Service-Level Timer</div>
+                <div style={s.ticketInfoGrid}>
+                  <div style={s.ticketInfoItem}><span style={s.ticketInfoLabel}>Submitted</span><span>{formatDateTime(selectedTicket.createdAt)}</span></div>
+                  <div style={s.ticketInfoItem}><span style={s.ticketInfoLabel}>First Response At</span><span>{formatDateTime(selectedTicket.firstResponseAt)}</span></div>
+                  <div style={s.ticketInfoItem}><span style={s.ticketInfoLabel}>Resolved At</span><span>{formatDateTime(selectedTicket.resolvedAt)}</span></div>
+                  <div style={s.ticketInfoItem}>
+                    <span style={s.ticketInfoLabel}>Time To First Response</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      {formatSlaDuration(selectedTicket.timeToFirstResponseMinutes)}
+                      <span style={{ ...SLA_BADGE_BASE_STYLE, ...(selectedTicketFirstResponseSla?.style || SLA_TONE_STYLE.pending) }}>
+                        {selectedTicketFirstResponseSla?.label || 'Pending'}
+                      </span>
+                    </span>
+                  </div>
+                  <div style={s.ticketInfoItem}>
+                    <span style={s.ticketInfoLabel}>Time To Resolution</span>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      {formatSlaDuration(selectedTicket.timeToResolutionMinutes)}
+                      <span style={{ ...SLA_BADGE_BASE_STYLE, ...(selectedTicketResolutionSla?.style || SLA_TONE_STYLE.pending) }}>
+                        {selectedTicketResolutionSla?.label || 'Pending'}
+                      </span>
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <div style={s.ticketSection}>

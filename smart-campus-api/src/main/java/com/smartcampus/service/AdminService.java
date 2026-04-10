@@ -17,6 +17,7 @@ import org.bson.types.ObjectId;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.stereotype.Service;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
@@ -138,7 +139,10 @@ public class AdminService {
         }
     }
 
-    public AdminIncidentTicketDto updateIncidentTicket(String ticketId, UpdateIncidentTicketRequest request) {
+    public AdminIncidentTicketDto updateIncidentTicket(String adminEmail, String ticketId, UpdateIncidentTicketRequest request) {
+        User adminUser = userRepository.findByEmail(adminEmail)
+                .orElseThrow(() -> new RuntimeException("Admin user not found: " + adminEmail));
+
         IncidentTicket ticket = incidentTicketRepository.findById(ticketId)
             .or(() -> incidentTicketRepository.findByTicketId(ticketId))
             .orElseThrow(() -> new RuntimeException("Ticket not found"));
@@ -166,12 +170,19 @@ public class AdminService {
             ticket.setStatus(normalizedNextStatus);
         }
 
+        boolean assignmentChanged = false;
         if (request.getAssignedTechnicianId() != null) {
             String technicianId = request.getAssignedTechnicianId().trim();
             if (technicianId.isEmpty()) {
+                if (ticket.getAssignedTechnicianId() != null) {
+                    assignmentChanged = true;
+                }
                 ticket.setAssignedTechnicianId(null);
                 ticket.setAssignedTechnicianName(null);
             } else {
+                if (!technicianId.equals(ticket.getAssignedTechnicianId())) {
+                    assignmentChanged = true;
+                }
                 User technician = userRepository.findById(technicianId)
                         .orElseThrow(() -> new RuntimeException("Technician not found"));
                 if (technician.getRole() != Role.TECHNICIAN) {
@@ -201,6 +212,15 @@ public class AdminService {
         }
 
         IncidentTicket saved = incidentTicketRepository.save(ticket);
+
+        if (assignmentChanged && saved.getAssignedTechnicianId() != null) {
+            notificationService.sendTicketAssignedNotifications(adminUser, saved.getAssignedTechnicianId(), saved.getUserId(), saved.getId(), saved.getCategory());
+        }
+
+        if (requestedStatus != null && !currentStatus.equalsIgnoreCase(saved.getStatus())) {
+            notificationService.sendTicketStatusUpdatedNotifications(adminUser, saved.getUserId(), saved.getAssignedTechnicianId(), saved.getId(), currentStatus, saved.getStatus());
+        }
+
         return toIncidentTicketDto(saved);
     }
 
@@ -226,6 +246,9 @@ public class AdminService {
     }
 
     private AdminIncidentTicketDto toIncidentTicketDto(IncidentTicket ticket) {
+        Long firstResponseMinutes = computeDurationMinutes(ticket.getCreatedAt(), ticket.getFirstResponseAt());
+        Long resolutionMinutes = computeDurationMinutes(ticket.getCreatedAt(), ticket.getResolvedAt());
+
         return AdminIncidentTicketDto.builder()
                 .id(ticket.getId())
                 .userId(ticket.getUserId())
@@ -241,6 +264,10 @@ public class AdminService {
                 .assignedTechnicianId(ticket.getAssignedTechnicianId())
                 .assignedTechnicianName(ticket.getAssignedTechnicianName())
                 .resolutionNotes(ticket.getResolutionNotes())
+                .firstResponseAt(ticket.getFirstResponseAt())
+                .resolvedAt(ticket.getResolvedAt())
+                .timeToFirstResponseMinutes(firstResponseMinutes)
+                .timeToResolutionMinutes(resolutionMinutes)
                 .comments(TicketCommentDto.fromList(ticket.getComments()))
                 .createdAt(ticket.getCreatedAt())
                 .build();
@@ -249,6 +276,11 @@ public class AdminService {
     private AdminIncidentTicketDto toIncidentTicketDtoFromDocument(Document doc) {
         Object idRaw = doc.get("_id");
         String id = idRaw instanceof ObjectId ? ((ObjectId) idRaw).toHexString() : safeString(idRaw);
+            LocalDateTime createdAt = safeDateTime(doc.get("createdAt"));
+            LocalDateTime firstResponseAt = safeDateTime(doc.get("firstResponseAt"));
+            LocalDateTime resolvedAt = safeDateTime(doc.get("resolvedAt"));
+            Long firstResponseMinutes = computeDurationMinutes(createdAt, firstResponseAt);
+            Long resolutionMinutes = computeDurationMinutes(createdAt, resolvedAt);
 
         return AdminIncidentTicketDto.builder()
                 .id(id)
@@ -265,9 +297,20 @@ public class AdminService {
                 .assignedTechnicianId(safeString(doc.get("assignedTechnicianId")))
                 .assignedTechnicianName(safeString(doc.get("assignedTechnicianName")))
                 .resolutionNotes(safeString(doc.get("resolutionNotes")))
+                .firstResponseAt(firstResponseAt)
+                .resolvedAt(resolvedAt)
+                .timeToFirstResponseMinutes(firstResponseMinutes)
+                .timeToResolutionMinutes(resolutionMinutes)
                 .comments(safeCommentList(doc.get("comments")))
-                .createdAt(safeDateTime(doc.get("createdAt")))
+                .createdAt(createdAt)
                 .build();
+    }
+
+    private Long computeDurationMinutes(LocalDateTime start, LocalDateTime end) {
+        if (start == null || end == null || end.isBefore(start)) {
+            return null;
+        }
+        return Duration.between(start, end).toMinutes();
     }
 
     private String safeString(Object value) {
