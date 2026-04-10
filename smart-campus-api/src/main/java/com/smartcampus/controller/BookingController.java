@@ -47,9 +47,9 @@ public class BookingController {
         return ResponseEntity.ok(bookings);
     }
     
-    // Get all bookings (Admin only)
+    // Get all bookings (Admin and Manager)
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<List<BookingResponse>> getAllBookings(
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String resourceId) {
@@ -65,9 +65,9 @@ public class BookingController {
         return ResponseEntity.ok(booking);
     }
     
-    // Approve/Reject booking (Admin only)
+    // Approve/Reject booking (Admin and Manager)
     @PatchMapping("/{id}/approval")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<BookingResponse> approveBooking(
             @PathVariable String id,
             @Valid @RequestBody BookingApprovalRequest request) {

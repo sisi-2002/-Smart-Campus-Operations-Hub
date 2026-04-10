@@ -4,15 +4,11 @@ import com.smartcampus.dto.request.BookingRequest;
 import com.smartcampus.dto.response.BookingResponse;
 import com.smartcampus.entity.Booking;
 import com.smartcampus.entity.BookingStatus;
-import com.smartcampus.entity.Resource;
-import com.smartcampus.entity.ResourceStatus;
 import com.smartcampus.entity.Role;
 import com.smartcampus.entity.User;
 import com.smartcampus.exception.BookingConflictException;
-import com.smartcampus.exception.ResourceNotFoundException;
 import com.smartcampus.exception.UnauthorizedException;
 import com.smartcampus.repository.BookingRepository;
-import com.smartcampus.repository.ResourceRepository;
 import com.smartcampus.repository.UserRepository;
 import com.smartcampus.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
@@ -36,7 +32,6 @@ import java.util.stream.Collectors;
 public class BookingService {
     
     private final BookingRepository bookingRepository;
-    private final ResourceRepository resourceRepository;
     private final UserRepository userRepository;
     private final JwtUtil jwtUtil;
     
@@ -47,31 +42,21 @@ public class BookingService {
         User currentUser = getCurrentUser();
         log.info("Current user: {} ({})", currentUser.getEmail(), currentUser.getId());
         
-        Resource resource = resourceRepository.findById(request.getResourceId())
-                .orElseThrow(() -> new ResourceNotFoundException("Resource not found with id: " + request.getResourceId()));
-        
-        if (resource.getStatus() != ResourceStatus.ACTIVE) {
-            throw new IllegalStateException("Resource '" + resource.getName() + "' is not available for booking");
-        }
-        
         validateBookingTime(request.getStartTime(), request.getEndTime());
-        checkAvailabilityWindows(resource, request.getStartTime(), request.getEndTime());
         
         // During creation: Check against BOTH PENDING and APPROVED bookings
         checkConflictsForCreation(request.getResourceId(), request.getStartTime(), request.getEndTime());
         
         Booking booking = Booking.builder()
                 .user(currentUser)
-                .resourceId(resource.getId())
-                .resourceName(resource.getName())
-                .resourceType(resource.getType())
+                .resourceId(request.getResourceId())
+                .resourceName(request.getResourceName() != null ? request.getResourceName() : "General Resource")
+                .resourceType(request.getResourceType() != null ? request.getResourceType() : "GENERAL")
                 .startTime(request.getStartTime())
                 .endTime(request.getEndTime())
                 .purpose(request.getPurpose())
                 .expectedAttendees(request.getExpectedAttendees())
-                .specialRequests(request.getSpecialRequests())
                 .status(BookingStatus.PENDING)
-                .requiresApproval(resource.isRequiresApproval())
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -91,7 +76,7 @@ public class BookingService {
         }
         
         Booking booking = bookingRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found with id: " + id));
+                .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
         
         if (booking.getStatus() != BookingStatus.PENDING) {
             throw new IllegalStateException("Booking is not in pending state. Current status: " + booking.getStatus());
@@ -177,20 +162,6 @@ public class BookingService {
         
         if (durationMinutes > 480) {
             throw new IllegalArgumentException("Maximum booking duration is 8 hours");
-        }
-    }
-    
-    private void checkAvailabilityWindows(Resource resource, LocalDateTime startTime, LocalDateTime endTime) {
-        LocalTime start = startTime.toLocalTime();
-        LocalTime end = endTime.toLocalTime();
-        
-        LocalTime availableFrom = LocalTime.parse(resource.getAvailableFrom() != null ? resource.getAvailableFrom() : "08:00");
-        LocalTime availableTo = LocalTime.parse(resource.getAvailableTo() != null ? resource.getAvailableTo() : "20:00");
-        
-        if (start.isBefore(availableFrom) || end.isAfter(availableTo)) {
-            throw new IllegalArgumentException(
-                String.format("Bookings are only allowed between %s and %s", availableFrom, availableTo)
-            );
         }
     }
     
@@ -298,7 +269,7 @@ public class BookingService {
     
     private Booking getBookingAndValidateAccess(String id) {
         Booking booking = bookingRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Booking not found with id: " + id));
+                .orElseThrow(() -> new RuntimeException("Booking not found with id: " + id));
         
         User currentUser = getCurrentUser();
         
@@ -315,9 +286,6 @@ public class BookingService {
     
     public List<LocalDateTime[]> getAvailableTimeSlots(String resourceId, LocalDateTime date) {
         List<LocalDateTime[]> availableSlots = new ArrayList<>();
-        
-        Resource resource = resourceRepository.findById(resourceId)
-                .orElseThrow(() -> new ResourceNotFoundException("Resource not found"));
         
         LocalDateTime startOfDay = date.withHour(8).withMinute(0).withSecond(0).withNano(0);
         LocalDateTime endOfDay = date.withHour(20).withMinute(0).withSecond(0).withNano(0);
@@ -370,7 +338,7 @@ public class BookingService {
             }
             
             return userRepository.findByEmail(email)
-                    .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
+                    .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
                     
         } catch (Exception e) {
             log.error("Error getting current user: {}", e.getMessage(), e);

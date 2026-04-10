@@ -3,7 +3,11 @@ import { useAuth } from '../context/AuthContext';
 import { useState, useEffect } from 'react';
 
 export default function HomePage() {
+<<<<<<< Updated upstream
   const { user, logout, isAdmin, isManager, isTechnician, getDashboardPath } = useAuth();
+=======
+  const { user, logout, isAdmin, isManager } = useAuth();
+>>>>>>> Stashed changes
   const navigate = useNavigate();
   const [scrolled, setScrolled] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
@@ -64,11 +68,19 @@ export default function HomePage() {
                   </div>
                   <div style={s.userInfo}>
                     <span style={s.userName}>{user.name?.split(' ')[0] || 'User'}</span>
+<<<<<<< Updated upstream
                     <span style={s.userRole}>{isAdmin() ? 'Admin' : isManager() ? 'Manager' : isTechnician() ? 'Technician' : 'User'}</span>
                   </div>
                 </div>
                 <Link to={getDashboardPath()} style={s.dashboardBtn}>
                   {isAdmin() ? "Admin Dashboard" : isManager() ? "Manager Dashboard" : isTechnician() ? "Technician Dashboard" : "User Dashboard"}
+=======
+                    <span style={s.userRole}>{isAdmin() ? 'Admin' : isManager() ? 'Manager' : 'User'}</span>
+                  </div>
+                </div>
+                <Link to={isAdmin() ? "/admin" : isManager() ? "/manager" : "/dashboard"} style={s.dashboardBtn}>
+                  {isAdmin() ? "Admin Dashboard" : isManager() ? "Manager Dashboard" : "User Dashboard"}
+>>>>>>> Stashed changes
                 </Link>
                 <button onClick={handleLogoutClick} style={s.ghostBtn}>Logout</button>
               </>
@@ -86,7 +98,11 @@ export default function HomePage() {
                 Smart Campus Operations Hub 2.0
               </div>
               <h1 style={s.h1}>
+<<<<<<< Updated upstream
                 Book resources. <span style={s.gradientText}>Report incidents.</span>
+=======
+                <span style={s.gradientText}>Report incidents.</span>
+>>>>>>> Stashed changes
                 <br />
                 Stay in full control.
               </h1>
@@ -109,8 +125,13 @@ export default function HomePage() {
                   </>
                 ) : (
                   <>
+<<<<<<< Updated upstream
                     <Link to={getDashboardPath()} style={s.primaryBtnLg}>
                       {isAdmin() ? "Go to Admin Dashboard" : isManager() ? "Go to Manager Dashboard" : isTechnician() ? "Go to Technician Dashboard" : "Go to User Dashboard"}
+=======
+                    <Link to={isAdmin() ? "/admin" : isManager() ? "/manager" : "/dashboard"} style={s.primaryBtnLg}>
+                      {isAdmin() ? "Go to Admin Dashboard" : isManager() ? "Go to Manager Dashboard" : "Go to User Dashboard"}
+>>>>>>> Stashed changes
                     </Link>
                     <a href="#features" style={s.secondaryBtnLg}>Explore Features</a>
                   </>
@@ -120,7 +141,7 @@ export default function HomePage() {
               <div style={s.heroStats}>
                 <div style={s.stat}>
                   <div style={s.statNum}>500+</div>
-                  <div style={s.statLabel}>Resources Managed</div>
+                  <div style={s.statLabel}>Incidents Resolved</div>
                 </div>
                 <div style={s.stat}>
                   <div style={s.statNum}>98%</div>
@@ -389,7 +410,11 @@ export default function HomePage() {
                     <Link to="/auth?mode=login" style={s.linkBtn}>Sign In</Link>
                   </>
                 ) : (
+<<<<<<< Updated upstream
                   <Link to={getDashboardPath()} style={s.primaryBtnLg}>Open Dashboard</Link>
+=======
+                  <Link to={isAdmin() ? "/admin" : isManager() ? "/manager" : "/dashboard"} style={s.primaryBtnLg}>Open Dashboard</Link>
+>>>>>>> Stashed changes
                 )}
               </div>
             </div>

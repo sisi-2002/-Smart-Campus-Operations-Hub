@@ -521,7 +521,12 @@ const SkeletonCard = () => (
 );
 
 /* ─── Component ──────────────────────────────────────────────────────── */
-const ResourceManagement = () => {
+const ResourceManagement = ({
+  canCreateDelete = true,
+  canCreate = canCreateDelete,
+  canDelete = canCreateDelete,
+  roleLabel = 'Admin'
+}) => {
   const [resources, setResources]     = useState([]);
   const [loading, setLoading]         = useState(true);
   const [saving, setSaving]           = useState(false);
@@ -551,7 +556,13 @@ const ResourceManagement = () => {
     finally { setLoading(false); }
   };
 
-  const openAdd = () => { setEditing(null); setFormData(BLANK); setFeatureInput(''); setShowDrawer(true); };
+  const openAdd = () => {
+    if (!canCreate) {
+      showToast('Managers can only edit existing resources', 'error');
+      return;
+    }
+    setEditing(null); setFormData(BLANK); setFeatureInput(''); setShowDrawer(true);
+  };
   const openEdit = (r) => {
     setEditing(r);
     setFormData({
@@ -585,11 +596,20 @@ const ResourceManagement = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!editing && !canCreate) {
+      showToast('Managers can only edit existing resources', 'error');
+      return;
+    }
     setSaving(true);
     try {
       const payload = { ...formData, capacity: parseInt(formData.capacity) || 0 };
-      if (editing) { await resourceApi.updateResource(editing.id, payload); showToast('Resource updated!'); }
-      else          { await resourceApi.createResource(payload);            showToast('Resource created!'); }
+      if (editing) {
+        await resourceApi.updateResource(editing.id, payload);
+        showToast('Resource updated!');
+      } else {
+        await resourceApi.createResource(payload);
+        showToast('Resource created!');
+      }
       fetchResources();
       closeDrawer();
     } catch { showToast('Failed to save resource', 'error'); }
@@ -597,6 +617,11 @@ const ResourceManagement = () => {
   };
 
   const handleDelete = async (id) => {
+    if (!canDelete) {
+      showToast('You do not have permission to delete resources', 'error');
+      setConfirmId(null);
+      return;
+    }
     try {
       await resourceApi.deleteResource(id);
       showToast('Resource deleted');
@@ -628,7 +653,7 @@ const ResourceManagement = () => {
         {/* Top bar */}
         <div className="rm-topbar">
           <div className="rm-topbar-left">
-            <span className="rm-eyebrow">Admin Console</span>
+            <span className="rm-eyebrow">{roleLabel} Console</span>
             <h1 className="rm-pagetitle">Resource Management</h1>
           </div>
           <div className="rm-topbar-right">
@@ -641,9 +666,11 @@ const ResourceManagement = () => {
                 value={search} onChange={e => setSearch(e.target.value)}
               />
             </div>
-            <button className="rm-add-btn" onClick={openAdd}>
-              <span style={{fontSize:17,lineHeight:1}}>+</span> New Resource
-            </button>
+            {canCreate && (
+              <button className="rm-add-btn" onClick={openAdd}>
+                <span style={{fontSize:17,lineHeight:1}}>+</span> New Resource
+              </button>
+            )}
           </div>
         </div>
 
@@ -684,7 +711,13 @@ const ResourceManagement = () => {
                 <div className="rm-empty">
                   <div className="rm-empty-icon">🗂️</div>
                   <div className="rm-empty-title">No resources found</div>
-                  <div className="rm-empty-sub">{search ? 'Try a different search term.' : 'Click "New Resource" to add one.'}</div>
+                  <div className="rm-empty-sub">
+                    {search
+                      ? 'Try a different search term.'
+                      : canCreate
+                        ? 'Click "New Resource" to add one.'
+                        : 'No resources are available yet. Please ask an admin to add resources so you can manage them.'}
+                  </div>
                 </div>
               )
               : visible.map((r, i) => (
@@ -726,7 +759,9 @@ const ResourceManagement = () => {
                   </div>
                   <div className="rm-card-foot">
                     <button className="rm-btn-edit" onClick={() => openEdit(r)}>✎ Edit</button>
-                    <button className="rm-btn-del"  onClick={() => setConfirmId(r.id)}>🗑</button>
+                    {canDelete && (
+                      <button className="rm-btn-del" onClick={() => setConfirmId(r.id)}>🗑</button>
+                    )}
                   </div>
 
                   {/* Inline delete confirm */}

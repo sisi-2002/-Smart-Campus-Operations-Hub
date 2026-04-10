@@ -12,9 +12,12 @@ import {
 } from '../api/adminApi';
 import TicketCommentsPanel from '../components/TicketCommentsPanel';
 import BookingList from '../components/Bookings/BookingList';
+<<<<<<< Updated upstream
 import BookingCalendar from '../components/Bookings/BookingCalendar';
 import BookingAnalytics from '../components/Bookings/BookingAnalytics';
 import ResourceManagement from '../components/Admin/ResourceManagement';
+=======
+>>>>>>> Stashed changes
 
 const ROLES = ['USER', 'TECHNICIAN', 'MANAGER', 'ADMIN'];
 
@@ -1142,12 +1145,6 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
             👥 User Management
           </button>
           <button
-            style={activeTab === 'resources' ? s.navItemActive : s.navItem}
-            onClick={() => setActiveTab('resources')}
-          >
-            📦 Resource Management
-          </button>
-          <button
             style={activeTab === 'bookings' ? s.navItemActive : s.navItem}
             onClick={() => setActiveTab('bookings')}
           >
@@ -1173,7 +1170,6 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
           <div>
             <h1 style={s.headerTitle}>
               {activeTab === 'users' && 'User Management'}
-              {activeTab === 'resources' && 'Resource Management'}
               {activeTab === 'bookings' && 'Booking Management'}
               {activeTab === 'tickets' && 'Ticket Management'}
               {activeTab === 'analytics' && 'Analytics Dashboard'}
@@ -1184,12 +1180,6 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
 
         <div style={s.contentArea}>
           {activeTab === 'users' && renderUsersTab()}
-
-          {activeTab === 'resources' && (
-            <div style={s.tabContent}>
-              <ResourceManagement />
-            </div>
-          )}
 
           {activeTab === 'bookings' && (
             <div className="bm-wrap">

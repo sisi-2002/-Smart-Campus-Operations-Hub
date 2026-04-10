@@ -20,74 +20,63 @@ public class ResourceController {
 
     private final ResourceService resourceService;
 
-    // Get all resources (public - all users)
+    // ✅ මේක තමයි ඔයාගේ error එක fix කරන version එක
     @GetMapping
     public ResponseEntity<List<Resource>> getAllResources(
             @RequestParam(required = false) String type,
+            @RequestParam(required = false) String minCapacity,
+            @RequestParam(required = false) String location,
             @RequestParam(required = false) String status) {
+
         List<Resource> resources = resourceService.getAllResources(type, status);
         return ResponseEntity.ok(resources);
     }
 
-    // Get available resources (active only)
     @GetMapping("/available")
     public ResponseEntity<List<Resource>> getAvailableResources() {
-        List<Resource> resources = resourceService.getAvailableResources();
-        return ResponseEntity.ok(resources);
+        return ResponseEntity.ok(resourceService.getAvailableResources());
     }
 
-    // Get resource by ID
     @GetMapping("/{id}")
     public ResponseEntity<Resource> getResourceById(@PathVariable String id) {
-        Resource resource = resourceService.getResourceById(id);
-        return ResponseEntity.ok(resource);
+        return ResponseEntity.ok(resourceService.getResourceById(id));
     }
 
-    // Get resources by type
     @GetMapping("/type/{type}")
     public ResponseEntity<List<Resource>> getResourcesByType(@PathVariable String type) {
-        List<Resource> resources = resourceService.getResourcesByType(type);
-        return ResponseEntity.ok(resources);
+        return ResponseEntity.ok(resourceService.getResourcesByType(type));
     }
 
-    // Search resources
     @GetMapping("/search")
     public ResponseEntity<List<Resource>> searchResources(@RequestParam String query) {
-        List<Resource> resources = resourceService.searchResources(query);
-        return ResponseEntity.ok(resources);
+        return ResponseEntity.ok(resourceService.searchResources(query));
     }
 
-    // ===================== ADMIN ONLY =====================
+<<<<<<< Updated upstream
+    // ===================== MANAGER + ADMIN =====================
+=======
+>>>>>>> Stashed changes
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
     public ResponseEntity<Resource> createResource(@Valid @RequestBody Resource resource) {
         Resource created = resourceService.createResource(resource);
         return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
-    // ===================== MANAGER + ADMIN =====================
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
-    public ResponseEntity<Resource> updateResource(
-            @PathVariable String id,
-            @Valid @RequestBody Resource resource) {
-        
+    public ResponseEntity<Resource> updateResource(@PathVariable String id, @Valid @RequestBody Resource resource) {
         Resource updated = resourceService.updateResource(id, resource);
         return ResponseEntity.ok(updated);
     }
 
-    // ===================== MANAGER + ADMIN =====================
     @PatchMapping("/{id}/status")
     @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
-    public ResponseEntity<Resource> updateResourceStatus(
-            @PathVariable String id,
-            @RequestParam ResourceStatus status) {
-        
+    public ResponseEntity<Resource> updateResourceStatus(@PathVariable String id, @RequestParam ResourceStatus status) {
         Resource updated = resourceService.updateResourceStatus(id, status);
         return ResponseEntity.ok(updated);
     }
 
-    // ===================== ADMIN ONLY =====================
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteResource(@PathVariable String id) {

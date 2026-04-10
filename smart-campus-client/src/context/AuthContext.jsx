@@ -65,6 +65,7 @@ export function AuthProvider({ children }) {
 
   const isAdmin = () => user?.role === 'ADMIN';
   const isManager = () => user?.role === 'MANAGER';
+<<<<<<< Updated upstream
   const isTechnician = () => user?.role === 'TECHNICIAN';
 
   const getDashboardPath = () => {
@@ -74,6 +75,8 @@ export function AuthProvider({ children }) {
     return '/dashboard';
   };
 
+=======
+>>>>>>> Stashed changes
   const isAuthenticated = () => !!user;
 
   useEffect(() => {
@@ -123,8 +126,11 @@ export function AuthProvider({ children }) {
         logout,
         isAdmin,
         isManager,
+<<<<<<< Updated upstream
         isTechnician,
         getDashboardPath,
+=======
+>>>>>>> Stashed changes
         isAuthenticated,
       }}
     >
