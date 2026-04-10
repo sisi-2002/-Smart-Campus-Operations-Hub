@@ -14,6 +14,9 @@ import ResourceManagement from './components/Admin/ResourceManagement';
 import UnauthorizedPage from './pages/UnauthorizedPage';
 import ChatBot from './components/ChatBot';
 import AuthPage from './pages/AuthPage';
+import BookingCalendar from './components/Bookings/BookingCalendar';
+import BookingAnalytics from './components/Bookings/BookingAnalytics';
+
 
 function AppRoutes() {
   const { user } = useAuth();
@@ -57,6 +60,16 @@ function AppRoutes() {
           }
         />
 
+        {/* Calendar View Route - Any authenticated user */}
+        <Route
+          path="/calendar"
+          element={
+            <ProtectedRoute>
+              <BookingCalendar isAdmin={false} />
+            </ProtectedRoute>
+          }
+        />
+
         {/* Admin Routes */}
         <Route
           path="/admin"
@@ -81,6 +94,26 @@ function AppRoutes() {
           element={
             <ProtectedRoute requiredRole="ADMIN">
               <BookingList isAdmin={true} />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Calendar View */}
+        <Route
+          path="/admin/calendar"
+          element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <BookingCalendar isAdmin={true} />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Admin Analytics Dashboard */}
+        <Route
+          path="/admin/analytics"
+          element={
+            <ProtectedRoute requiredRole="ADMIN">
+              <BookingAnalytics />
             </ProtectedRoute>
           }
         />
