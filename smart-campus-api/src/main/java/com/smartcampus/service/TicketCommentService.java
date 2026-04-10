@@ -40,6 +40,14 @@ public class TicketCommentService {
         IncidentTicket ticket = findTicket(ticketId);
         ensureCommentAccess(actor, ticket);
 
+        boolean isStaffActor = actor.getRole() == Role.ADMIN
+                || actor.getRole() == Role.MANAGER
+                || actor.getRole() == Role.TECHNICIAN;
+        if (isStaffActor && ticket.getFirstResponseAt() == null) {
+            ticket.setFirstResponseAt(LocalDateTime.now());
+            incidentTicketRepository.save(ticket);
+        }
+
         String message = trimToNull(request != null ? request.getMessage() : null);
         if (message == null) {
             throw new RuntimeException("Comment message is required");

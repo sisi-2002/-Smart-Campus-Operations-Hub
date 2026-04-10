@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -22,4 +23,9 @@ public class IncidentTicketDetailsDto {
     private List<String> imageNames;
     private List<String> imageDataUrls;
     private String status;
+    private LocalDateTime createdAt;
+    private LocalDateTime firstResponseAt;
+    private LocalDateTime resolvedAt;
+    private Long timeToFirstResponseMinutes;
+    private Long timeToResolutionMinutes;
 }

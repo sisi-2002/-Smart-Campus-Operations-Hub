@@ -8,6 +8,68 @@ import BookingList from '../components/Bookings/BookingList';
 
 const HIDDEN_TICKET_STORAGE_KEY = 'incidentTicketHiddenIds';
 
+const formatSlaDuration = (minutes) => {
+  if (!Number.isFinite(minutes) || minutes < 0) {
+    return '-';
+  }
+
+  const totalMinutes = Math.floor(minutes);
+  if (totalMinutes < 60) {
+    return `${totalMinutes}m`;
+  }
+
+  const totalHours = Math.floor(totalMinutes / 60);
+  const remainingMinutes = totalMinutes % 60;
+  if (totalHours < 24) {
+    return remainingMinutes ? `${totalHours}h ${remainingMinutes}m` : `${totalHours}h`;
+  }
+
+  const days = Math.floor(totalHours / 24);
+  const remainingHours = totalHours % 24;
+  return remainingHours ? `${days}d ${remainingHours}h` : `${days}d`;
+};
+
+const formatDateTime = (value) => {
+  if (!value) {
+    return '-';
+  }
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '-';
+  }
+
+  return date.toLocaleString();
+};
+
+const SLA_THRESHOLDS = {
+  firstResponse: { targetMinutes: 60, warningMinutes: 180 },
+  resolution: { targetMinutes: 1440, warningMinutes: 2880 },
+};
+
+const SLA_TONE_STYLE = {
+  pending: { background: '#e2e8f0', color: '#475569' },
+  onTarget: { background: '#dcfce7', color: '#166534' },
+  watch: { background: '#fef3c7', color: '#92400e' },
+  breached: { background: '#fee2e2', color: '#991b1b' },
+};
+
+const getSlaHealth = (minutes, metric) => {
+  const numericMinutes = Number(minutes);
+  if (!Number.isFinite(numericMinutes) || numericMinutes < 0) {
+    return { label: 'Pending', style: SLA_TONE_STYLE.pending };
+  }
+
+  const thresholds = SLA_THRESHOLDS[metric] || SLA_THRESHOLDS.firstResponse;
+  if (numericMinutes <= thresholds.targetMinutes) {
+    return { label: 'On Target', style: SLA_TONE_STYLE.onTarget };
+  }
+  if (numericMinutes <= thresholds.warningMinutes) {
+    return { label: 'Watch', style: SLA_TONE_STYLE.watch };
+  }
+  return { label: 'Breached', style: SLA_TONE_STYLE.breached };
+};
+
 export default function UserDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -353,6 +415,8 @@ export default function UserDashboard() {
             const canHide = ['RESOLVED', 'CLOSED', 'REJECTED'].includes(normalizedStatus);
             const ticketKey = ticket.ticketId || ticket.id;
             const isExpanded = expandedTicketId === ticketKey;
+            const firstResponseSla = getSlaHealth(ticket.timeToFirstResponseMinutes, 'firstResponse');
+            const resolutionSla = getSlaHealth(ticket.timeToResolutionMinutes, 'resolution');
 
             return (
               <article key={ticket.id} style={s.ticketCard}>
@@ -370,6 +434,33 @@ export default function UserDashboard() {
                   <div style={s.ticketInfoRow}>
                     <span style={s.ticketInfoKey}>Category</span>
                     <span style={s.ticketInfoValue}>{ticket.category || '-'}</span>
+                  </div>
+
+                  <div style={s.ticketInfoRow}>
+                    <span style={s.ticketInfoKey}>Submitted</span>
+                    <span style={s.ticketInfoValue}>{formatDateTime(ticket.createdAt)}</span>
+                  </div>
+
+                  <div style={s.ticketInfoRow}>
+                    <span style={s.ticketInfoKey}>1st Response</span>
+                    <span style={s.ticketInfoValue}>
+                      <span style={s.ticketInfoMetricWrap}>
+                        <span>{formatSlaDuration(ticket.timeToFirstResponseMinutes)}</span>
+                        <span style={{ ...s.ticketSlaBadge, ...firstResponseSla.style }}>{firstResponseSla.label}</span>
+                      </span>
+                      <span style={s.ticketInfoSubValue}>{formatDateTime(ticket.firstResponseAt)}</span>
+                    </span>
+                  </div>
+
+                  <div style={s.ticketInfoRow}>
+                    <span style={s.ticketInfoKey}>Resolution</span>
+                    <span style={s.ticketInfoValue}>
+                      <span style={s.ticketInfoMetricWrap}>
+                        <span>{formatSlaDuration(ticket.timeToResolutionMinutes)}</span>
+                        <span style={{ ...s.ticketSlaBadge, ...resolutionSla.style }}>{resolutionSla.label}</span>
+                      </span>
+                      <span style={s.ticketInfoSubValue}>{formatDateTime(ticket.resolvedAt)}</span>
+                    </span>
                   </div>
 
                   <div style={s.ticketInfoRow}>
@@ -468,6 +559,8 @@ export default function UserDashboard() {
                 <th style={s.ticketCompactTh}>Category</th>
                 <th style={s.ticketCompactTh}>Pictures</th>
                 <th style={s.ticketCompactTh}>Status</th>
+                <th style={s.ticketCompactTh}>1st Response SLA</th>
+                <th style={s.ticketCompactTh}>Resolution SLA</th>
                 <th style={s.ticketCompactTh}>Actions</th>
               </tr>
             </thead>
@@ -479,6 +572,8 @@ export default function UserDashboard() {
                 const canHide = ['RESOLVED', 'CLOSED', 'REJECTED'].includes(normalizedStatus);
                 const ticketKey = ticket.ticketId || ticket.id;
                 const isExpanded = expandedTicketId === ticketKey;
+                const firstResponseSla = getSlaHealth(ticket.timeToFirstResponseMinutes, 'firstResponse');
+                const resolutionSla = getSlaHealth(ticket.timeToResolutionMinutes, 'resolution');
 
                 return (
                   <Fragment key={ticket.id}>
@@ -511,6 +606,20 @@ export default function UserDashboard() {
                         <span style={{ ...s.pill, ...getStatusPillStyle(ticket.status) }}>
                           {ticket.status || 'Open'}
                         </span>
+                      </td>
+                      <td style={s.ticketCompactTd}>
+                        <div style={s.ticketCompactSlaTopRow}>
+                          <div style={{ ...s.ticketCompactSlaValue, color: firstResponseSla.style.color }}>{formatSlaDuration(ticket.timeToFirstResponseMinutes)}</div>
+                          <span style={{ ...s.ticketCompactSlaBadge, ...firstResponseSla.style }}>{firstResponseSla.label}</span>
+                        </div>
+                        <div style={s.ticketCompactSlaMeta}>{formatDateTime(ticket.firstResponseAt)}</div>
+                      </td>
+                      <td style={s.ticketCompactTd}>
+                        <div style={s.ticketCompactSlaTopRow}>
+                          <div style={{ ...s.ticketCompactSlaValue, color: resolutionSla.style.color }}>{formatSlaDuration(ticket.timeToResolutionMinutes)}</div>
+                          <span style={{ ...s.ticketCompactSlaBadge, ...resolutionSla.style }}>{resolutionSla.label}</span>
+                        </div>
+                        <div style={s.ticketCompactSlaMeta}>{formatDateTime(ticket.resolvedAt)}</div>
                       </td>
                       <td style={s.ticketCompactTd}>
                         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -546,7 +655,7 @@ export default function UserDashboard() {
                     </tr>
                     {isExpanded && (
                       <tr key={`${ticket.id}-comments`} style={s.tr}>
-                        <td style={s.ticketCompactTd} colSpan={6}>
+                        <td style={s.ticketCompactTd} colSpan={8}>
                           <TicketCommentsPanel
                             ticket={ticket}
                             currentUser={userDetails}
@@ -1034,6 +1143,31 @@ const s = {
     fontSize: 13,
     borderBottom: '1px solid #f1f0ec',
   },
+  ticketCompactSlaValue: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#1c1917',
+  },
+  ticketCompactSlaTopRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  ticketCompactSlaBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '2px 8px',
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: 0.2,
+  },
+  ticketCompactSlaMeta: {
+    marginTop: 2,
+    fontSize: 11,
+    color: '#78716c',
+  },
   ticketsEmpty: {
     padding: '24px 16px',
     textAlign: 'center',
@@ -1090,6 +1224,27 @@ const s = {
     color: '#1c1917',
     textAlign: 'right',
     flex: 1,
+  },
+  ticketInfoMetricWrap: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  ticketSlaBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    padding: '2px 8px',
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: 0.2,
+  },
+  ticketInfoSubValue: {
+    display: 'block',
+    marginTop: 2,
+    fontSize: 11,
+    color: '#78716c',
   },
   ticketCardActions: {
     padding: '12px 14px',
