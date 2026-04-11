@@ -70,6 +70,7 @@ const getSlaHealth = (minutes, metric) => {
   return { label: 'Breached', style: SLA_TONE_STYLE.breached };
 };
 
+// User ticket workspace: report incidents, track status, comment, edit, and delete OPEN tickets.
 export default function UserDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();

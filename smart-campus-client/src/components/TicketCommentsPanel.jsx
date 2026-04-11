@@ -5,6 +5,7 @@ import {
   updateTicketComment,
 } from '../api/ticketCommentsApi';
 
+// Only staff roles can post threaded replies in ticket discussions.
 const STAFF_ROLES = new Set(['ADMIN', 'MANAGER', 'TECHNICIAN']);
 
 const ROLE_STYLE = {
@@ -14,6 +15,7 @@ const ROLE_STYLE = {
   USER: { background: '#dcfce7', color: '#166534' },
 };
 
+// Shared ticket discussion panel used in user, admin, and technician ticket views.
 export default function TicketCommentsPanel({
   ticket,
   currentUser,

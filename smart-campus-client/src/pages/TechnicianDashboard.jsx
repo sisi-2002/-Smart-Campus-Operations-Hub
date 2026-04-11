@@ -83,6 +83,7 @@ const getSlaHealth = (minutes, metric) => {
   return { label: 'Breached', style: SLA_TONE_STYLE.breached };
 };
 
+// Technician ticket queue: update assigned tickets, add notes, and collaborate via comments.
 export default function TechnicianDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();

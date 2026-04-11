@@ -3,6 +3,11 @@ import { useEffect, useRef, useState } from 'react';
 const resourceOptions = ['Lab A', 'Meeting Room 3B', 'Projector 01', 'Library Desk 2', 'Computer Lab C'];
 const categoryOptions = ['Hardware', 'Software', 'Network', 'Facility', 'Other'];
 const priorityOptions = ['Low', 'Medium', 'High', 'Critical'];
+const MAX_ATTACHMENTS = 3;
+const MAX_IMAGE_SIZE_MB = 5;
+const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+const CONTACT_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const CONTACT_PHONE_PATTERN = /^\+?[0-9][0-9\s()\-]{6,}$/;
 
 const initialFormState = {
   resourceLocation: '',
@@ -10,6 +15,54 @@ const initialFormState = {
   priority: '',
   description: '',
   preferredContact: '',
+};
+
+// Centralized validation keeps create/edit submission rules consistent.
+const validateIncidentForm = (formData) => {
+  const errors = {};
+  const resourceLocation = String(formData.resourceLocation || '').trim();
+  const category = String(formData.category || '').trim();
+  const priority = String(formData.priority || '').trim();
+  const description = String(formData.description || '').trim();
+  const preferredContact = String(formData.preferredContact || '').trim();
+
+  if (!resourceLocation) {
+    errors.resourceLocation = 'Please select a resource or location.';
+  } else if (!resourceOptions.includes(resourceLocation)) {
+    errors.resourceLocation = 'Please select a valid resource or location.';
+  }
+
+  if (!category) {
+    errors.category = 'Please select a category.';
+  } else if (!categoryOptions.includes(category)) {
+    errors.category = 'Please select a valid category.';
+  }
+
+  if (!priority) {
+    errors.priority = 'Please select a priority level.';
+  } else if (!priorityOptions.includes(priority)) {
+    errors.priority = 'Please select a valid priority level.';
+  }
+
+  if (!description) {
+    errors.description = 'Description is required.';
+  } else if (description.length < 20) {
+    errors.description = 'Description must be at least 20 characters.';
+  } else if (description.length > 2000) {
+    errors.description = 'Description must be 2000 characters or less.';
+  }
+
+  if (!preferredContact) {
+    errors.preferredContact = 'Preferred contact is required.';
+  } else {
+    const isEmail = CONTACT_EMAIL_PATTERN.test(preferredContact);
+    const isPhone = CONTACT_PHONE_PATTERN.test(preferredContact);
+    if (!isEmail && !isPhone) {
+      errors.preferredContact = 'Enter a valid email address or phone number.';
+    }
+  }
+
+  return errors;
 };
 
 const CSS = `
@@ -214,6 +267,12 @@ const CSS = `
   transition: border-color .18s, box-shadow .18s, background .18s;
 }
 
+.ir-input-error {
+  border-color: var(--ir-danger) !important;
+  box-shadow: 0 0 0 3px var(--ir-danlt);
+  background: #fff7f9;
+}
+
 .ir-input:focus,
 .ir-textarea:focus,
 .ir-file:focus {
@@ -245,6 +304,13 @@ const CSS = `
 .ir-helper {
   font-size: 11px;
   color: var(--ir-muted);
+}
+
+.ir-field-error {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--ir-danger);
 }
 
 .ir-file-list {
@@ -365,6 +431,7 @@ const CSS = `
 }
 `;
 
+// Ticket report/edit modal used in the user incident workflow.
 export default function IncidentModal({
   open,
   onClose,
@@ -384,6 +451,7 @@ export default function IncidentModal({
   const [formData, setFormData] = useState(initialFormState);
   const [attachments, setAttachments] = useState([]);
   const [attachmentError, setAttachmentError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [submitMessage, setSubmitMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -400,6 +468,7 @@ export default function IncidentModal({
       });
       setAttachments(Array.isArray(initialAttachments) ? initialAttachments : []);
       setAttachmentError('');
+      setFieldErrors({});
       setSubmitError('');
       setSubmitMessage('');
       setIsSubmitting(false);
@@ -413,6 +482,7 @@ export default function IncidentModal({
     setFormData(initialFormState);
     setAttachments([]);
     setAttachmentError('');
+    setFieldErrors({});
     setSubmitError('');
     setSubmitMessage('');
     setIsSubmitting(false);
@@ -426,6 +496,7 @@ export default function IncidentModal({
       setFormData(initialFormState);
       setAttachments([]);
       setAttachmentError('');
+      setFieldErrors({});
       setSubmitError('');
       setSubmitMessage('');
       setIsSubmitting(false);
@@ -445,13 +516,40 @@ export default function IncidentModal({
       ...current,
       [name]: value,
     }));
+
+    setFieldErrors((current) => {
+      if (!current[name]) {
+        return current;
+      }
+
+      const next = { ...current };
+      delete next[name];
+      return next;
+    });
   };
 
   const handleFileChange = (event) => {
     const selectedFiles = Array.from(event.target.files || []);
 
-    if (selectedFiles.length > 3) {
-      setAttachmentError('You can upload a maximum of 3 images. Please select up to 3 files.');
+    // Enforce attachment limits before doing FileReader work.
+    if (selectedFiles.length > MAX_ATTACHMENTS) {
+      setAttachmentError(`You can upload a maximum of ${MAX_ATTACHMENTS} images. Please select up to ${MAX_ATTACHMENTS} files.`);
+      setAttachments([]);
+      event.target.value = '';
+      return;
+    }
+
+    const nonImageFile = selectedFiles.find((file) => !String(file.type || '').startsWith('image/'));
+    if (nonImageFile) {
+      setAttachmentError(`Only image files are allowed. "${nonImageFile.name}" is not an image.`);
+      setAttachments([]);
+      event.target.value = '';
+      return;
+    }
+
+    const oversizedFile = selectedFiles.find((file) => file.size > MAX_IMAGE_SIZE_BYTES);
+    if (oversizedFile) {
+      setAttachmentError(`"${oversizedFile.name}" is larger than ${MAX_IMAGE_SIZE_MB}MB.`);
       setAttachments([]);
       event.target.value = '';
       return;
@@ -479,14 +577,20 @@ export default function IncidentModal({
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    // Client-side validation
-    const requiredFields = ['resourceLocation', 'category', 'priority', 'description', 'preferredContact'];
-    for (const field of requiredFields) {
-      if (!formData[field] || !formData[field].trim()) {
-        setSubmitError(`${field.replace(/([A-Z])/g, ' $1').trim()} is required.`);
-        return;
-      }
+    // Validate first so users get field-level feedback before API calls.
+    const validationErrors = validateIncidentForm(formData);
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      setSubmitError('Please fix the highlighted fields and try again.');
+      return;
     }
+
+    if (attachmentError) {
+      setSubmitError('Please resolve attachment errors before submitting.');
+      return;
+    }
+
+    setFieldErrors({});
 
     if (!onSubmitTicket) {
       setSubmitError('Submit handler is not configured.');
@@ -498,8 +602,17 @@ export default function IncidentModal({
     setIsSubmitting(true);
 
     try {
-      const payload = {
+      const normalizedFormData = {
         ...formData,
+        resourceLocation: formData.resourceLocation.trim(),
+        category: formData.category.trim(),
+        priority: formData.priority.trim(),
+        description: formData.description.trim(),
+        preferredContact: formData.preferredContact.trim(),
+      };
+
+      const payload = {
+        ...normalizedFormData,
         imageNames: attachments.map((file) => file.name),
         imageDataUrls: attachments.map((file) => file.dataUrl),
       };
@@ -531,6 +644,7 @@ export default function IncidentModal({
     setFormData(initialFormState);
     setAttachments([]);
     setAttachmentError('');
+    setFieldErrors({});
     setSubmitError('');
     setSubmitMessage('');
     setIsSubmitting(false);
@@ -572,7 +686,8 @@ export default function IncidentModal({
                     name="resourceLocation"
                     value={formData.resourceLocation}
                     onChange={handleFieldChange}
-                    className="ir-input"
+                    className={`ir-input${fieldErrors.resourceLocation ? ' ir-input-error' : ''}`}
+                    aria-invalid={Boolean(fieldErrors.resourceLocation)}
                     required
                   >
                     <option value="">Select a resource or location</option>
@@ -582,6 +697,7 @@ export default function IncidentModal({
                       </option>
                     ))}
                   </select>
+                  {fieldErrors.resourceLocation && <p className="ir-field-error">{fieldErrors.resourceLocation}</p>}
                 </label>
 
                 <label className="ir-field">
@@ -590,7 +706,8 @@ export default function IncidentModal({
                     name="category"
                     value={formData.category}
                     onChange={handleFieldChange}
-                    className="ir-input"
+                    className={`ir-input${fieldErrors.category ? ' ir-input-error' : ''}`}
+                    aria-invalid={Boolean(fieldErrors.category)}
                     required
                   >
                     <option value="">Select a category</option>
@@ -600,6 +717,7 @@ export default function IncidentModal({
                       </option>
                     ))}
                   </select>
+                  {fieldErrors.category && <p className="ir-field-error">{fieldErrors.category}</p>}
                 </label>
 
                 <label className="ir-field">
@@ -608,7 +726,8 @@ export default function IncidentModal({
                     name="priority"
                     value={formData.priority}
                     onChange={handleFieldChange}
-                    className="ir-input"
+                    className={`ir-input${fieldErrors.priority ? ' ir-input-error' : ''}`}
+                    aria-invalid={Boolean(fieldErrors.priority)}
                     required
                   >
                     <option value="">Select priority</option>
@@ -618,6 +737,7 @@ export default function IncidentModal({
                       </option>
                     ))}
                   </select>
+                  {fieldErrors.priority && <p className="ir-field-error">{fieldErrors.priority}</p>}
                 </label>
               </div>
             </div>
@@ -631,11 +751,13 @@ export default function IncidentModal({
                     name="description"
                     value={formData.description}
                     onChange={handleFieldChange}
-                    className="ir-textarea"
+                    className={`ir-textarea${fieldErrors.description ? ' ir-input-error' : ''}`}
+                    aria-invalid={Boolean(fieldErrors.description)}
                     rows="5"
                     placeholder="Describe what happened, when it started, and any immediate impact."
                     required
                   />
+                  {fieldErrors.description && <p className="ir-field-error">{fieldErrors.description}</p>}
                 </label>
 
                 <label className="ir-field full">
@@ -645,10 +767,12 @@ export default function IncidentModal({
                     name="preferredContact"
                     value={formData.preferredContact}
                     onChange={handleFieldChange}
-                    className="ir-input"
+                    className={`ir-input${fieldErrors.preferredContact ? ' ir-input-error' : ''}`}
+                    aria-invalid={Boolean(fieldErrors.preferredContact)}
                     placeholder="Phone number or email"
                     required
                   />
+                  {fieldErrors.preferredContact && <p className="ir-field-error">{fieldErrors.preferredContact}</p>}
                 </label>
               </div>
             </div>
@@ -665,7 +789,7 @@ export default function IncidentModal({
                   onChange={handleFileChange}
                   className="ir-file"
                 />
-                <span className="ir-helper">Attach up to 3 images showing the issue.</span>
+                <span className="ir-helper">Attach up to {MAX_ATTACHMENTS} images (max {MAX_IMAGE_SIZE_MB}MB each).</span>
                 {attachmentError && <div className="ir-banner error">{attachmentError}</div>}
                 {!attachmentError && attachments.length > 0 && (
                   <div className="ir-file-list">
