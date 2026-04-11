@@ -12,6 +12,7 @@ import UserDashboard from './pages/UserDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import ManagerDashboard from './pages/ManagerDashboard';
 import TechnicianDashboard from './pages/TechnicianDashboard';
+import CheckInVerificationPage from './pages/CheckInVerificationPage';
 
 import Navbar from './components/Navbar';
 import ChatBot from './components/ChatBot';
@@ -133,6 +134,17 @@ function AppRoutes() {
           <ProtectedRoute requiredRole="MANAGER">
             <ProtectedLayout>
               <ManagerDashboard />
+            </ProtectedLayout>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/check-in"
+        element={
+          <ProtectedRoute requiredRole={["ADMIN", "MANAGER"]}>
+            <ProtectedLayout>
+              <CheckInVerificationPage />
             </ProtectedLayout>
           </ProtectedRoute>
         }

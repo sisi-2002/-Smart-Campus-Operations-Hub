@@ -2,6 +2,7 @@ package com.smartcampus.controller;
 
 import com.smartcampus.dto.request.BookingApprovalRequest;
 import com.smartcampus.dto.request.BookingCancellationRequest;
+import com.smartcampus.dto.request.BookingCheckInRequest;
 import com.smartcampus.dto.request.BookingRequest;
 import com.smartcampus.dto.response.BookingResponse;
 import com.smartcampus.service.BookingService;
@@ -62,6 +63,19 @@ public class BookingController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<BookingResponse> getBookingById(@PathVariable String id) {
         BookingResponse booking = bookingService.getBookingById(id);
+        return ResponseEntity.ok(booking);
+    }
+
+    @GetMapping("/{id}/check-in-qr")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<?> getCheckInQr(@PathVariable String id) {
+        return ResponseEntity.ok(Map.of("qrData", bookingService.getCheckInQrData(id)));
+    }
+
+    @PostMapping("/check-in/verify")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('MANAGER')")
+    public ResponseEntity<BookingResponse> verifyCheckIn(@RequestBody BookingCheckInRequest request) {
+        BookingResponse booking = bookingService.verifyAndCheckInByQr(request.getQrData());
         return ResponseEntity.ok(booking);
     }
     

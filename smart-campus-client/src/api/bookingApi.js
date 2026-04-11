@@ -22,6 +22,16 @@ const bookingApi = {
     return api.get(`/bookings/${id}`);
   },
 
+  // Get check-in QR payload for an approved booking
+  getCheckInQr: (id) => {
+    return api.get(`/bookings/${id}/check-in-qr`);
+  },
+
+  // Verify and check-in via QR payload
+  verifyCheckIn: (qrData) => {
+    return api.post('/bookings/check-in/verify', { qrData });
+  },
+
   // Approve/Reject booking (Admin only)
   approveBooking: (id, approved, rejectionReason = null) => {
     return api.patch(`/bookings/${id}/approval`, { approved, rejectionReason });

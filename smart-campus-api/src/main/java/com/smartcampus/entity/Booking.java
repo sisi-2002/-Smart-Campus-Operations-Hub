@@ -51,6 +51,11 @@ public class Booking {
     
     private LocalDateTime approvedAt;
     private String approvedBy;
+
+    private String checkInToken;
+    private boolean checkedIn;
+    private LocalDateTime checkedInAt;
+    private String checkedInBy;
     
     // Additional metadata
     private boolean requiresApproval;

@@ -24,4 +24,8 @@ public class BookingResponse {
     private LocalDateTime updatedAt;
     private boolean canCancel;
     private boolean canModify;
+    private boolean checkedIn;
+    private LocalDateTime checkedInAt;
+    private String checkedInBy;
+    private String checkInQrData;
 }

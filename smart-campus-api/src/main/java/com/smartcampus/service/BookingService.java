@@ -13,23 +13,34 @@ import com.smartcampus.repository.UserRepository;
 import com.smartcampus.security.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class BookingService {
+
+    private static final String QR_PREFIX = "SCHECKIN";
+
+    @Value("${app.frontend-url:http://localhost:5173}")
+    private String frontendUrl;
     
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
@@ -88,6 +99,9 @@ public class BookingService {
             booking.setStatus(BookingStatus.APPROVED);
             booking.setApprovedAt(LocalDateTime.now());
             booking.setApprovedBy(currentUser.getEmail());
+            if (booking.getCheckInToken() == null || booking.getCheckInToken().isBlank()) {
+                booking.setCheckInToken(UUID.randomUUID().toString());
+            }
             log.info("Booking {} approved by admin {}", id, currentUser.getEmail());
         } else {
             if (rejectionReason == null || rejectionReason.trim().isEmpty()) {
@@ -197,7 +211,67 @@ public class BookingService {
                 .updatedAt(booking.getUpdatedAt())
                 .canCancel(canCancel)
                 .canModify(canModify)
+                .checkedIn(booking.isCheckedIn())
+                .checkedInAt(booking.getCheckedInAt())
+                .checkedInBy(booking.getCheckedInBy())
+                .checkInQrData(buildQrData(booking))
                 .build();
+    }
+
+    public String getCheckInQrData(String bookingId) {
+        Booking booking = getBookingAndValidateAccess(bookingId);
+
+        if (booking.getStatus() != BookingStatus.APPROVED) {
+            throw new IllegalStateException("QR check-in is only available for approved bookings");
+        }
+
+        if (booking.getCheckInToken() == null || booking.getCheckInToken().isBlank()) {
+            booking.setCheckInToken(UUID.randomUUID().toString());
+            booking.setUpdatedAt(LocalDateTime.now());
+            bookingRepository.save(booking);
+        }
+
+        return buildQrData(booking);
+    }
+
+    @Transactional
+    public BookingResponse verifyAndCheckInByQr(String qrData) {
+        User currentUser = getCurrentUser();
+        if (currentUser.getRole() != Role.ADMIN && currentUser.getRole() != Role.MANAGER) {
+            throw new UnauthorizedException("Only admin or manager can verify check-in");
+        }
+
+        String payload = normalizeQrPayload(qrData);
+        String[] parts = payload.split("\\|");
+        if (parts.length != 3 || !QR_PREFIX.equals(parts[0])) {
+            throw new IllegalArgumentException("Invalid QR code format");
+        }
+
+        String bookingId = parts[1];
+        String token = parts[2];
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking not found with id: " + bookingId));
+
+        if (booking.getStatus() != BookingStatus.APPROVED) {
+            throw new IllegalStateException("Only approved bookings can be checked in");
+        }
+
+        if (booking.getCheckInToken() == null || !booking.getCheckInToken().equals(token)) {
+            throw new IllegalArgumentException("QR token is invalid or expired");
+        }
+
+        if (booking.isCheckedIn()) {
+            throw new IllegalStateException("Booking is already checked in");
+        }
+
+        booking.setCheckedIn(true);
+        booking.setCheckedInAt(LocalDateTime.now());
+        booking.setCheckedInBy(currentUser.getEmail());
+        booking.setUpdatedAt(LocalDateTime.now());
+
+        Booking saved = bookingRepository.save(booking);
+        return mapToResponse(saved);
     }
     
     public List<BookingResponse> getUserBookings() {
@@ -282,6 +356,45 @@ public class BookingService {
         }
         
         return booking;
+    }
+
+    private String buildQrData(Booking booking) {
+        if (booking.getStatus() != BookingStatus.APPROVED) {
+            return null;
+        }
+        if (booking.getCheckInToken() == null || booking.getCheckInToken().isBlank()) {
+            return null;
+        }
+        String payload = QR_PREFIX + "|" + booking.getId() + "|" + booking.getCheckInToken();
+        return frontendUrl + "/check-in?qr=" + URLEncoder.encode(payload, StandardCharsets.UTF_8);
+    }
+
+    private String normalizeQrPayload(String value) {
+        String input = String.valueOf(value == null ? "" : value).trim();
+        if (input.isBlank()) {
+            throw new IllegalArgumentException("QR payload is required");
+        }
+
+        // If scanner returns a URL, extract the "qr" query parameter.
+        if (input.startsWith("http://") || input.startsWith("https://")) {
+            try {
+                URI uri = URI.create(input);
+                String query = uri.getQuery();
+                if (query != null) {
+                    for (String pair : query.split("&")) {
+                        String[] kv = pair.split("=", 2);
+                        if (kv.length == 2 && "qr".equals(kv[0])) {
+                            return URLDecoder.decode(kv[1], StandardCharsets.UTF_8);
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+                // Fall back to raw input parsing below.
+            }
+        }
+
+        // Accept direct encoded payload pasted from some scanners.
+        return URLDecoder.decode(input, StandardCharsets.UTF_8);
     }
     
     public List<LocalDateTime[]> getAvailableTimeSlots(String resourceId, LocalDateTime date) {
