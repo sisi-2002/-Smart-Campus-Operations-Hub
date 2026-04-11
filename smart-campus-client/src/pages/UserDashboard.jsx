@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { closeIncidentTicket, getIncidentTicket, getUserDashboardOverview, submitIncidentTicket, updateIncidentTicket, updateUserProfile } from '../api/userDashboardApi';
+import { closeIncidentTicket, getIncidentTicket, getUserDashboardOverview, submitIncidentTicket, updateIncidentTicket } from '../api/userDashboardApi';
 import IncidentModal from '../components/IncidentModal';
 import TicketCommentsPanel from '../components/TicketCommentsPanel';
 import BookingList from '../components/Bookings/BookingList';
@@ -118,13 +118,13 @@ export default function UserDashboard() {
   const [deleteTicketError, setDeleteTicketError] = useState('');
   const [isDeletingTicket, setIsDeletingTicket] = useState(false);
 
-  const getCachedIncidentImages = () => {
+  const getCachedIncidentImages = useCallback(() => {
     try {
       return JSON.parse(localStorage.getItem('incidentTicketImageCache') || '[]');
     } catch {
       return [];
     }
-  };
+  }, []);
 
   const setCachedIncidentImages = (entries) => {
     localStorage.setItem('incidentTicketImageCache', JSON.stringify(entries));
@@ -142,7 +142,7 @@ export default function UserDashboard() {
     });
   };
 
-  const mergeCachedImages = (tickets) => {
+  const mergeCachedImages = useCallback((tickets) => {
     const cache = getCachedIncidentImages();
     if (!cache.length) {
       return tickets;
@@ -161,9 +161,9 @@ export default function UserDashboard() {
         imageDataUrls: (ticket.imageDataUrls && ticket.imageDataUrls.length > 0) ? ticket.imageDataUrls : (cached.imageDataUrls || []),
       };
     });
-  };
+  }, [getCachedIncidentImages]);
 
-  const fetchOverview = async () => {
+  const fetchOverview = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -191,9 +191,9 @@ export default function UserDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [mergeCachedImages]);
 
-  const fetchResources = async () => {
+  const fetchResources = useCallback(async () => {
     try {
       setResourceLoading(true);
       const res = await resourceApi.getAllResources();
@@ -204,16 +204,16 @@ export default function UserDashboard() {
     } finally {
       setResourceLoading(false);
     }
-  };
+  }, []);
 
-  const fetchMyBookings = async () => {
+  const fetchMyBookings = useCallback(async () => {
     try {
       const res = await bookingApi.getMyBookings();
       setMyBookings(Array.isArray(res.data) ? res.data : []);
     } catch {
       setMyBookings([]);
     }
-  };
+  }, []);
 
   const handleIncidentSubmit = async (payload) => {
     const response = await submitIncidentTicket(payload);
@@ -307,7 +307,7 @@ export default function UserDashboard() {
     fetchOverview();
     fetchResources();
     fetchMyBookings();
-  }, []);
+  }, [fetchOverview, fetchResources, fetchMyBookings]);
 
   useEffect(() => {
     if (activeTab !== 'tickets' && ticketNotice) {
@@ -607,7 +607,7 @@ export default function UserDashboard() {
                 </tr>
               )}
               {overview.activeTickets.map((ticket) => (
-                <tr key={ticket.id} style={s.tr}>
+                <tr key={ticket.ticketId || ticket.id} style={s.tr}>
                   <td style={s.td}>{ticket.ticketId || ticket.id}</td>
                   <td style={s.td}>{ticket.location || '-'}</td>
                   <td style={s.td}>{ticket.category || '-'}</td>
@@ -673,7 +673,7 @@ export default function UserDashboard() {
             const resolutionSla = getSlaHealth(ticket.timeToResolutionMinutes, 'resolution');
 
             return (
-              <article key={ticket.id} style={s.ticketCard}>
+              <article key={ticketKey} style={s.ticketCard}>
                 <div style={s.ticketCardHeader}>
                   <div>
                     <div style={s.ticketCardId}>{ticket.ticketId || ticket.id}</div>
@@ -723,7 +723,7 @@ export default function UserDashboard() {
                       {ticketImages.length > 0 ? (
                         ticketImages.map((imageUrl, index) => (
                           <img
-                            key={`${ticket.id}-${index}`}
+                            key={`${ticketKey}-${index}`}
                             src={imageUrl}
                             alt={`${ticket.ticketId || ticket.id} attachment ${index + 1}`}
                             style={s.ticketThumbnail}
@@ -805,11 +805,12 @@ export default function UserDashboard() {
                 const hasImageNamesOnly = ticketImages.length === 0 && (ticket.imageNames || []).length > 0;
                 const normalizedStatus = (ticket.status || '').trim().toUpperCase();
                 const canHide = ['RESOLVED', 'CLOSED', 'REJECTED'].includes(normalizedStatus);
+                const ticketKey = ticket.ticketId || ticket.id;
                 const firstResponseSla = getSlaHealth(ticket.timeToFirstResponseMinutes, 'firstResponse');
                 const resolutionSla = getSlaHealth(ticket.timeToResolutionMinutes, 'resolution');
 
                 return (
-                  <tr key={ticket.id} style={s.tr}>
+                  <tr key={ticketKey} style={s.tr}>
                       <td style={s.ticketCompactTd}><div style={{ fontWeight: 600 }}>{ticket.ticketId || ticket.id}</div></td>
                       <td style={s.ticketCompactTd}>{ticket.location || '-'}</td>
                       <td style={s.ticketCompactTd}>{ticket.category || '-'}</td>
@@ -818,7 +819,7 @@ export default function UserDashboard() {
                           {ticketImages.length > 0 ? (
                             ticketImages.map((imageUrl, index) => (
                               <img
-                                key={`${ticket.id}-${index}`}
+                                key={`${ticketKey}-${index}`}
                                 src={imageUrl}
                                 alt={`${ticket.ticketId || ticket.id} attachment ${index + 1}`}
                                 style={s.ticketThumbnail}
