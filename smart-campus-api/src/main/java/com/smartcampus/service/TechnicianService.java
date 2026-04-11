@@ -100,12 +100,12 @@ public class TechnicianService {
                         normalizedNextStatus = requestedStatus.toUpperCase();
                         validateTechnicianTransition(currentStatus, normalizedNextStatus);
 
-                        if ("RESOLVED".equals(normalizedNextStatus) && effectiveNotes == null) {
-                                throw new RuntimeException("Resolution notes are required when marking a ticket as resolved");
+                        if ("REJECTED".equals(normalizedNextStatus) && effectiveNotes == null) {
+                                throw new RuntimeException("Rejection reason is required when rejecting a ticket");
                         }
 
-                        if ("CLOSED".equals(normalizedNextStatus) && !"CLOSED".equals(currentStatus) && effectiveNotes == null) {
-                                throw new RuntimeException("Resolution notes are required before closing a ticket");
+                        if ("RESOLVED".equals(normalizedNextStatus) && effectiveNotes == null) {
+                                throw new RuntimeException("Resolution notes are required when marking a ticket as resolved");
                         }
 
                         ticket.setStatus(normalizedNextStatus);
@@ -170,8 +170,8 @@ public class TechnicianService {
                                 }
                         }
                         case "IN_PROGRESS" -> {
-                                if (!"IN_PROGRESS".equals(nextStatus) && !"RESOLVED".equals(nextStatus) && !"CLOSED".equals(nextStatus)) {
-                                        throw new RuntimeException("Allowed transitions from IN_PROGRESS are IN_PROGRESS, RESOLVED, or CLOSED");
+                                if (!"REJECTED".equals(nextStatus) && !"RESOLVED".equals(nextStatus)) {
+                                        throw new RuntimeException("Allowed transitions from IN_PROGRESS are REJECTED or RESOLVED");
                                 }
                         }
                         case "RESOLVED" -> {
