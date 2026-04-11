@@ -9,6 +9,26 @@ const STEPS = [
   { num: 3, label: 'New Password' },
 ];
 
+const theme = {
+  primary: '#ea580c',
+  primaryDark: '#c2410c',
+  dark: '#121c32',
+  dark2: '#1e293b',
+  dark3: '#0b1325',
+  light: '#ffffff',
+  lightAlt: '#fafafa',
+  border: '#334155',
+  text: '#1e293b',
+  textMuted: '#64748b',
+  textSoft: '#94a3b8',
+  textLight: '#cbd5e1',
+  success: '#16a34a',
+  successSoft: '#dcfce7',
+  warning: '#f97316',
+  error: '#dc2626',
+  errorSoft: '#fef2f2',
+};
+
 export default function ForgotPasswordPage() {
   const [step, setStep] = useState(1);
   const [email, setEmail] = useState('');
@@ -115,6 +135,7 @@ export default function ForgotPasswordPage() {
         <div style={s.card}>
           <div style={s.header}>
             <div style={s.logo}>Smart<span style={s.logoAccent}>Campus</span></div>
+            {step !== 4 && <div style={s.badge}>PASSWORD RECOVERY</div>}
             {step !== 4 && <h2 style={s.title}>Forgot Password</h2>}
             {step !== 4 && (
               <p style={s.subtitle}>
@@ -148,34 +169,50 @@ export default function ForgotPasswordPage() {
                         ...s.stepDot,
                         background:
                           step > st.num
-                            ? '#10b981'
+                            ? theme.success
                             : step === st.num
-                            ? '#2563eb'
-                            : 'rgba(255,255,255,0.55)',
-                        color: step >= st.num ? '#fff' : '#6b7280',
+                            ? theme.primary
+                            : 'rgba(255,255,255,0.75)',
+                        color: step >= st.num ? '#fff' : theme.textMuted,
                         border:
                           step < st.num
-                            ? '1px solid rgba(37,99,235,0.18)'
+                            ? `1px solid ${theme.primary}33`
+                            : 'none',
+                        boxShadow:
+                          step === st.num
+                            ? '0 8px 20px rgba(234,88,12,0.25)'
                             : 'none',
                       }}
                     >
                       {step > st.num ? '✓' : st.num}
                     </div>
+
                     <span
                       style={{
                         ...s.stepLabel,
                         color:
                           step === st.num
-                            ? '#1e3a8a'
+                            ? theme.dark
                             : step > st.num
-                            ? '#10b981'
-                            : '#64748b',
+                            ? theme.success
+                            : theme.textMuted,
                         fontWeight: step === st.num ? 700 : 500,
                       }}
                     >
                       {st.label}
                     </span>
-                    {i < STEPS.length - 1 && <div style={s.stepLine} />}
+
+                    {i < STEPS.length - 1 && (
+                      <div
+                        style={{
+                          ...s.stepLine,
+                          background:
+                            step > st.num
+                              ? `${theme.success}66`
+                              : `${theme.primary}22`,
+                        }}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -282,7 +319,7 @@ export default function ForgotPasswordPage() {
                     style={{
                       ...s.inputBox,
                       borderColor:
-                        confirm && newPass !== confirm ? '#ef4444' : '#2563eb',
+                        confirm && newPass !== confirm ? theme.error : theme.primary,
                     }}
                   >
                     <input
@@ -308,13 +345,13 @@ export default function ForgotPasswordPage() {
                           background:
                             newPass.length >= i * 2
                               ? i <= 1
-                                ? '#ef4444'
+                                ? theme.error
                                 : i <= 2
-                                ? '#f59e0b'
+                                ? theme.warning
                                 : i <= 3
-                                ? '#10b981'
-                                : '#2563eb'
-                              : 'rgba(255,255,255,0.45)',
+                                ? theme.success
+                                : theme.primary
+                              : 'rgba(203,213,225,0.65)',
                         }}
                       />
                     ))}
@@ -358,6 +395,11 @@ export default function ForgotPasswordPage() {
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
+
+        @keyframes glowPulse {
+          0%, 100% { box-shadow: 0 0 0 rgba(234, 88, 12, 0); }
+          50% { box-shadow: 0 0 18px rgba(234, 88, 12, 0.18); }
+        }
       `}</style>
     </div>
   );
@@ -374,6 +416,7 @@ const s = {
     padding: '24px',
     fontFamily: "'Poppins', sans-serif",
     boxSizing: 'border-box',
+    background: theme.light,
   },
 
   bgCanvas: {
@@ -397,8 +440,8 @@ const s = {
   bgOverlay: {
     position: 'absolute',
     inset: 0,
-    background:
-      'linear-gradient(135deg, rgba(37,99,235,0.22) 0%, rgba(255,255,255,0.30) 45%, rgba(219,234,254,0.26) 100%)',
+    background: 'linear-gradient(135deg, rgba(18,28,50,0.88), rgba(18,28,50,0.72))',
+    backdropFilter: 'blur(2px)',
   },
 
   glowOrb1: {
@@ -408,7 +451,7 @@ const s = {
     width: '50%',
     height: '50%',
     background:
-      'radial-gradient(circle, rgba(37,99,235,0.12) 0%, rgba(37,99,235,0.04) 50%, transparent 70%)',
+      'radial-gradient(circle, rgba(234,88,12,0.18) 0%, rgba(234,88,12,0.06) 50%, transparent 70%)',
     borderRadius: '50%',
     filter: 'blur(80px)',
     animation: 'floatBG 15s ease-in-out infinite alternate',
@@ -421,7 +464,7 @@ const s = {
     width: '45%',
     height: '45%',
     background:
-      'radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(30,64,175,0.05) 50%, transparent 70%)',
+      'radial-gradient(circle, rgba(234,88,12,0.14) 0%, rgba(234,88,12,0.04) 50%, transparent 70%)',
     borderRadius: '50%',
     filter: 'blur(80px)',
     animation: 'floatBG 18s ease-in-out infinite alternate-reverse',
@@ -431,9 +474,9 @@ const s = {
     position: 'absolute',
     inset: 0,
     backgroundImage:
-      'linear-gradient(rgba(37,99,235,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.10) 1px, transparent 1px)',
+      'linear-gradient(rgba(234,88,12,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(234,88,12,0.06) 1px, transparent 1px)',
     backgroundSize: '40px 40px',
-    opacity: 0.2,
+    opacity: 0.22,
   },
 
   dataStream: {
@@ -442,23 +485,23 @@ const s = {
     left: 0,
     right: 0,
     height: '2px',
-    background: 'linear-gradient(90deg, transparent, rgba(37,99,235,0.7), transparent)',
+    background: `linear-gradient(90deg, transparent, ${theme.primary}, transparent)`,
     animation: 'dataFlow 6s linear infinite',
-    opacity: 0.3,
+    opacity: 0.45,
   },
 
   mainContainer: {
     position: 'relative',
     zIndex: 10,
     width: '100%',
-    maxWidth: '520px',
+    maxWidth: '540px',
   },
 
   card: {
-    background: 'rgba(239, 246, 255, 0.78)',
-    border: '2px solid rgba(37,99,235,0.75)',
+    background: 'rgba(255,255,255,0.94)',
+    border: '1px solid rgba(234,88,12,0.35)',
     borderRadius: '30px',
-    boxShadow: '0 15px 35px rgba(37,99,235,0.15)',
+    boxShadow: '0 20px 50px rgba(0,0,0,0.25), 0 10px 30px rgba(234,88,12,0.12)',
     padding: '38px 32px',
     backdropFilter: 'blur(12px)',
   },
@@ -471,24 +514,38 @@ const s = {
   logo: {
     fontSize: '24px',
     fontWeight: 700,
-    color: '#1e3a8a',
+    color: theme.dark,
     marginBottom: '14px',
   },
 
   logoAccent: {
-    color: '#2563eb',
+    color: theme.primary,
+  },
+
+  badge: {
+    display: 'inline-block',
+    padding: '6px 14px',
+    borderRadius: '20px',
+    border: `1px solid ${theme.primary}33`,
+    color: theme.primary,
+    fontSize: '11px',
+    fontWeight: 700,
+    letterSpacing: '1px',
+    marginBottom: '16px',
+    background: `${theme.primary}10`,
   },
 
   title: {
     fontSize: '30px',
-    fontWeight: 700,
+    fontWeight: 800,
     margin: '0 0 8px',
-    color: '#1e3a8a',
+    color: theme.dark,
+    letterSpacing: '-0.4px',
   },
 
   subtitle: {
     fontSize: '14px',
-    color: '#1e40af',
+    color: theme.textMuted,
     margin: 0,
     lineHeight: 1.6,
   },
@@ -528,8 +585,8 @@ const s = {
   stepLine: {
     width: 22,
     height: 2,
-    background: 'rgba(37,99,235,0.18)',
     flexShrink: 0,
+    borderRadius: 999,
   },
 
   form: {
@@ -539,17 +596,19 @@ const s = {
   label: {
     display: 'block',
     fontSize: 13,
-    color: '#1e3a8a',
+    color: theme.dark,
     marginBottom: 6,
     fontWeight: 600,
   },
 
   inputBox: {
     position: 'relative',
-    border: '2px solid #2563eb',
+    border: `2px solid ${theme.primary}`,
     borderRadius: '10px',
-    background: 'rgba(255,255,255,0.58)',
+    background: '#ffffff',
     marginBottom: '14px',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
+    transition: 'all 0.3s ease',
   },
 
   input: {
@@ -561,7 +620,7 @@ const s = {
     outline: 'none',
     fontSize: 14,
     fontWeight: 500,
-    color: '#1e3a8a',
+    color: theme.text,
     boxSizing: 'border-box',
   },
 
@@ -570,12 +629,12 @@ const s = {
     fontSize: 26,
     letterSpacing: 10,
     fontWeight: 700,
-    color: '#2563eb',
+    color: theme.primary,
   },
 
   codeHint: {
     fontSize: 12,
-    color: '#1e40af',
+    color: theme.textMuted,
     textAlign: 'center',
     margin: '-4px 0 14px',
     lineHeight: 1.5,
@@ -584,18 +643,19 @@ const s = {
   btn: {
     width: '100%',
     minHeight: '50px',
-    background: '#2563eb',
+    background: theme.primary,
     color: '#fff',
     border: 'none',
     borderRadius: '10px',
     fontSize: 15,
-    fontWeight: 600,
+    fontWeight: 700,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
-    boxShadow: '0 0 10px rgba(37,99,235,0.2)',
+    boxShadow: '0 8px 20px rgba(234,88,12,0.25)',
     marginTop: 4,
+    transition: 'all 0.3s ease',
   },
 
   loader: {
@@ -634,15 +694,16 @@ const s = {
   strengthSegment: {
     height: 4,
     flex: 1,
-    borderRadius: 4,
+    borderRadius: 999,
     transition: 'background .3s',
   },
 
   strengthLabel: {
     fontSize: 11,
-    color: '#64748b',
+    color: theme.textMuted,
     minWidth: 38,
     textAlign: 'right',
+    fontWeight: 600,
   },
 
   linkRow: {
@@ -658,15 +719,16 @@ const s = {
     border: 'none',
     cursor: 'pointer',
     fontSize: 13,
-    color: '#2563eb',
+    color: theme.primary,
     textDecoration: 'underline',
     padding: 0,
+    fontWeight: 600,
   },
 
   error: {
-    background: '#fff1f1',
-    color: '#a94442',
-    border: '1px solid #d9534f',
+    background: theme.errorSoft,
+    color: theme.error,
+    border: `1px solid ${theme.error}33`,
     padding: '10px 12px',
     borderRadius: '10px',
     fontSize: '13px',
@@ -676,9 +738,9 @@ const s = {
   },
 
   successMsg2: {
-    background: '#effaf4',
-    color: '#166534',
-    border: '1px solid #86efac',
+    background: '#fff7ed',
+    color: theme.primaryDark,
+    border: `1px solid ${theme.primary}33`,
     padding: '10px 12px',
     borderRadius: '10px',
     fontSize: '13px',
@@ -688,22 +750,23 @@ const s = {
   },
 
   mismatch: {
-    color: '#ef4444',
+    color: theme.error,
     fontSize: 12,
     margin: '-6px 0 10px',
+    fontWeight: 500,
   },
 
   backLink: {
     textAlign: 'center',
     fontSize: 13,
     marginTop: '18px',
-    color: '#64748b',
+    color: theme.textMuted,
   },
 
   backLinkAnchor: {
-    color: '#2563eb',
+    color: theme.primary,
     textDecoration: 'none',
-    fontWeight: 600,
+    fontWeight: 700,
   },
 
   successBox: {
@@ -716,11 +779,11 @@ const s = {
     height: '78px',
     margin: '0 auto 16px',
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, #10b981, #059669)',
+    background: `linear-gradient(135deg, ${theme.success}, #15803d)`,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 10px 24px rgba(16,185,129,0.22)',
+    boxShadow: '0 10px 24px rgba(22,163,74,0.22)',
   },
 
   successIcon: {
@@ -729,13 +792,14 @@ const s = {
 
   successTitle: {
     fontSize: 28,
-    fontWeight: 700,
-    color: '#1e3a8a',
+    fontWeight: 800,
+    color: theme.dark,
     margin: '0 0 10px',
+    letterSpacing: '-0.4px',
   },
 
   successMsg: {
-    color: '#1e40af',
+    color: theme.textMuted,
     fontSize: 14,
     marginBottom: '20px',
     lineHeight: 1.6,
@@ -744,12 +808,12 @@ const s = {
   loginLink: {
     display: 'inline-block',
     padding: '12px 28px',
-    background: '#2563eb',
+    background: theme.primary,
     color: '#fff',
     borderRadius: '10px',
     textDecoration: 'none',
-    fontWeight: 600,
+    fontWeight: 700,
     fontSize: 15,
-    boxShadow: '0 0 10px rgba(37,99,235,0.2)',
+    boxShadow: '0 8px 20px rgba(234,88,12,0.25)',
   },
 };

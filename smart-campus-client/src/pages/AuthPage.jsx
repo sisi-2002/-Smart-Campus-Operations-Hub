@@ -5,7 +5,24 @@ import api from '../api/axiosInstance';
 import MfaSetupPage from './MfaSetupPage';
 import MfaVerifyPage from './MfaVerifyPage';
 import authBg from '../assets/auth-bg.jpg';
-import ForgotPasswordPage from './ForgotPasswordPage';
+
+const theme = {
+  primary: '#ea580c',
+  primaryDark: '#c2410c',
+  dark: '#121c32',
+  dark2: '#1e293b',
+  dark3: '#0b1325',
+  light: '#ffffff',
+  lightAlt: '#fafafa',
+  border: '#334155',
+  text: '#1e293b',
+  textMuted: '#64748b',
+  textSoft: '#94a3b8',
+  textLight: '#cbd5e1',
+  success: '#16a34a',
+  warning: '#f97316',
+  error: '#dc2626',
+};
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -283,7 +300,9 @@ export default function AuthPage() {
             }}
           >
             <form onSubmit={handleLoginSubmit} style={styles.form}>
+              <div style={styles.formBadge}>SMART CAMPUS</div>
               <h1 style={styles.title}>Login</h1>
+              <p style={styles.subtitle}>Access your campus dashboard and continue where you left off.</p>
 
               {loginError && (
                 <div style={styles.error} role="alert">
@@ -296,7 +315,7 @@ export default function AuthPage() {
                 <div
                   style={{
                     ...styles.inputBox,
-                    borderColor: loginEmailError && loginTouched.email ? '#d9534f' : '#2563eb',
+                    borderColor: loginEmailError && loginTouched.email ? theme.error : theme.primary,
                   }}
                 >
                   <input
@@ -320,7 +339,7 @@ export default function AuthPage() {
                 <div
                   style={{
                     ...styles.inputBox,
-                    borderColor: loginPasswordError && loginTouched.password ? '#d9534f' : '#2563eb',
+                    borderColor: loginPasswordError && loginTouched.password ? theme.error : theme.primary,
                   }}
                 >
                   <input
@@ -370,7 +389,7 @@ export default function AuthPage() {
                     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                   </svg>
-                  Google
+                  Continue with Google
                 </button>
               </div>
             </form>
@@ -384,7 +403,9 @@ export default function AuthPage() {
             }}
           >
             <form onSubmit={handleRegisterSubmit} style={styles.form}>
+              <div style={styles.formBadge}>SMART CAMPUS</div>
               <h1 style={styles.title}>Register</h1>
+              <p style={styles.subtitle}>Create your account and start managing campus tasks smarter.</p>
 
               {registerError && (
                 <div style={styles.error} role="alert">
@@ -412,7 +433,7 @@ export default function AuthPage() {
                 <div
                   style={{
                     ...styles.inputBox,
-                    borderColor: registerEmailError && registerTouched.email ? '#d9534f' : '#2563eb',
+                    borderColor: registerEmailError && registerTouched.email ? theme.error : theme.primary,
                   }}
                 >
                   <input
@@ -436,7 +457,7 @@ export default function AuthPage() {
                 <div
                   style={{
                     ...styles.inputBox,
-                    borderColor: registerPasswordError && registerTouched.password ? '#d9534f' : '#2563eb',
+                    borderColor: registerPasswordError && registerTouched.password ? theme.error : theme.primary,
                   }}
                 >
                   <input
@@ -474,20 +495,20 @@ export default function AuthPage() {
                               : '30%',
                           background:
                             getPasswordStrength(registerForm.password) === 'strong'
-                              ? '#10b981'
+                              ? theme.success
                               : getPasswordStrength(registerForm.password) === 'medium'
-                              ? '#f59e0b'
-                              : '#d9534f',
+                              ? theme.warning
+                              : theme.error,
                         }}
                       />
                     </div>
 
                     <div style={styles.strengthChecks}>
-                      <span style={{ color: registerForm.password.length >= 8 ? '#10b981' : '#1e40af' }}>✓ 8+ chars</span>
-                      <span style={{ color: /[A-Z]/.test(registerForm.password) ? '#10b981' : '#1e40af' }}>✓ Uppercase</span>
-                      <span style={{ color: /[a-z]/.test(registerForm.password) ? '#10b981' : '#1e40af' }}>✓ Lowercase</span>
-                      <span style={{ color: /[0-9]/.test(registerForm.password) ? '#10b981' : '#1e40af' }}>✓ Number</span>
-                      <span style={{ color: /[!@#$%^&*(),.?":{}|<>]/.test(registerForm.password) ? '#10b981' : '#1e40af' }}>✓ Special</span>
+                      <span style={{ color: registerForm.password.length >= 8 ? theme.success : theme.textMuted }}>✓ 8+ chars</span>
+                      <span style={{ color: /[A-Z]/.test(registerForm.password) ? theme.success : theme.textMuted }}>✓ Uppercase</span>
+                      <span style={{ color: /[a-z]/.test(registerForm.password) ? theme.success : theme.textMuted }}>✓ Lowercase</span>
+                      <span style={{ color: /[0-9]/.test(registerForm.password) ? theme.success : theme.textMuted }}>✓ Number</span>
+                      <span style={{ color: /[!@#$%^&*(),.?":{}|<>]/.test(registerForm.password) ? theme.success : theme.textMuted }}>✓ Special</span>
                     </div>
                   </div>
                 )}
@@ -509,7 +530,7 @@ export default function AuthPage() {
                     <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
                   </svg>
-                  Google
+                  Continue with Google
                 </button>
               </div>
             </form>
@@ -530,6 +551,7 @@ export default function AuthPage() {
                 ...(isRegister ? styles.toggleLeftHidden : styles.toggleLeftVisible),
               }}
             >
+              <div style={styles.toggleMiniTag}>WELCOME</div>
               <h1 style={styles.toggleTitle}>Hello, Welcome</h1>
               <p style={styles.toggleText}>Don't have an account?</p>
               <button type="button" style={styles.toggleBtn} onClick={openRegister}>
@@ -544,6 +566,7 @@ export default function AuthPage() {
                 ...(isRegister ? styles.toggleRightVisible : styles.toggleRightHidden),
               }}
             >
+              <div style={styles.toggleMiniTag}>WELCOME BACK</div>
               <h1 style={styles.toggleTitle}>Welcome Back!</h1>
               <p style={styles.toggleText}>Already have an account?</p>
               <button type="button" style={styles.toggleBtn} onClick={openLogin}>
@@ -568,6 +591,11 @@ export default function AuthPage() {
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
+
+        @keyframes glowPulse {
+          0%, 100% { box-shadow: 0 0 0 rgba(234, 88, 12, 0); }
+          50% { box-shadow: 0 0 20px rgba(234, 88, 12, 0.25); }
+        }
       `}</style>
     </div>
   );
@@ -582,7 +610,7 @@ const styles = {
     justifyContent: 'center',
     overflow: 'hidden',
     fontFamily: "'Poppins', sans-serif",
-    background: '#eff6ff',
+    background: theme.light,
     padding: '24px',
     boxSizing: 'border-box',
   },
@@ -607,7 +635,7 @@ const styles = {
   bgOverlay: {
     position: 'absolute',
     inset: 0,
-    background: 'linear-gradient(135deg, rgba(239,246,255,0.78), rgba(191,219,254,0.72))',
+    background: 'linear-gradient(135deg, rgba(18,28,50,0.88), rgba(18,28,50,0.72))',
     backdropFilter: 'blur(2px)',
   },
 
@@ -617,7 +645,7 @@ const styles = {
     left: '-10%',
     width: '50%',
     height: '50%',
-    background: 'radial-gradient(circle, rgba(37,99,235,0.15) 0%, rgba(37,99,235,0.05) 50%, transparent 70%)',
+    background: 'radial-gradient(circle, rgba(234,88,12,0.18) 0%, rgba(234,88,12,0.06) 50%, transparent 70%)',
     borderRadius: '50%',
     filter: 'blur(80px)',
     animation: 'floatBG 15s ease-in-out infinite alternate',
@@ -629,7 +657,7 @@ const styles = {
     right: '-10%',
     width: '45%',
     height: '45%',
-    background: 'radial-gradient(circle, rgba(30,64,175,0.15) 0%, rgba(30,64,175,0.05) 50%, transparent 70%)',
+    background: 'radial-gradient(circle, rgba(234,88,12,0.16) 0%, rgba(234,88,12,0.05) 50%, transparent 70%)',
     borderRadius: '50%',
     filter: 'blur(80px)',
     animation: 'floatBG 18s ease-in-out infinite alternate-reverse',
@@ -638,9 +666,10 @@ const styles = {
   gridOverlay: {
     position: 'absolute',
     inset: 0,
-    backgroundImage: 'linear-gradient(rgba(37,99,235,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(37,99,235,0.08) 1px, transparent 1px)',
+    backgroundImage:
+      'linear-gradient(rgba(234,88,12,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(234,88,12,0.08) 1px, transparent 1px)',
     backgroundSize: '40px 40px',
-    opacity: 0.28,
+    opacity: 0.24,
   },
 
   dataStream: {
@@ -649,16 +678,16 @@ const styles = {
     left: 0,
     right: 0,
     height: '2px',
-    background: 'linear-gradient(90deg, transparent, #2563eb, transparent)',
+    background: `linear-gradient(90deg, transparent, ${theme.primary}, transparent)`,
     animation: 'dataFlow 6s linear infinite',
-    opacity: 0.35,
+    opacity: 0.5,
   },
 
   mainContainer: {
     position: 'relative',
     zIndex: 10,
     width: '100%',
-    maxWidth: '980px',
+    maxWidth: '1020px',
   },
 
   container: {
@@ -666,10 +695,11 @@ const styles = {
     width: '100%',
     minHeight: '620px',
     background: 'transparent',
-    border: '2px solid rgba(37,99,235,0.75)',
+    border: '1px solid rgba(234,88,12,0.35)',
     borderRadius: '30px',
     overflow: 'hidden',
-    boxShadow: '0 15px 35px rgba(37,99,235,0.15)',
+    boxShadow: '0 20px 50px rgba(0,0,0,0.25), 0 10px 30px rgba(234,88,12,0.12)',
+    backdropFilter: 'blur(4px)',
   },
 
   formBox: {
@@ -681,8 +711,8 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: '40px',
-    background: 'rgba(239, 246, 255, 0.78)',
-    backdropFilter: 'blur(12px)',
+    background: 'rgba(255,255,255,0.94)',
+    backdropFilter: 'blur(14px)',
     transition: 'all 0.6s ease-in-out',
     zIndex: 1,
     boxSizing: 'border-box',
@@ -727,20 +757,42 @@ const styles = {
     textAlign: 'center',
   },
 
+  formBadge: {
+    display: 'inline-block',
+    padding: '6px 14px',
+    borderRadius: '20px',
+    border: `1px solid ${theme.primary}33`,
+    color: theme.primary,
+    fontSize: '11px',
+    fontWeight: 700,
+    letterSpacing: '1px',
+    marginBottom: '16px',
+    background: `${theme.primary}10`,
+  },
+
   title: {
     fontSize: '36px',
-    margin: '0 0 18px',
-    color: '#1e3a8a',
+    margin: '0 0 10px',
+    color: theme.dark,
+    fontWeight: 800,
+    letterSpacing: '-0.5px',
+  },
+
+  subtitle: {
+    margin: '0 0 22px',
+    color: theme.textMuted,
+    fontSize: '14px',
+    lineHeight: 1.6,
   },
 
   error: {
-    background: '#fff1f1',
-    border: '1px solid #d9534f',
+    background: '#fff7ed',
+    border: `1px solid ${theme.primary}55`,
     borderRadius: '12px',
     padding: '12px 14px',
     marginBottom: '18px',
     fontSize: '13px',
-    color: '#a94442',
+    color: theme.primaryDark,
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
@@ -754,21 +806,23 @@ const styles = {
 
   inputBox: {
     position: 'relative',
-    border: '2px solid #2563eb',
-    borderRadius: '8px',
-    background: 'rgba(255,255,255,0.58)',
+    border: `2px solid ${theme.primary}`,
+    borderRadius: '10px',
+    background: '#ffffff',
+    transition: 'all 0.3s ease',
+    boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
   },
 
   input: {
     width: '100%',
     padding: '13px 50px 13px 20px',
     background: 'transparent',
-    borderRadius: '8px',
+    borderRadius: '10px',
     border: 'none',
     outline: 'none',
-    fontSize: '16px',
+    fontSize: '15px',
     fontWeight: 500,
-    color: '#1e3a8a',
+    color: theme.text,
     boxSizing: 'border-box',
   },
 
@@ -786,7 +840,7 @@ const styles = {
 
   fieldError: {
     fontSize: '12px',
-    color: '#d9534f',
+    color: theme.error,
     marginTop: '6px',
     marginLeft: '4px',
   },
@@ -804,7 +858,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    color: '#1e3a8a',
+    color: theme.text,
     fontSize: '13px',
     cursor: 'pointer',
   },
@@ -812,31 +866,33 @@ const styles = {
   checkboxInput: {
     width: '16px',
     height: '16px',
-    accentColor: '#2563eb',
+    accentColor: theme.primary,
   },
 
   linkText: {
     fontSize: '14px',
-    color: '#2563eb',
+    color: theme.primary,
     textDecoration: 'none',
+    fontWeight: 600,
   },
 
   primaryBtn: {
     width: '200px',
     height: '48px',
-    background: '#2563eb',
-    borderRadius: '8px',
-    boxShadow: '0 0 10px rgba(37,99,235,0.2)',
+    background: theme.primary,
+    borderRadius: '10px',
+    boxShadow: '0 8px 20px rgba(234,88,12,0.25)',
     border: 'none',
     outline: 'none',
     cursor: 'pointer',
     fontSize: '16px',
     color: '#fff',
-    fontWeight: 600,
+    fontWeight: 700,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: '6px',
+    transition: 'all 0.3s ease',
   },
 
   loader: {
@@ -857,17 +913,18 @@ const styles = {
   googleBtn: {
     width: '200px',
     height: '48px',
-    background: 'rgba(255,255,255,0.5)',
-    borderRadius: '8px',
-    border: '2px solid #2563eb',
+    background: '#fff',
+    borderRadius: '10px',
+    border: `2px solid ${theme.primary}`,
     cursor: 'pointer',
     fontSize: '14px',
-    color: '#2563eb',
-    fontWeight: 600,
+    color: theme.primary,
+    fontWeight: 700,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     gap: '10px',
+    boxShadow: '0 4px 14px rgba(0,0,0,0.04)',
   },
 
   strengthContainer: {
@@ -875,16 +932,16 @@ const styles = {
   },
 
   strengthBar: {
-    height: '4px',
-    background: '#dbeafe',
-    borderRadius: '4px',
+    height: '5px',
+    background: '#e2e8f0',
+    borderRadius: '999px',
     overflow: 'hidden',
     marginBottom: '10px',
   },
 
   strengthFill: {
     height: '100%',
-    borderRadius: '4px',
+    borderRadius: '999px',
     transition: 'width 0.3s ease, background 0.3s ease',
   },
 
@@ -893,8 +950,8 @@ const styles = {
     flexWrap: 'wrap',
     gap: '10px',
     fontSize: '11px',
-    fontWeight: 500,
-    color: '#1e40af',
+    fontWeight: 600,
+    color: theme.textMuted,
     marginBottom: '6px',
   },
 
@@ -910,11 +967,12 @@ const styles = {
     left: '-250%',
     width: '300%',
     height: '100%',
-    background: 'linear-gradient(rgba(37,99,235,0.74), rgba(30,64,175,0.82)), linear-gradient(135deg, #2563eb, #1e40af)',
+    background: `linear-gradient(135deg, rgba(234,88,12,0.95), rgba(194,65,12,0.92))`,
     borderRadius: '150px',
     zIndex: 2,
     transition: '1s ease-in-out',
     backdropFilter: 'blur(4px)',
+    boxShadow: 'inset 0 0 40px rgba(255,255,255,0.05)',
   },
 
   toggleBackgroundActive: {
@@ -961,26 +1019,38 @@ const styles = {
     transform: 'translateX(100%)',
   },
 
+  toggleMiniTag: {
+    fontSize: '11px',
+    fontWeight: 700,
+    letterSpacing: '1px',
+    marginBottom: '14px',
+    color: 'rgba(255,255,255,0.85)',
+  },
+
   toggleTitle: {
     fontSize: '36px',
     marginBottom: '12px',
+    fontWeight: 800,
+    letterSpacing: '-0.5px',
   },
 
   toggleText: {
     fontSize: '14px',
     margin: '0 0 20px',
+    color: 'rgba(255,255,255,0.9)',
+    lineHeight: 1.6,
   },
 
   toggleBtn: {
     width: '160px',
     height: '46px',
-    borderRadius: '8px',
+    borderRadius: '10px',
     background: 'transparent',
     border: '2px solid #fff',
     boxShadow: 'none',
     fontSize: '16px',
     color: '#fff',
-    fontWeight: 600,
+    fontWeight: 700,
     cursor: 'pointer',
   },
 };

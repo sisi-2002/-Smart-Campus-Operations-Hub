@@ -1,8 +1,15 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import NotificationPanel from '../components/NotificationPanel';
 import heroBg from '../assets/hero-bg.jpg';
+import computingFacultyBg from '../assets/faculties/computing.png';
+import engineeringFacultyBg from '../assets/faculties/engineering.png';
+import businessFacultyBg from '../assets/faculties/business.png';
+import lawFacultyBg from '../assets/faculties/law.png';
+import humanitiesFacultyBg from '../assets/faculties/humanities-sciences.png';
+import graduateStudiesFacultyBg from '../assets/faculties/graduate-studies.png';
+import architectureFacultyBg from '../assets/faculties/architecture.png';
 
 export default function HomePage() {
   const { user, logout, isAdmin, isManager, isTechnician, getDashboardPath } = useAuth();
@@ -10,6 +17,15 @@ export default function HomePage() {
   const [scrolled, setScrolled] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [openFaq, setOpenFaq] = useState(null);
+  
+  // Animation states
+  const [counts, setCounts] = useState({ resources: 0, faculties: 0, students: 0 });
+  const [statsVisible, setStatsVisible] = useState(false);
+  const statsRef = useRef(null);
+  const featuresRef = useRef(null);
+  const processRef = useRef(null);
+  const facultiesRef = useRef(null);
+  const aboutRef = useRef(null);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
@@ -17,8 +33,61 @@ export default function HomePage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleLogoutClick = () => setShowLogoutConfirm(true);
+  // Intersection Observer for scroll animations
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('animate-section');
+            if (entry.target.id === 'stats-section') {
+              setStatsVisible(true);
+            }
+          }
+        });
+      },
+      { threshold: 0.2, rootMargin: '0px 0px -50px 0px' }
+    );
 
+    const sections = [featuresRef.current, processRef.current, facultiesRef.current, aboutRef.current];
+    sections.forEach((section) => {
+      if (section) observer.observe(section);
+    });
+    if (statsRef.current) observer.observe(statsRef.current);
+
+    return () => observer.disconnect();
+  }, []);
+
+  // Count-up animation for stats
+  useEffect(() => {
+    if (!statsVisible) return;
+    
+    const duration = 2000;
+    const stepTime = 20;
+    const steps = duration / stepTime;
+    
+    const targetResources = 500;
+    const targetFaculties = 7;
+    const targetStudents = 10000;
+    
+    let currentStep = 0;
+    
+    const interval = setInterval(() => {
+      currentStep++;
+      const progress = Math.min(1, currentStep / steps);
+      setCounts({
+        resources: Math.floor(progress * targetResources),
+        faculties: Math.floor(progress * targetFaculties),
+        students: Math.floor(progress * targetStudents),
+      });
+      
+      if (progress === 1) clearInterval(interval);
+    }, stepTime);
+    
+    return () => clearInterval(interval);
+  }, [statsVisible]);
+
+  const handleLogoutClick = () => setShowLogoutConfirm(true);
   const confirmLogout = () => {
     setShowLogoutConfirm(false);
     logout();
@@ -28,6 +97,16 @@ export default function HomePage() {
   const toggleFaq = (index) => {
     setOpenFaq(openFaq === index ? null : index);
   };
+
+  const facultyCards = [
+    { code: 'FOC', name: 'Computing', image: computingFacultyBg, icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg> },
+    { code: 'FOE', name: 'Engineering', image: engineeringFacultyBg, icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> },
+    { code: 'FOB', name: 'Business', image: businessFacultyBg, icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg> },
+    { code: 'FOL', name: 'Law', image: lawFacultyBg, icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 16l3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M2 16l3-8 3 8c-.87.65-1.92 1-3 1s-2.13-.35-3-1Z"/><path d="M7 21h10"/><path d="M12 3v18"/><path d="M3 7h18"/><path d="M12 5a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg> },
+    { code: 'FOHS', name: 'Humanities & Sciences', image: humanitiesFacultyBg, icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 2v7.31"/><path d="M14 9.3V1.99"/><path d="M8.5 2h7"/><path d="M14 9.3a6.5 6.5 0 1 1-4 0"/><path d="M5.52 16h12.96"/></svg> },
+    { code: 'FOGS', name: 'Graduate Studies', image: graduateStudiesFacultyBg, icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg> },
+    { code: 'FOA', name: 'Architecture', image: architectureFacultyBg, icon: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 22 7"/><line x1="6" y1="22" x2="6" y2="11"/><line x1="10" y1="22" x2="10" y2="11"/><line x1="14" y1="22" x2="14" y2="11"/><line x1="18" y1="22" x2="18" y2="11"/><line x1="2" y1="22" x2="22" y2="22"/></svg> },
+  ];
 
   const faqs = [
     "Who can use Smart Campus?",
@@ -43,7 +122,7 @@ export default function HomePage() {
     <div style={s.page}>
       <header style={{ ...s.header, ...(scrolled && s.headerScrolled) }}>
         <div style={s.headerInner}>
-          <Link to="/" style={s.brand}>
+          <Link to="/" style={s.brand} className="hover-lift">
             <div style={s.logoIcon}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -55,22 +134,22 @@ export default function HomePage() {
           </Link>
 
           <nav style={s.nav}>
-            <a href="#features" style={s.navLink}>Features</a>
-            <a href="#how-it-works" style={s.navLink}>How it works</a>
-            <a href="#faculties" style={s.navLink}>Faculties</a>
-            <a href="#about" style={s.navLink}>About</a>
-            <a href="#contact" style={s.navLink}>Contact</a>
+            <a href="#features" style={s.navLink} className="nav-link">Features</a>
+            <a href="#how-it-works" style={s.navLink} className="nav-link">How it works</a>
+            <a href="#faculties" style={s.navLink} className="nav-link">Faculties</a>
+            <a href="#about" style={s.navLink} className="nav-link">About</a>
+            <a href="#contact" style={s.navLink} className="nav-link">Contact</a>
           </nav>
 
           <div style={s.headerActions}>
             {!user ? (
               <>
-                <Link to="/auth?mode=login" style={s.linkBtn}>Sign in</Link>
-                <Link to="/auth?mode=register" style={s.primaryBtn}>Get started</Link>
+                <Link to="/auth?mode=login" style={s.linkBtn} className="hover-scale">Sign in</Link>
+                <Link to="/auth?mode=register" style={s.primaryBtn} className="hover-scale">Get started</Link>
               </>
             ) : (
               <>
-                <div style={s.userPill}>
+                <div style={s.userPill} className="hover-lift">
                   <div style={s.userAvatar}>
                     {user.name?.[0]?.toUpperCase() || 'U'}
                   </div>
@@ -79,8 +158,8 @@ export default function HomePage() {
                     <span style={s.userRole}>{isAdmin() ? 'Admin' : isManager() ? 'Manager' : isTechnician() ? 'Technician' : 'User'}</span>
                   </div>
                 </div>
-                <Link to={getDashboardPath()} style={s.dashboardBtn}>Dashboard</Link>
-                <button onClick={handleLogoutClick} style={s.ghostBtn}>Logout</button>
+                <Link to={getDashboardPath()} style={s.dashboardBtn} className="hover-scale">Dashboard</Link>
+                <button onClick={handleLogoutClick} style={s.ghostBtn} className="hover-scale">Logout</button>
                 <NotificationPanel />
               </>
             )}
@@ -89,12 +168,14 @@ export default function HomePage() {
       </header>
 
       <main style={{ backgroundColor: '#ffffff' }}>
-        {/* HERO SECTION */}
-        <section style={{ ...s.hero, backgroundImage: `url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center', backgroundAttachment: 'fixed' }}>
+        {/* HERO SECTION with animated background */}
+        <section style={s.hero} className="hero-section">
+          {/* Animated background div */}
+          <div className="hero-bg-animated" style={{ backgroundImage: `url(${heroBg})` }}></div>
           <div style={s.heroOverlay}></div>
           <div style={s.heroInner}>
-            <div style={s.heroContent}>
-              <div style={s.heroBadge}>
+            <div style={s.heroContent} className="fade-up">
+              <div style={s.heroBadge} className="pulse-badge floating-badge">
                 <span style={s.pulseDot}></span>
                 Campus Operations Hub — 2026
               </div>
@@ -105,10 +186,10 @@ export default function HomePage() {
                 Book facilities, report incidents and track every request — built exclusively for the campus community across all faculties and campuses.
               </p>
               <div style={s.heroCtas}>
-                <Link to="/auth?mode=register" style={s.primaryBtnLg}>
+                <Link to="/auth?mode=register" style={s.primaryBtnLg} className="hover-glow">
                   Get started for free →
                 </Link>
-                <a href="#how-it-works" style={{ ...s.secondaryBtnLg, padding: '14px 28px', color: '#fff' }}>
+                <a href="#how-it-works" style={{ ...s.secondaryBtnLg, padding: '14px 28px', color: '#fff' }} className="hover-glow">
                   See how it works
                 </a>
               </div>
@@ -122,21 +203,21 @@ export default function HomePage() {
         </section>
 
         {/* STATS SECTION */}
-        <div style={{ background: '#121c32', padding: '40px 0', textAlign: 'center' }}>
+        <div ref={statsRef} id="stats-section" style={{ background: '#121c32', padding: '40px 0', textAlign: 'center' }}>
           <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', padding: '0 32px' }}>
-            <div>
-              <div style={{ fontSize: '36px', fontWeight: '800', color: '#fff', marginBottom: '8px' }}>500+</div>
+            <div className="stat-item">
+              <div style={{ fontSize: '36px', fontWeight: '800', color: '#fff', marginBottom: '8px' }} className="stat-number">{counts.resources}+</div>
               <div style={{ fontSize: '12px', fontWeight: '700', color: '#ea580c', letterSpacing: '1px', textTransform: 'uppercase' }}>CAMPUS RESOURCES</div>
             </div>
-            <div>
-              <div style={{ fontSize: '36px', fontWeight: '800', color: '#fff', marginBottom: '8px' }}>7</div>
+            <div className="stat-item">
+              <div style={{ fontSize: '36px', fontWeight: '800', color: '#fff', marginBottom: '8px' }} className="stat-number">{counts.faculties}</div>
               <div style={{ fontSize: '12px', fontWeight: '700', color: '#ea580c', letterSpacing: '1px', textTransform: 'uppercase' }}>FACULTIES SUPPORTED</div>
             </div>
-            <div>
-              <div style={{ fontSize: '36px', fontWeight: '800', color: '#fff', marginBottom: '8px' }}>10k+</div>
+            <div className="stat-item">
+              <div style={{ fontSize: '36px', fontWeight: '800', color: '#fff', marginBottom: '8px' }} className="stat-number">{counts.students.toLocaleString()}+</div>
               <div style={{ fontSize: '12px', fontWeight: '700', color: '#ea580c', letterSpacing: '1px', textTransform: 'uppercase' }}>STUDENTS ENROLLED</div>
             </div>
-            <div>
+            <div className="stat-item">
               <div style={{ fontSize: '36px', fontWeight: '800', color: '#fff', marginBottom: '8px' }}>24/7</div>
               <div style={{ fontSize: '12px', fontWeight: '700', color: '#ea580c', letterSpacing: '1px', textTransform: 'uppercase' }}>ALWAYS AVAILABLE</div>
             </div>
@@ -144,7 +225,7 @@ export default function HomePage() {
         </div>
 
         {/* CORE CAPABILITIES */}
-        <section id="features" style={s.sectionLight}>
+        <section id="features" ref={featuresRef} style={s.sectionLight} className="animate-on-scroll">
           <div style={s.sectionInner}>
             <div style={s.sectionHeader}>
               <div style={s.tagOutline}>CORE CAPABILITIES</div>
@@ -158,24 +239,30 @@ export default function HomePage() {
             </div>
 
             <div style={s.capabilitiesGrid}>
-              <div style={s.capCard}>
-                <div style={s.capIconWrapper}>📅</div>
+              <div style={s.capCard} className="feature-card hover-lift">
+                <div style={s.capIconWrapper}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
                 <div style={s.capFeatureTag}>FEATURE 01</div>
                 <h3 style={s.capTitle}>Book a facility</h3>
                 <p style={s.capText}>
                   Browse available lecture halls, labs, meeting rooms and equipment. Check capacity and request bookings instantly.
                 </p>
               </div>
-              <div style={s.capCard}>
-                <div style={s.capIconWrapper}>🔧</div>
+              <div style={s.capCard} className="feature-card hover-lift" style={{ transitionDelay: '0.1s' }}>
+                <div style={s.capIconWrapper}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+                </div>
                 <div style={s.capFeatureTag}>FEATURE 02</div>
                 <h3 style={s.capTitle}>Report an incident</h3>
                 <p style={s.capText}>
                   Spotted a fault or maintenance issue? Submit a detailed report with photo evidence to get it fixed faster.
                 </p>
               </div>
-              <div style={s.capCard}>
-                <div style={s.capIconWrapper}>🔔</div>
+              <div style={s.capCard} className="feature-card hover-lift" style={{ transitionDelay: '0.2s' }}>
+                <div style={s.capIconWrapper}>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                </div>
                 <div style={s.capFeatureTag}>FEATURE 03</div>
                 <h3 style={s.capTitle}>Track in real time</h3>
                 <p style={s.capText}>
@@ -187,7 +274,7 @@ export default function HomePage() {
         </section>
 
         {/* SIMPLE PROCESS */}
-        <section id="how-it-works" style={s.sectionLightAlt}>
+        <section id="how-it-works" ref={processRef} style={s.sectionLightAlt} className="animate-on-scroll">
           <div style={s.sectionInner}>
             <div style={s.sectionHeader}>
               <div style={s.tagOutline}>SIMPLE PROCESS</div>
@@ -198,30 +285,36 @@ export default function HomePage() {
             </div>
 
             <div style={s.processGrid}>
-              <div style={s.processStep}>
+              <div className="process-step hover-lift" style={{ transitionDelay: '0s' }}>
                 <div style={s.processIconCircle}>
                   <div style={s.processNumber}>01</div>
-                  <span style={s.processIcon}>👤</span>
+                  <span style={s.processIcon}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </span>
                 </div>
                 <h3 style={s.processTitle}>Create your account</h3>
                 <p style={s.processText}>
                   Register with your student details. Students are active immediately — choose your faculty, academic year, and semester.
                 </p>
               </div>
-              <div style={s.processStep}>
+              <div className="process-step hover-lift" style={{ transitionDelay: '0.1s' }}>
                 <div style={s.processIconCircle}>
                   <div style={s.processNumber}>02</div>
-                  <span style={s.processIcon}>🔍</span>
+                  <span style={s.processIcon}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                  </span>
                 </div>
                 <h3 style={s.processTitle}>Browse and request</h3>
                 <p style={s.processText}>
                   Find available facilities and equipment across the campus. Submit a booking or report a fault in under a minute.
                 </p>
               </div>
-              <div style={s.processStep}>
+              <div className="process-step hover-lift" style={{ transitionDelay: '0.2s' }}>
                 <div style={s.processIconCircle}>
                   <div style={s.processNumber}>03</div>
-                  <span style={s.processIcon}>✅</span>
+                  <span style={s.processIcon}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                  </span>
                 </div>
                 <h3 style={s.processTitle}>Track and get notified</h3>
                 <p style={s.processText}>
@@ -231,7 +324,7 @@ export default function HomePage() {
             </div>
 
             <div style={{ textAlign: 'center', marginTop: '50px' }}>
-              <Link to="/auth?mode=register" style={s.darkBtn}>
+              <Link to="/auth?mode=register" style={s.darkBtn} className="hover-glow">
                 Start now — it's free
               </Link>
             </div>
@@ -239,7 +332,7 @@ export default function HomePage() {
         </section>
 
         {/* INSTITUTIONAL REACH */}
-        <section id="faculties" style={s.sectionDark}>
+        <section id="faculties" ref={facultiesRef} style={s.sectionDark} className="animate-on-scroll">
           <div style={s.sectionInner}>
             <div style={s.sectionHeader}>
               <div style={s.tagOutlineDark}>INSTITUTIONAL REACH</div>
@@ -252,27 +345,24 @@ export default function HomePage() {
             </div>
 
             <div style={s.facultyGrid}>
-              {[
-                { code: 'FOC', name: 'Computing', icon: '💻' },
-                { code: 'FOE', name: 'Engineering', icon: '⚙️' },
-                { code: 'FOB', name: 'Business', icon: '📊' },
-                { code: 'FOL', name: 'Law', icon: '⚖️' },
-                { code: 'FOHS', name: 'Humanities & Sciences', icon: '🔬' },
-                { code: 'FOGS', name: 'Graduate Studies', icon: '🎓' },
-                { code: 'FOA', name: 'Architecture', icon: '🏛️' },
-              ].map((faculty, i) => (
-                <div key={i} style={s.facultyCard}>
-                  <div style={s.facultyBgPlaceholder}></div>
+              {facultyCards.map((faculty, i) => (
+                <div key={i} style={s.facultyCard} className="faculty-card hover-lift">
+                  <div
+                    style={{
+                      ...s.facultyBgPlaceholder,
+                      backgroundImage: `linear-gradient(180deg, rgba(11, 19, 37, 0.08) 0%, rgba(11, 19, 37, 0.55) 100%), url(${faculty.image})`,
+                    }}
+                  ></div>
                   <div style={s.facultyInfo}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                       <span style={s.facultyCode}>{faculty.code}</span>
-                      <span style={{ fontSize: '18px' }}>{faculty.icon}</span>
+                      <div style={s.facultyIconWrap}>{faculty.icon}</div>
                     </div>
                     <h3 style={s.facultyName}>{faculty.name}</h3>
                   </div>
                 </div>
               ))}
-              <div style={s.facultyComingSoon}>
+              <div style={s.facultyComingSoon} className="hover-scale">
                 <div style={{ color: '#ea580c', fontWeight: '700', fontSize: '14px', textAlign: 'center' }}>
                   MORE CAMPUSES<br/>COMING SOON
                 </div>
@@ -282,10 +372,10 @@ export default function HomePage() {
         </section>
 
         {/* ABOUT SMART CAMPUS */}
-        <section id="about" style={s.sectionLight}>
+        <section id="about" ref={aboutRef} style={s.sectionLight} className="animate-on-scroll">
           <div style={s.sectionInner}>
             <div style={s.aboutContainer}>
-              <div style={s.aboutLeft}>
+              <div style={s.aboutLeft} className="fade-up">
                 <div style={s.tagOutline}>ABOUT SMART CAMPUS</div>
                 <h2 style={{ ...s.sectionTitleLight, textAlign: 'left', marginTop: '16px', marginBottom: '24px' }}>
                   Campus management,<br/><span style={{ color: '#ea580c' }}>finally done right</span>
@@ -298,21 +388,21 @@ export default function HomePage() {
                 </p>
 
                 <div style={s.aboutFeaturesList}>
-                  <div style={s.aboutFeatureItem}>
+                  <div className="about-feature hover-lift">
                     <div style={s.aboutFeatureIcon}>🛡️</div>
                     <div>
                       <h4 style={s.aboutFeatureTitle}>Secure by design</h4>
                       <p style={s.aboutFeatureText}>Role-based access ensures every user sees only what they need. Your data stays secure within the platform.</p>
                     </div>
                   </div>
-                  <div style={s.aboutFeatureItem}>
+                  <div className="about-feature hover-lift" style={{ transitionDelay: '0.1s' }}>
                     <div style={s.aboutFeatureIcon}>⚡</div>
                     <div>
                       <h4 style={s.aboutFeatureTitle}>Built for speed</h4>
                       <p style={s.aboutFeatureText}>Real-time notifications and instant availability checks mean no more waiting or guessing.</p>
                     </div>
                   </div>
-                  <div style={s.aboutFeatureItem}>
+                  <div className="about-feature hover-lift" style={{ transitionDelay: '0.2s' }}>
                     <div style={s.aboutFeatureIcon}>👥</div>
                     <div>
                       <h4 style={s.aboutFeatureTitle}>For the community</h4>
@@ -322,8 +412,8 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div style={s.aboutRight}>
-                <div style={s.aboutStatsCard}>
+              <div style={s.aboutRight} className="fade-up" style={{ animationDelay: '0.2s' }}>
+                <div style={s.aboutStatsCard} className="hover-lift">
                   <h3 style={{ fontSize: '32px', fontWeight: '800', color: '#ea580c', marginBottom: '16px' }}>Smart Campus</h3>
                   <p style={{ color: '#94a3b8', fontSize: '14px', marginBottom: '40px' }}>The next generation of campus operations</p>
                   
@@ -361,15 +451,15 @@ export default function HomePage() {
             
             <div style={s.faqContainer}>
               {faqs.map((q, i) => (
-                <div key={i} style={s.faqItem} onClick={() => toggleFaq(i)}>
+                <div key={i} style={s.faqItem} onClick={() => toggleFaq(i)} className="faq-item hover-lift">
                   <div style={s.faqQuestion}>
                     {q}
-                    <span style={{ transform: openFaq === i ? 'rotate(180deg)' : 'rotate(0)', transition: '0.2s', color: '#ea580c' }}>
+                    <span style={{ transform: openFaq === i ? 'rotate(180deg)' : 'rotate(0)', transition: '0.3s ease', color: '#ea580c' }}>
                       ▼
                     </span>
                   </div>
                   {openFaq === i && (
-                    <div style={s.faqAnswer}>
+                    <div style={s.faqAnswer} className="fade-in">
                       This is a placeholder answer for the frequently asked question. Smart Campus provides a unified hub for all these queries.
                     </div>
                   )}
@@ -383,42 +473,42 @@ export default function HomePage() {
         <section id="contact" style={s.sectionLight}>
           <div style={s.sectionInner}>
             <div style={s.contactContainer}>
-              <div style={s.contactLeft}>
+              <div style={s.contactLeft} className="fade-up">
                 <div style={s.tagOutline}>CONTACT US</div>
                 <h2 style={{ ...s.sectionTitleLight, textAlign: 'left', marginTop: '16px', marginBottom: '24px' }}>We are here to help</h2>
                 <p style={{ color: '#475569', fontSize: '15px', lineHeight: '1.6', marginBottom: '40px', maxWidth: '400px' }}>
                   Have a question about Smart Campus? Need help with your account? Reach out and we will get back to you as soon as possible.
                 </p>
                 
-                <div style={s.contactInfoItem}>
+                <div style={s.contactInfoItem} className="hover-lift">
                   <span style={s.contactInfoIcon}>✉️</span>
                   <span>support@smartcampus.com</span>
                 </div>
-                <div style={s.contactInfoItem}>
+                <div style={s.contactInfoItem} className="hover-lift" style={{ transitionDelay: '0.1s' }}>
                   <span style={s.contactInfoIcon}>📞</span>
                   <span>+94 11 754 4801</span>
                 </div>
-                <div style={s.contactInfoItem}>
+                <div style={s.contactInfoItem} className="hover-lift" style={{ transitionDelay: '0.2s' }}>
                   <span style={s.contactInfoIcon}>📍</span>
                   <span>New Kandy Rd, Malabe, Sri Lanka</span>
                 </div>
               </div>
 
-              <div style={s.contactRight}>
-                <div style={s.contactFormBox}>
+              <div style={s.contactRight} className="fade-up" style={{ animationDelay: '0.2s' }}>
+                <div style={s.contactFormBox} className="hover-lift">
                   <div style={s.inputGroup}>
                     <label style={s.inputLabel}>Full name</label>
-                    <input type="text" placeholder="Your full name" style={s.inputField} />
+                    <input type="text" placeholder="Your full name" style={s.inputField} className="input-focus" />
                   </div>
                   <div style={s.inputGroup}>
                     <label style={s.inputLabel}>Email address</label>
-                    <input type="email" placeholder="your@email.com" style={s.inputField} />
+                    <input type="email" placeholder="your@email.com" style={s.inputField} className="input-focus" />
                   </div>
                   <div style={s.inputGroup}>
                     <label style={s.inputLabel}>Message</label>
-                    <textarea placeholder="How can we help you?" style={{ ...s.inputField, minHeight: '120px', resize: 'vertical' }}></textarea>
+                    <textarea placeholder="How can we help you?" style={{ ...s.inputField, minHeight: '120px', resize: 'vertical' }} className="input-focus"></textarea>
                   </div>
-                  <button style={s.submitBtn}>Send message</button>
+                  <button style={s.submitBtn} className="hover-glow">Send message</button>
                 </div>
               </div>
             </div>
@@ -450,18 +540,18 @@ export default function HomePage() {
 
           <div style={s.footerNav}>
             <div style={s.footerColTitle}>NAVIGATION</div>
-            <a href="#features" style={s.footerLink}>Features</a>
-            <a href="#how-it-works" style={s.footerLink}>How it works</a>
-            <a href="#faculties" style={s.footerLink}>Faculties</a>
-            <a href="#about" style={s.footerLink}>About</a>
-            <a href="#faq" style={s.footerLink}>FAQ</a>
-            <a href="#contact" style={s.footerLink}>Contact</a>
+            <a href="#features" style={s.footerLink} className="footer-link">Features</a>
+            <a href="#how-it-works" style={s.footerLink} className="footer-link">How it works</a>
+            <a href="#faculties" style={s.footerLink} className="footer-link">Faculties</a>
+            <a href="#about" style={s.footerLink} className="footer-link">About</a>
+            <a href="#faq" style={s.footerLink} className="footer-link">FAQ</a>
+            <a href="#contact" style={s.footerLink} className="footer-link">Contact</a>
           </div>
 
           <div style={s.footerCta}>
             <div style={s.footerColTitle}>GET STARTED</div>
-            <Link to="/auth?mode=register" style={s.footerPrimaryBtn}>Create account</Link>
-            <Link to="/auth?mode=login" style={s.footerSecondaryBtn}>Sign in</Link>
+            <Link to="/auth?mode=register" style={s.footerPrimaryBtn} className="hover-scale">Create account</Link>
+            <Link to="/auth?mode=login" style={s.footerSecondaryBtn} className="hover-scale">Sign in</Link>
           </div>
         </div>
       </footer>
@@ -469,17 +559,271 @@ export default function HomePage() {
       {/* LOGOUT MODAL */}
       {showLogoutConfirm && (
         <div style={s.modalOverlay}>
-          <div style={s.modalCard}>
+          <div style={s.modalCard} className="modal-popup">
             <div style={s.modalIcon}>👋</div>
             <h3 style={s.modalTitle}>Log Out</h3>
             <p style={s.modalDest}>Are you sure you want to log out of your account?</p>
             <div style={s.modalActions}>
-              <button style={s.cancelBtn} onClick={() => setShowLogoutConfirm(false)}>No</button>
-              <button style={s.confirmBtn} onClick={confirmLogout}>Yes</button>
+              <button style={s.cancelBtn} onClick={() => setShowLogoutConfirm(false)} className="hover-scale">No</button>
+              <button style={s.confirmBtn} onClick={confirmLogout} className="hover-glow">Yes</button>
             </div>
           </div>
         </div>
       )}
+
+      <style>{`
+        /* Base animations */
+        @keyframes fadeUp {
+          from {
+            opacity: 0;
+            transform: translateY(30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes scaleIn {
+          from {
+            opacity: 0;
+            transform: scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+
+        @keyframes glowPulse {
+          0%, 100% { box-shadow: 0 0 5px rgba(234, 88, 12, 0.3); }
+          50% { box-shadow: 0 0 20px rgba(234, 88, 12, 0.6); }
+        }
+
+        /* Ken Burns zoom effect for hero background */
+        @keyframes kenBurns {
+          0% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.08);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+
+        /* Hero section animated background */
+        .hero-bg-animated {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          z-index: 0;
+          animation: kenBurns 20s ease-in-out infinite;
+          will-change: transform;
+        }
+
+        /* Floating badge animation */
+        .floating-badge {
+          animation: float 3s ease-in-out infinite;
+        }
+
+        /* Scroll-triggered animations */
+        .animate-on-scroll {
+          opacity: 0;
+          transform: translateY(30px);
+          transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+
+        .animate-on-scroll.animate-section {
+          opacity: 1;
+          transform: translateY(0);
+        }
+
+        .fade-up {
+          animation: fadeUp 0.8s ease-out forwards;
+        }
+
+        .fade-in {
+          animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        /* Hover effects */
+        .hover-lift {
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .hover-lift:hover {
+          transform: translateY(-6px);
+          box-shadow: 0 20px 30px -15px rgba(0, 0, 0, 0.2);
+        }
+
+        .hover-scale {
+          transition: transform 0.2s ease;
+        }
+
+        .hover-scale:hover {
+          transform: scale(1.05);
+        }
+
+        .hover-glow {
+          transition: all 0.3s ease;
+        }
+
+        .hover-glow:hover {
+          box-shadow: 0 0 15px rgba(234, 88, 12, 0.5);
+          transform: translateY(-2px);
+        }
+
+        /* Specific element animations */
+        .feature-card {
+          transition: all 0.3s ease;
+          cursor: pointer;
+        }
+
+        .feature-card:hover {
+          transform: translateY(-8px);
+          box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.15);
+          border-color: #ea580c;
+        }
+
+        .process-step {
+          transition: all 0.3s ease;
+          cursor: pointer;
+        }
+
+        .process-step:hover {
+          transform: translateY(-5px);
+        }
+
+        .process-step:hover .process-icon-circle {
+          border-color: #ea580c;
+          background: rgba(234, 88, 12, 0.05);
+        }
+
+        .faculty-card {
+          transition: all 0.3s ease;
+          cursor: pointer;
+        }
+
+        .faculty-card:hover {
+          transform: translateY(-5px);
+          box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.3);
+        }
+
+        .faculty-card:hover > div:first-child {
+          transform: scale(1.06);
+        }
+
+        .about-feature {
+          transition: all 0.3s ease;
+          cursor: pointer;
+          padding: 10px;
+          border-radius: 12px;
+        }
+
+        .about-feature:hover {
+          background: #f8fafc;
+          transform: translateX(5px);
+        }
+
+        .faq-item {
+          transition: all 0.3s ease;
+        }
+
+        .faq-item:hover {
+          border-color: #ea580c;
+          box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .stat-item {
+          transition: all 0.3s ease;
+          cursor: default;
+        }
+
+        .stat-item:hover .stat-number {
+          transform: scale(1.1);
+          color: #ea580c;
+        }
+
+        .stat-number {
+          transition: transform 0.3s ease, color 0.3s ease;
+          display: inline-block;
+        }
+
+        .nav-link {
+          position: relative;
+          transition: color 0.3s ease;
+        }
+
+        .nav-link::after {
+          content: '';
+          position: absolute;
+          bottom: -5px;
+          left: 0;
+          width: 0;
+          height: 2px;
+          background: #ea580c;
+          transition: width 0.3s ease;
+        }
+
+        .nav-link:hover::after {
+          width: 100%;
+        }
+
+        .nav-link:hover {
+          color: #ffffff;
+        }
+
+        .footer-link {
+          transition: all 0.3s ease;
+          display: inline-block;
+        }
+
+        .footer-link:hover {
+          color: #ea580c;
+          transform: translateX(5px);
+        }
+
+        .input-focus {
+          transition: all 0.3s ease;
+        }
+
+        .input-focus:focus {
+          border-color: #ea580c;
+          box-shadow: 0 0 0 3px rgba(234, 88, 12, 0.1);
+          outline: none;
+        }
+
+        .modal-popup {
+          animation: scaleIn 0.3s ease-out;
+        }
+
+        .pulse-badge {
+          animation: float 3s ease-in-out infinite;
+        }
+
+        /* Hero section overlay */
+        .hero-section {
+          position: relative;
+          overflow: hidden;
+        }
+      `}</style>
     </div>
   );
 }
@@ -793,7 +1137,6 @@ const s = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: 20,
     marginBottom: 30,
     color: '#1e293b'
   },
@@ -854,7 +1197,6 @@ const s = {
     justifyContent: 'center'
   },
   processIcon: {
-    fontSize: 32,
     color: '#1e293b'
   },
   processTitle: {
@@ -890,20 +1232,26 @@ const s = {
     borderRadius: 16,
     overflow: 'hidden',
     position: 'relative',
+    minHeight: 280,
     border: '1px solid rgba(255,255,255,0.05)',
   },
   facultyBgPlaceholder: {
-    height: 180,
-    background: 'linear-gradient(135deg, #334155 0%, #1e293b 100%)',
+    position: 'absolute',
+    inset: 0,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+    transition: 'transform 0.5s ease',
   },
   facultyInfo: {
     padding: '20px',
-    background: 'rgba(30, 41, 59, 0.95)',
+    background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.1) 0%, rgba(15, 23, 42, 0.92) 38%, rgba(15, 23, 42, 0.98) 100%)',
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    borderTop: '1px solid rgba(255,255,255,0.1)'
+    borderTop: '1px solid rgba(255,255,255,0.1)',
+    backdropFilter: 'blur(4px)'
   },
   facultyCode: {
     display: 'inline-block',
@@ -913,6 +1261,14 @@ const s = {
     borderRadius: 4,
     fontSize: 12,
     fontWeight: 700,
+  },
+  facultyIconWrap: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'rgba(234, 88, 12, 0.1)',
+    borderRadius: '8px',
+    padding: '6px'
   },
   facultyName: {
     color: '#ffffff',
