@@ -155,6 +155,9 @@ export default function TechnicianDashboard() {
   const selectedTicketResolutionSla = selectedTicket
     ? getSlaHealth(selectedTicket.timeToResolutionMinutes, 'resolution')
     : null;
+  const selectedTicketStatusStyle = selectedTicket
+    ? (STATUS_STYLE[(selectedTicket.status || 'OPEN').toUpperCase()] || STATUS_STYLE.OPEN)
+    : STATUS_STYLE.OPEN;
 
   const openTicket = (ticket) => {
     setSelectedTicket(ticket);
@@ -172,7 +175,7 @@ export default function TechnicianDashboard() {
     }
 
     if (normalized === 'IN_PROGRESS') {
-      return ['IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+      return ['IN_PROGRESS', 'REJECTED', 'RESOLVED'];
     }
 
     if (normalized === 'RESOLVED') {
@@ -207,10 +210,21 @@ export default function TechnicianDashboard() {
   const saveTicket = async () => {
     if (!selectedTicket) return;
 
+    const currentStatus = (selectedTicket.status || 'OPEN').trim().toUpperCase();
     const nextStatus = ticketDraft.status;
     const nextNotes = ticketDraft.resolutionNotes.trim();
     const existingNotes = (selectedTicket.resolutionNotes || '').trim();
     const effectiveNotes = nextNotes || existingNotes;
+
+    if (currentStatus === 'IN_PROGRESS' && nextStatus === 'IN_PROGRESS') {
+      showToast('For IN_PROGRESS tickets, select REJECTED or RESOLVED', 'error');
+      return;
+    }
+
+    if (nextStatus === 'REJECTED' && !nextNotes) {
+      showToast('Rejection reason is required before rejecting a ticket', 'error');
+      return;
+    }
 
     if (nextStatus === 'RESOLVED' && !nextNotes) {
       showToast('Resolution notes are required before marking a ticket as resolved', 'error');
@@ -297,10 +311,17 @@ export default function TechnicianDashboard() {
           <div style={s.ticketModalCard}>
             <div style={s.ticketModalHeader}>
               <div>
-                <h3 style={s.ticketModalTitle}>Assigned Ticket - {selectedTicket.ticketId}</h3>
+                <h3 style={s.ticketModalTitle}>View Ticket Details - {selectedTicket.ticketId}</h3>
                 <p style={s.ticketModalSub}>Update progress and add resolution notes.</p>
+                <div style={s.ticketModalMetaRow}>
+                  <span style={{ ...s.ticketModalMetaChip, ...selectedTicketStatusStyle }}>
+                    {selectedTicket.status || 'OPEN'}
+                  </span>
+                  <span style={s.ticketModalMetaChipMuted}>Priority: {selectedTicket.priority || '-'}</span>
+                  <span style={s.ticketModalMetaChipMuted}>Category: {selectedTicket.category || '-'}</span>
+                </div>
               </div>
-              <button style={s.ticketModalCloseBtn} onClick={closeTicket}>x</button>
+              <button style={s.ticketModalCloseBtn} onClick={closeTicket}>×</button>
             </div>
 
             <div style={s.ticketModalBody}>
@@ -372,9 +393,16 @@ export default function TechnicianDashboard() {
                     value={ticketDraft.status}
                     onChange={(e) => setTicketDraft((prev) => ({ ...prev, status: e.target.value }))}
                   >
-                    {getAllowedStatusOptions(selectedTicket.status).map((status) => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
+                    {getAllowedStatusOptions(selectedTicket.status).map((status) => {
+                      const disableCurrentInProgress =
+                        (selectedTicket.status || '').trim().toUpperCase() === 'IN_PROGRESS'
+                        && status === 'IN_PROGRESS';
+                      return (
+                        <option key={status} value={status} disabled={disableCurrentInProgress}>
+                          {status}
+                        </option>
+                      );
+                    })}
                   </select>
                 </label>
               </div>
@@ -384,7 +412,7 @@ export default function TechnicianDashboard() {
                 <textarea
                   style={s.ticketTextarea}
                   value={ticketDraft.resolutionNotes}
-                  placeholder={ticketDraft.status === 'RESOLVED' || ticketDraft.status === 'CLOSED'
+                  placeholder={ticketDraft.status === 'RESOLVED' || ticketDraft.status === 'REJECTED'
                     ? 'Add the fix, steps taken, or confirmation notes'
                     : 'Add progress updates or technician comments'}
                   onChange={(e) => setTicketDraft((prev) => ({ ...prev, resolutionNotes: e.target.value }))}
@@ -458,7 +486,7 @@ export default function TechnicianDashboard() {
                       <span style={{ ...s.pill, ...(STATUS_STYLE[ticket.status] || STATUS_STYLE.OPEN) }}>{ticket.status}</span>
                     </td>
                     <td style={s.td}>
-                      <button style={s.viewDetailsBtn} onClick={() => openTicket(ticket)}>Open Ticket</button>
+                      <button style={s.viewDetailsBtn} onClick={() => openTicket(ticket)}>View Details</button>
                     </td>
                   </tr>
                 ))}
@@ -499,6 +527,31 @@ const s = {
   ticketModalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, padding: '16px 20px', borderBottom: '1px solid #e2e8f0' },
   ticketModalTitle: { margin: 0, fontSize: 20, fontWeight: 700, color: '#0f172a' },
   ticketModalSub: { margin: '4px 0 0', fontSize: 13, color: '#64748b' },
+  ticketModalMetaRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    marginTop: 10,
+  },
+  ticketModalMetaChip: {
+    padding: '4px 10px',
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: '0.05em',
+    textTransform: 'uppercase',
+    border: '1px solid transparent',
+  },
+  ticketModalMetaChipMuted: {
+    padding: '4px 10px',
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#475569',
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+  },
   ticketModalCloseBtn: { border: '1px solid #e2e8f0', background: '#f8fafc', color: '#334155', width: 34, height: 34, borderRadius: 999, cursor: 'pointer', fontSize: 14, fontWeight: 700 },
   ticketModalBody: { padding: '16px 20px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 16 },
   ticketInfoGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 },

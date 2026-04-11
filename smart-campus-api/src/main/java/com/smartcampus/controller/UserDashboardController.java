@@ -1,6 +1,7 @@
 package com.smartcampus.controller;
 
 import com.smartcampus.dto.request.CreateIncidentTicketRequest;
+import com.smartcampus.dto.request.CloseIncidentTicketRequest;
 import com.smartcampus.dto.response.IncidentTicketDetailsDto;
 import com.smartcampus.dto.response.UserDashboardResponse;
 import com.smartcampus.security.oauth2.OAuth2UserPrincipal;
@@ -112,6 +113,29 @@ public class UserDashboardController {
 
         if (principal instanceof OAuth2UserPrincipal oauth2User) {
             return ResponseEntity.ok(userDashboardService.updateIncidentTicket(oauth2User.getUser().getEmail(), ticketId, request));
+        }
+
+        return ResponseEntity.status(401).body(Map.of("error", "Unknown authentication type"));
+    }
+
+    @PatchMapping("/incidents/{ticketId}/close")
+    public ResponseEntity<?> closeIncident(
+            Authentication authentication,
+            @PathVariable String ticketId,
+            @Valid @RequestBody CloseIncidentTicketRequest request
+    ) {
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).body(Map.of("error", "Not authenticated"));
+        }
+
+        Object principal = authentication.getPrincipal();
+
+        if (principal instanceof UserDetails userDetails) {
+            return ResponseEntity.ok(userDashboardService.closeOpenIncidentTicket(userDetails.getUsername(), ticketId, request));
+        }
+
+        if (principal instanceof OAuth2UserPrincipal oauth2User) {
+            return ResponseEntity.ok(userDashboardService.closeOpenIncidentTicket(oauth2User.getUser().getEmail(), ticketId, request));
         }
 
         return ResponseEntity.status(401).body(Map.of("error", "Unknown authentication type"));

@@ -1,6 +1,7 @@
 package com.smartcampus.service;
 
 import com.smartcampus.dto.request.CreateIncidentTicketRequest;
+import com.smartcampus.dto.request.CloseIncidentTicketRequest;
 import com.smartcampus.dto.response.IncidentTicketDetailsDto;
 import com.smartcampus.dto.response.TicketCommentDto;
 import com.smartcampus.dto.response.UserDashboardResponse;
@@ -92,6 +93,50 @@ public class UserDashboardService {
                                 "id", savedTicket.getId(),
                                 "ticketId", defaultValue(savedTicket.getTicketId(), savedTicket.getId()),
                                 "status", defaultValue(savedTicket.getStatus(), "OPEN")
+                );
+        }
+
+        public Map<String, String> closeOpenIncidentTicket(String email, String ticketId, CloseIncidentTicketRequest request) {
+                User user = userRepository.findByEmail(email)
+                                .orElseThrow(() -> new RuntimeException("User not found"));
+
+                IncidentTicket ticket = incidentTicketRepository.findById(ticketId)
+                                .or(() -> incidentTicketRepository.findByTicketId(ticketId))
+                                .orElseThrow(() -> new RuntimeException("Ticket not found"));
+
+                if (!user.getId().equals(ticket.getUserId())) {
+                        throw new RuntimeException("You can only delete your own tickets");
+                }
+
+                String currentStatus = normalizeStatus(ticket.getStatus());
+                if (!"OPEN".equals(currentStatus) && !"PENDING".equals(currentStatus)) {
+                        throw new RuntimeException("Only open tickets can be deleted");
+                }
+
+                String note = trimToNull(request.getNote());
+                if (note == null) {
+                        throw new RuntimeException("A note is required when deleting an open ticket");
+                }
+
+                ticket.setStatus("CLOSED");
+                ticket.setResolutionNotes(note);
+                ticket.setResolvedAt(LocalDateTime.now());
+
+                IncidentTicket savedTicket = incidentTicketRepository.save(ticket);
+
+                notificationService.sendTicketStatusUpdatedNotifications(
+                                user,
+                                savedTicket.getUserId(),
+                                savedTicket.getAssignedTechnicianId(),
+                                savedTicket.getId(),
+                                currentStatus,
+                                savedTicket.getStatus());
+
+                return Map.of(
+                                "message", "Incident ticket deleted successfully",
+                                "id", savedTicket.getId(),
+                                "ticketId", defaultValue(savedTicket.getTicketId(), savedTicket.getId()),
+                                "status", defaultValue(savedTicket.getStatus(), "CLOSED")
                 );
         }
 

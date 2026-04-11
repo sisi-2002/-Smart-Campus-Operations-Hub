@@ -536,6 +536,9 @@ const ResourceManagement = ({
   const [featureInput, setFeatureInput] = useState('');
   const [search, setSearch]           = useState('');
   const [filter, setFilter]           = useState('ALL');
+  const [typeFilter, setTypeFilter]   = useState('ALL');
+  const [minCapacity, setMinCapacity] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
   const [confirmId, setConfirmId]     = useState(null);
   const [toast, setToast]             = useState(null);
   const featRef = useRef(null);
@@ -665,11 +668,26 @@ const ResourceManagement = ({
 
   /* filtered */
   const visible = resources.filter(r => {
-    const matchSearch = r.name?.toLowerCase().includes(search.toLowerCase()) ||
-                        r.type?.toLowerCase().includes(search.toLowerCase()) ||
-                        r.building?.toLowerCase().includes(search.toLowerCase());
+    const q = search.toLowerCase();
+    const loc = locationFilter.toLowerCase();
+    const cap = minCapacity.trim() === '' ? null : parseInt(minCapacity, 10);
+
+    const matchSearch =
+      q === '' ||
+      r.name?.toLowerCase().includes(q) ||
+      r.type?.toLowerCase().includes(q) ||
+      r.building?.toLowerCase().includes(q) ||
+      r.location?.toLowerCase().includes(q);
+
+    const matchType = typeFilter === 'ALL' || normalizeEnum(r.type) === typeFilter;
+    const matchCapacity = cap === null || (!Number.isNaN(cap) && (Number(r.capacity) || 0) >= cap);
+    const matchLocation =
+      loc === '' ||
+      r.location?.toLowerCase().includes(loc) ||
+      r.building?.toLowerCase().includes(loc);
+
     const matchFilter = filter === 'ALL' || r.status === filter;
-    return matchSearch && matchFilter;
+    return matchSearch && matchType && matchCapacity && matchLocation && matchFilter;
   });
 
   return (
@@ -727,6 +745,36 @@ const ResourceManagement = ({
                 {f === 'OUT_OF_SERVICE' ? 'Out of Service' : f.charAt(0)+f.slice(1).toLowerCase()}
               </button>
             ))}
+          </div>
+
+          <div className="rm-form-grid" style={{gridTemplateColumns:'1fr 160px 180px', marginBottom:20}}>
+            <div className="rm-field">
+              <label className="rm-flabel">Location Filter</label>
+              <input
+                className="rm-input"
+                placeholder="Filter by location/building"
+                value={locationFilter}
+                onChange={e => setLocationFilter(e.target.value)}
+              />
+            </div>
+            <div className="rm-field">
+              <label className="rm-flabel">Type Filter</label>
+              <select className="rm-select" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}>
+                <option value="ALL">All Types</option>
+                {TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+            </div>
+            <div className="rm-field">
+              <label className="rm-flabel">Min Capacity</label>
+              <input
+                className="rm-input"
+                type="number"
+                min="0"
+                placeholder="e.g. 50"
+                value={minCapacity}
+                onChange={e => setMinCapacity(e.target.value)}
+              />
+            </div>
           </div>
 
           {/* Grid */}
