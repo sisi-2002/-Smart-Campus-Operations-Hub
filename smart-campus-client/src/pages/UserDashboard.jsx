@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { closeIncidentTicket, getIncidentTicket, getUserDashboardOverview, submitIncidentTicket, updateIncidentTicket } from '../api/userDashboardApi';
+import { useNotification } from '../context/NotificationContext';
+import { closeIncidentTicket, getIncidentTicket, getUserDashboardOverview, submitIncidentTicket, updateIncidentTicket, updateUserProfile } from '../api/userDashboardApi';
 import IncidentModal from '../components/IncidentModal';
 import TicketCommentsPanel from '../components/TicketCommentsPanel';
 import BookingList from '../components/Bookings/BookingList';
@@ -79,6 +80,7 @@ const getSlaHealth = (minutes, metric) => {
 
 export default function UserDashboard() {
   const { user } = useAuth();
+  const { showNotification } = useNotification();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
@@ -122,6 +124,11 @@ export default function UserDashboard() {
   const [deleteTicketNote, setDeleteTicketNote] = useState('');
   const [deleteTicketError, setDeleteTicketError] = useState('');
   const [isDeletingTicket, setIsDeletingTicket] = useState(false);
+
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: '', email: '' });
+  const [profileUpdating, setProfileUpdating] = useState(false);
+  const [profileNotice, setProfileNotice] = useState(null);
 
   const getCachedIncidentImages = useCallback(() => {
     try {
@@ -320,6 +327,42 @@ export default function UserDashboard() {
     }
   }, [activeTab, ticketNotice]);
 
+  useEffect(() => {
+    if (activeTab !== 'dashboard' && profileNotice) {
+      setProfileNotice(null);
+    }
+  }, [activeTab, profileNotice]);
+
+  const handleEditProfileCancel = () => {
+    setIsEditingProfile(false);
+    setProfileNotice(null);
+  };
+
+  const handleEditProfileSave = async () => {
+    if (!profileForm.name.trim() || !profileForm.email.trim()) {
+      setProfileNotice({ type: 'error', message: 'Name and Email are required.' });
+      return;
+    }
+
+    setProfileUpdating(true);
+    setProfileNotice(null);
+
+    try {
+      await updateUserProfile({
+        name: profileForm.name.trim(),
+        email: profileForm.email.trim()
+      });
+      // Try using system toast via context
+      showNotification('Profile Updated', 'Your profile details have been saved.', 'SYSTEM_ANNOUNCEMENT');
+      setIsEditingProfile(false);
+      await fetchOverview();
+    } catch (err) {
+      setProfileNotice({ type: 'error', message: err.response?.data?.error || 'Failed to update profile.' });
+    } finally {
+      setProfileUpdating(false);
+    }
+  };
+
   const userDetails = useMemo(() => {
     return {
       name: overview.user?.name || user?.name || 'User',
@@ -517,6 +560,74 @@ export default function UserDashboard() {
 
   const renderDashboardTab = () => (
     <>
+      <div style={s.userCard}>
+        <div style={s.userCardHeader}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>My Profile</span>
+            {!isEditingProfile ? (
+              <button 
+                style={s.secondaryBtn} 
+                onClick={() => {
+                  setProfileForm({ name: userDetails.name, email: userDetails.email });
+                  setIsEditingProfile(true);
+                  setProfileNotice(null);
+                }}
+              >
+                Edit Profile
+              </button>
+            ) : (
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button style={s.secondaryBtn} onClick={handleEditProfileCancel} disabled={profileUpdating}>Cancel</button>
+                <button style={s.primaryBtn} onClick={handleEditProfileSave} disabled={profileUpdating}>
+                  {profileUpdating ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {profileNotice && (
+          <div style={profileNotice.type === 'error' ? { ...s.ticketErrorBanner, margin: '12px 16px 0' } : { ...s.ticketSuccessBanner, margin: '12px 16px 0' }}>
+            {profileNotice.message}
+          </div>
+        )}
+
+        <div style={s.userDetailsGrid}>
+          <div style={s.userDetailItem}>
+            <span style={s.detailLabel}>Name</span>
+            {isEditingProfile ? (
+              <input 
+                type="text" 
+                style={s.profileInput}
+                value={profileForm.name} 
+                onChange={(e) => setProfileForm({ ...profileForm, name: e.target.value })} 
+                disabled={profileUpdating}
+              />
+            ) : (
+              <span style={s.detailValue}>{userDetails.name}</span>
+            )}
+          </div>
+          <div style={s.userDetailItem}>
+            <span style={s.detailLabel}>Email</span>
+            {isEditingProfile ? (
+              <input 
+                type="email" 
+                style={s.profileInput}
+                value={profileForm.email} 
+                onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })} 
+                disabled={profileUpdating}
+              />
+            ) : (
+              <span style={s.detailValue}>{userDetails.email}</span>
+            )}
+          </div>
+          <div style={s.userDetailItem}>
+            <span style={s.detailLabel}>Provider</span>
+            <span style={{ ...s.pill, background: '#f3e8ff', color: '#6b21a8' }}>{userDetails.provider}</span>
+          </div>
+        </div>
+      </div>
+
       <div style={s.statsGrid}>
         {userStats.map((stat) => (
           <div key={stat.label} style={s.statCard}>

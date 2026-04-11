@@ -39,9 +39,6 @@ public class NotificationService {
     private final BookingRepository bookingRepository;
     private final ResourceRepository resourceRepository;
 
-    // ================================================================
-    //  CORE CRUD METHODS
-    // ================================================================
 
     // Get all notifications for a user (personal + role-based)
     public List<NotificationResponse> getNotificationsForUser(String userId, String role) {
