@@ -1,7 +1,7 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getIncidentTicket, getUserDashboardOverview, submitIncidentTicket, updateIncidentTicket, updateUserProfile } from '../api/userDashboardApi';
+import { closeIncidentTicket, getIncidentTicket, getUserDashboardOverview, submitIncidentTicket, updateIncidentTicket, updateUserProfile } from '../api/userDashboardApi';
 import IncidentModal from '../components/IncidentModal';
 import TicketCommentsPanel from '../components/TicketCommentsPanel';
 import BookingList from '../components/Bookings/BookingList';
@@ -78,8 +78,8 @@ export default function UserDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [editingTicket, setEditingTicket] = useState(null);
+  const [detailTicket, setDetailTicket] = useState(null);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
-  const [expandedTicketId, setExpandedTicketId] = useState('');
   const [ticketViewMode, setTicketViewMode] = useState('cards');
   const [ticketNotice, setTicketNotice] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -113,6 +113,10 @@ export default function UserDashboard() {
   const [myBookings, setMyBookings] = useState([]);
   const [bookingSearch, setBookingSearch] = useState('');
   const [bookingStatusFilter, setBookingStatusFilter] = useState('ALL');
+  const [deleteTicketTarget, setDeleteTicketTarget] = useState(null);
+  const [deleteTicketNote, setDeleteTicketNote] = useState('');
+  const [deleteTicketError, setDeleteTicketError] = useState('');
+  const [isDeletingTicket, setIsDeletingTicket] = useState(false);
 
   const getCachedIncidentImages = () => {
     try {
@@ -236,6 +240,67 @@ export default function UserDashboard() {
     const response = await updateIncidentTicket(ticketId, payload);
     await fetchOverview();
     return response;
+  };
+
+  const openDeleteTicketModal = (ticket) => {
+    if (!ticket) {
+      return;
+    }
+
+    const normalizedStatus = (ticket.status || '').trim().toUpperCase();
+    if (normalizedStatus !== 'OPEN') {
+      setTicketNotice({
+        type: 'error',
+        message: 'Only OPEN tickets can be deleted.',
+      });
+      return;
+    }
+
+    setDeleteTicketTarget(ticket);
+    setDeleteTicketNote('');
+    setDeleteTicketError('');
+  };
+
+  const closeDeleteTicketModal = () => {
+    setDeleteTicketTarget(null);
+    setDeleteTicketNote('');
+    setDeleteTicketError('');
+  };
+
+  const confirmDeleteOpenTicket = async () => {
+    if (!deleteTicketTarget) {
+      return;
+    }
+
+    const note = deleteTicketNote.trim();
+    if (!note) {
+      setDeleteTicketError('A note is required to delete an OPEN ticket.');
+      return;
+    }
+
+    const ticketId = deleteTicketTarget.id || deleteTicketTarget.ticketId;
+    if (!ticketId) {
+      setDeleteTicketError('Ticket identifier is missing.');
+      return;
+    }
+
+    setIsDeletingTicket(true);
+    setDeleteTicketError('');
+
+    try {
+      await closeIncidentTicket(ticketId, { note });
+      hideTicketFromView(deleteTicketTarget.ticketId || deleteTicketTarget.id || ticketId);
+      await fetchOverview();
+      closeDeleteTicketModal();
+      setTicketNotice({
+        type: 'success',
+        message: `Ticket ${deleteTicketTarget.ticketId || deleteTicketTarget.id} deleted successfully and marked as CLOSED for admins.`,
+      });
+    } catch (err) {
+      setDeleteTicketError(err.response?.data?.error || 'Failed to delete ticket.');
+    } finally {
+      setIsDeletingTicket(false);
+    }
   };
 
   useEffect(() => {
@@ -363,6 +428,17 @@ export default function UserDashboard() {
     return ticketKey && !hiddenTicketIds.includes(ticketKey);
   });
 
+  const detailTicketImages = detailTicket ? (detailTicket.imageDataUrls || []).slice(0, 6) : [];
+  const detailHasImageNamesOnly = detailTicket
+    ? detailTicketImages.length === 0 && (detailTicket.imageNames || []).length > 0
+    : false;
+  const detailFirstResponseSla = detailTicket
+    ? getSlaHealth(detailTicket.timeToFirstResponseMinutes, 'firstResponse')
+    : null;
+  const detailResolutionSla = detailTicket
+    ? getSlaHealth(detailTicket.timeToResolutionMinutes, 'resolution')
+    : null;
+
   const openCreateIncidentModal = () => {
     setEditingTicket(null);
     setIsIncidentModalOpen(true);
@@ -397,6 +473,41 @@ export default function UserDashboard() {
   const closeIncidentModal = () => {
     setIsIncidentModalOpen(false);
     setEditingTicket(null);
+  };
+
+  const openTicketDetailsModal = (ticket) => {
+    if (!ticket) {
+      return;
+    }
+    setDetailTicket(ticket);
+  };
+
+  const closeTicketDetailsModal = () => {
+    setDetailTicket(null);
+  };
+
+  const handleDetailCommentsChange = (nextComments) => {
+    if (!detailTicket) {
+      return;
+    }
+
+    const detailKey = detailTicket.ticketId || detailTicket.id;
+
+    setDetailTicket((current) => (current ? { ...current, comments: nextComments } : current));
+    setOverview((prev) => ({
+      ...prev,
+      activeTickets: prev.activeTickets.map((item) => (
+        (item.ticketId || item.id) === detailKey
+          ? { ...item, comments: nextComments }
+          : item
+      )),
+      incidentTickets: prev.incidentTickets.map((item) => (
+        (item.ticketId || item.id) === detailKey
+          ? { ...item, comments: nextComments }
+          : item
+      )),
+    }));
+    setTicketNotice(null);
   };
 
   const renderDashboardTab = () => (
@@ -558,7 +669,6 @@ export default function UserDashboard() {
             const normalizedStatus = (ticket.status || '').trim().toUpperCase();
             const canHide = ['RESOLVED', 'CLOSED', 'REJECTED'].includes(normalizedStatus);
             const ticketKey = ticket.ticketId || ticket.id;
-            const isExpanded = expandedTicketId === ticketKey;
             const firstResponseSla = getSlaHealth(ticket.timeToFirstResponseMinutes, 'firstResponse');
             const resolutionSla = getSlaHealth(ticket.timeToResolutionMinutes, 'resolution');
 
@@ -642,12 +752,22 @@ export default function UserDashboard() {
                     </button>
                   )}
 
+                  {normalizedStatus === 'OPEN' && (
+                    <button
+                      type="button"
+                      style={s.actionBtnDanger}
+                      onClick={() => openDeleteTicketModal(ticket)}
+                    >
+                      Delete Ticket
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     style={s.actionBtn}
-                    onClick={() => setExpandedTicketId(isExpanded ? '' : ticketKey)}
+                    onClick={() => openTicketDetailsModal(ticket)}
                   >
-                    {isExpanded ? 'Hide Comments' : 'View Comments'}
+                    View Details
                   </button>
 
                   {canHide ? (
@@ -658,37 +778,8 @@ export default function UserDashboard() {
                     >
                       Remove From View
                     </button>
-                  ) : (
-                    <span style={s.mutedText}>Visible to staff</span>
-                  )}
+                  ) : null}
                 </div>
-
-                {isExpanded && (
-                  <div style={s.ticketCommentsWrap}>
-                    <TicketCommentsPanel
-                      ticket={ticket}
-                      currentUser={userDetails}
-                      onCommentsChange={(nextComments) => {
-                        setOverview((prev) => ({
-                          ...prev,
-                          activeTickets: prev.activeTickets.map((item) => (
-                            (item.ticketId || item.id) === ticketKey
-                              ? { ...item, comments: nextComments }
-                              : item
-                          )),
-                          incidentTickets: prev.incidentTickets.map((item) => (
-                            (item.ticketId || item.id) === ticketKey
-                              ? { ...item, comments: nextComments }
-                              : item
-                          )),
-                        }));
-                        setTicketNotice(null);
-                      }}
-                      onError={(message) => setTicketNotice({ type: 'error', message: message || 'Failed to update comments' })}
-                      onSuccess={(message) => setTicketNotice({ type: 'success', message: message || 'Comment updated' })}
-                    />
-                  </div>
-                )}
               </article>
             );
           })}
@@ -714,14 +805,11 @@ export default function UserDashboard() {
                 const hasImageNamesOnly = ticketImages.length === 0 && (ticket.imageNames || []).length > 0;
                 const normalizedStatus = (ticket.status || '').trim().toUpperCase();
                 const canHide = ['RESOLVED', 'CLOSED', 'REJECTED'].includes(normalizedStatus);
-                const ticketKey = ticket.ticketId || ticket.id;
-                const isExpanded = expandedTicketId === ticketKey;
                 const firstResponseSla = getSlaHealth(ticket.timeToFirstResponseMinutes, 'firstResponse');
                 const resolutionSla = getSlaHealth(ticket.timeToResolutionMinutes, 'resolution');
 
                 return (
-                  <Fragment key={ticket.id}>
-                    <tr key={`${ticket.id}-row`} style={s.tr}>
+                  <tr key={ticket.id} style={s.tr}>
                       <td style={s.ticketCompactTd}><div style={{ fontWeight: 600 }}>{ticket.ticketId || ticket.id}</div></td>
                       <td style={s.ticketCompactTd}>{ticket.location || '-'}</td>
                       <td style={s.ticketCompactTd}>{ticket.category || '-'}</td>
@@ -776,12 +864,21 @@ export default function UserDashboard() {
                               Edit Ticket
                             </button>
                           )}
+                          {normalizedStatus === 'OPEN' && (
+                            <button
+                              type="button"
+                              style={s.actionBtnDanger}
+                              onClick={() => openDeleteTicketModal(ticket)}
+                            >
+                              Delete Ticket
+                            </button>
+                          )}
                           <button
                             type="button"
                             style={s.actionBtn}
-                            onClick={() => setExpandedTicketId(isExpanded ? '' : ticketKey)}
+                            onClick={() => openTicketDetailsModal(ticket)}
                           >
-                            {isExpanded ? 'Hide Comments' : 'View Comments'}
+                            View Details
                           </button>
                           {canHide ? (
                             <button
@@ -791,41 +888,10 @@ export default function UserDashboard() {
                             >
                               Remove From View
                             </button>
-                          ) : (
-                            <span style={s.mutedText}>Visible to staff</span>
-                          )}
+                          ) : null}
                         </div>
                       </td>
                     </tr>
-                    {isExpanded && (
-                      <tr key={`${ticket.id}-comments`} style={s.tr}>
-                        <td style={s.ticketCompactTd} colSpan={8}>
-                          <TicketCommentsPanel
-                            ticket={ticket}
-                            currentUser={userDetails}
-                            onCommentsChange={(nextComments) => {
-                              setOverview((prev) => ({
-                                ...prev,
-                                activeTickets: prev.activeTickets.map((item) => (
-                                  (item.ticketId || item.id) === ticketKey
-                                    ? { ...item, comments: nextComments }
-                                    : item
-                                )),
-                                incidentTickets: prev.incidentTickets.map((item) => (
-                                  (item.ticketId || item.id) === ticketKey
-                                    ? { ...item, comments: nextComments }
-                                    : item
-                                )),
-                              }));
-                              setTicketNotice(null);
-                            }}
-                            onError={(message) => setTicketNotice({ type: 'error', message: message || 'Failed to update comments' })}
-                            onSuccess={(message) => setTicketNotice({ type: 'success', message: message || 'Comment updated' })}
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
                 );
               })}
             </tbody>
@@ -857,6 +923,158 @@ export default function UserDashboard() {
           }
         }}
       />
+
+      {detailTicket && (
+        <div style={s.detailOverlay} onClick={closeTicketDetailsModal}>
+          <div style={s.detailModal} onClick={(event) => event.stopPropagation()}>
+            <div style={s.detailHeader}>
+              <div>
+                <h3 style={s.detailTitle}>View Ticket Details - {detailTicket.ticketId || detailTicket.id}</h3>
+                <p style={s.detailSub}>Track progress, review evidence, and continue the conversation.</p>
+                <div style={s.detailMetaRow}>
+                  <span style={{ ...s.pill, ...getStatusPillStyle(detailTicket.status) }}>
+                    {detailTicket.status || 'OPEN'}
+                  </span>
+                  <span style={s.detailMetaChip}>Priority: {detailTicket.priority || '-'}</span>
+                  <span style={s.detailMetaChip}>Category: {detailTicket.category || '-'}</span>
+                </div>
+              </div>
+              <button type="button" style={s.detailCloseBtn} onClick={closeTicketDetailsModal}>×</button>
+            </div>
+
+            <div style={s.detailBody}>
+              <div style={s.detailInfoGrid}>
+                <div style={s.detailInfoItem}>
+                  <span style={s.detailInfoLabel}>Location</span>
+                  <span style={s.detailInfoValue}>{detailTicket.location || '-'}</span>
+                </div>
+                <div style={s.detailInfoItem}>
+                  <span style={s.detailInfoLabel}>Preferred Contact</span>
+                  <span style={s.detailInfoValue}>{detailTicket.preferredContact || '-'}</span>
+                </div>
+                <div style={s.detailInfoItem}>
+                  <span style={s.detailInfoLabel}>Submitted At</span>
+                  <span style={s.detailInfoValue}>{formatDateTime(detailTicket.createdAt)}</span>
+                </div>
+                <div style={s.detailInfoItem}>
+                  <span style={s.detailInfoLabel}>First Response SLA</span>
+                  <span style={s.detailInfoValue}>
+                    {formatSlaDuration(detailTicket.timeToFirstResponseMinutes)} ({detailFirstResponseSla?.label || 'Pending'})
+                  </span>
+                </div>
+                <div style={s.detailInfoItem}>
+                  <span style={s.detailInfoLabel}>Resolution SLA</span>
+                  <span style={s.detailInfoValue}>
+                    {formatSlaDuration(detailTicket.timeToResolutionMinutes)} ({detailResolutionSla?.label || 'Pending'})
+                  </span>
+                </div>
+              </div>
+
+              <div style={s.detailSection}>
+                <div style={s.detailSectionTitle}>Description</div>
+                <p style={s.detailDescription}>{detailTicket.description || 'No description provided.'}</p>
+              </div>
+
+              <div style={s.detailSection}>
+                <div style={s.detailSectionTitle}>Evidence</div>
+                {detailTicketImages.length > 0 ? (
+                  <div style={s.detailEvidenceGrid}>
+                    {detailTicketImages.map((imageUrl, index) => (
+                      <img
+                        key={`${detailTicket.id}-detail-${index}`}
+                        src={imageUrl}
+                        alt={`${detailTicket.ticketId || detailTicket.id} attachment ${index + 1}`}
+                        style={s.detailEvidenceImage}
+                        onClick={() => setPreviewImageUrl(imageUrl)}
+                      />
+                    ))}
+                  </div>
+                ) : detailHasImageNamesOnly ? (
+                  <div style={s.attachmentNamesWrap}>
+                    {(detailTicket.imageNames || []).slice(0, 6).map((imageName) => (
+                      <span key={imageName} style={s.imageNameChip}>{imageName}</span>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={s.noEvidenceBox}>No image attachments were provided.</div>
+                )}
+              </div>
+
+              <div style={s.detailSection}>
+                <div style={s.detailSectionTitle}>Resolution Notes</div>
+                <p style={s.detailDescription}>{detailTicket.resolutionNotes || 'No resolution notes yet.'}</p>
+              </div>
+
+              <div style={s.detailSection}>
+                <div style={s.detailSectionTitle}>Comments</div>
+                <TicketCommentsPanel
+                  ticket={detailTicket}
+                  currentUser={userDetails}
+                  onCommentsChange={handleDetailCommentsChange}
+                  onError={(message) => setTicketNotice({ type: 'error', message: message || 'Failed to update comments' })}
+                  onSuccess={(message) => setTicketNotice({ type: 'success', message: message || 'Comment updated' })}
+                />
+              </div>
+            </div>
+
+            <div style={s.detailFooter}>
+              <button type="button" style={s.detailDoneBtn} onClick={closeTicketDetailsModal}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteTicketTarget && (
+        <div
+          style={s.deleteOverlay}
+          onClick={() => {
+            if (!isDeletingTicket) {
+              closeDeleteTicketModal();
+            }
+          }}
+        >
+          <div style={s.deleteModal} onClick={(event) => event.stopPropagation()}>
+            <div style={s.deleteModalTitle}>Delete Open Ticket</div>
+            <div style={s.deleteTicketRef}>Ticket: {deleteTicketTarget.ticketId || deleteTicketTarget.id}</div>
+
+            {deleteTicketError && (
+              <div style={s.deleteErrorBanner}>{deleteTicketError}</div>
+            )}
+
+            <label style={s.deleteLabel}>Required Note</label>
+            <textarea
+              style={s.deleteTextarea}
+              value={deleteTicketNote}
+              onChange={(event) => {
+                setDeleteTicketNote(event.target.value);
+                if (deleteTicketError) {
+                  setDeleteTicketError('');
+                }
+              }}
+              placeholder="Explain why you are deleting this open ticket"
+            />
+
+            <div style={s.deleteActions}>
+              <button
+                type="button"
+                style={s.deleteCancelBtn}
+                onClick={closeDeleteTicketModal}
+                disabled={isDeletingTicket}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                style={s.deleteConfirmBtn}
+                onClick={confirmDeleteOpenTicket}
+                disabled={isDeletingTicket}
+              >
+                {isDeletingTicket ? 'Deleting...' : 'Delete Ticket'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {previewImageUrl && (
         <div style={s.previewOverlay} onClick={() => setPreviewImageUrl('')}>
@@ -1472,11 +1690,6 @@ const s = {
     alignItems: 'center',
     flexWrap: 'wrap',
   },
-  ticketCommentsWrap: {
-    borderTop: '1px solid #e4dfd4',
-    background: '#f4f1eb',
-    padding: 10,
-  },
   table: { width: '100%', borderCollapse: 'collapse' },
   thead: { background: '#f8fafc' },
   th: {
@@ -1529,6 +1742,16 @@ const s = {
     fontWeight: 600,
     cursor: 'pointer',
   },
+  actionBtnDanger: {
+    padding: '7px 12px',
+    borderRadius: 8,
+    border: '1px solid #dc2626',
+    background: '#fee2e2',
+    color: '#991b1b',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
   imageNameChip: {
     display: 'inline-flex',
     alignItems: 'center',
@@ -1547,6 +1770,253 @@ const s = {
     padding: '18px 16px',
     color: '#64748b',
     fontSize: 14,
+  },
+  detailOverlay: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 1325,
+    background: 'rgba(15, 23, 42, 0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    backdropFilter: 'blur(5px)',
+  },
+  detailModal: {
+    width: '100%',
+    maxWidth: 920,
+    maxHeight: '90vh',
+    background: '#fff',
+    border: '1px solid #e2e8f0',
+    borderRadius: 14,
+    boxShadow: '0 30px 50px rgba(15, 23, 42, 0.28)',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+  },
+  detailHeader: {
+    padding: '14px 16px',
+    borderBottom: '1px solid #e2e8f0',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+    background: '#f8fafc',
+  },
+  detailTitle: {
+    margin: 0,
+    fontSize: 20,
+    fontWeight: 700,
+    color: '#0f172a',
+  },
+  detailSub: {
+    margin: '4px 0 0',
+    fontSize: 13,
+    color: '#64748b',
+  },
+  detailMetaRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  detailMetaChip: {
+    padding: '4px 10px',
+    borderRadius: 999,
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    color: '#475569',
+    fontSize: 11,
+    fontWeight: 600,
+  },
+  detailCloseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    color: '#334155',
+    fontSize: 20,
+    lineHeight: 1,
+    cursor: 'pointer',
+  },
+  detailBody: {
+    padding: 16,
+    overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    background: '#f8fafc',
+  },
+  detailInfoGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+    gap: 8,
+  },
+  detailInfoItem: {
+    border: '1px solid #e2e8f0',
+    borderRadius: 10,
+    background: '#fff',
+    padding: '8px 10px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+  },
+  detailInfoLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: '#64748b',
+  },
+  detailInfoValue: {
+    fontSize: 13,
+    color: '#0f172a',
+    lineHeight: 1.45,
+  },
+  detailSection: {
+    border: '1px solid #e2e8f0',
+    borderRadius: 10,
+    background: '#fff',
+    padding: '10px 12px',
+  },
+  detailSectionTitle: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#334155',
+    marginBottom: 8,
+  },
+  detailDescription: {
+    margin: 0,
+    fontSize: 13,
+    lineHeight: 1.6,
+    color: '#334155',
+  },
+  detailEvidenceGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+    gap: 8,
+  },
+  detailEvidenceImage: {
+    width: '100%',
+    height: 96,
+    objectFit: 'cover',
+    borderRadius: 10,
+    border: '1px solid #e2e8f0',
+    background: '#f8fafc',
+    cursor: 'zoom-in',
+  },
+  detailFooter: {
+    padding: '10px 14px',
+    borderTop: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    background: '#fff',
+  },
+  detailDoneBtn: {
+    padding: '8px 14px',
+    borderRadius: 8,
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
+  deleteOverlay: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 1350,
+    background: 'rgba(15, 23, 42, 0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    backdropFilter: 'blur(4px)',
+  },
+  deleteModal: {
+    width: '100%',
+    maxWidth: 560,
+    background: '#fff',
+    borderRadius: 14,
+    border: '1px solid #e2e8f0',
+    boxShadow: '0 22px 40px rgba(15, 23, 42, 0.25)',
+    padding: 18,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+  deleteModalTitle: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: '#0f172a',
+  },
+  deleteTicketRef: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#7c2d12',
+    background: '#fff7ed',
+    border: '1px solid #fed7aa',
+    borderRadius: 8,
+    padding: '6px 10px',
+    width: 'fit-content',
+  },
+  deleteErrorBanner: {
+    background: '#fef2f2',
+    border: '1px solid #fecaca',
+    color: '#991b1b',
+    borderRadius: 8,
+    padding: '8px 10px',
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  deleteLabel: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#334155',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  deleteTextarea: {
+    width: '100%',
+    minHeight: 110,
+    border: '1px solid #cbd5e1',
+    borderRadius: 10,
+    padding: '10px 12px',
+    fontSize: 14,
+    color: '#0f172a',
+    background: '#f8fafc',
+    resize: 'vertical',
+    outline: 'none',
+    boxSizing: 'border-box',
+  },
+  deleteActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  deleteCancelBtn: {
+    padding: '8px 12px',
+    borderRadius: 8,
+    border: '1px solid #cbd5e1',
+    background: '#fff',
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  deleteConfirmBtn: {
+    padding: '8px 12px',
+    borderRadius: 8,
+    border: '1px solid #dc2626',
+    background: '#dc2626',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
   },
   previewOverlay: {
     position: 'fixed',
