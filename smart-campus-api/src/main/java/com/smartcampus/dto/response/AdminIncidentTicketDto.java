@@ -30,6 +30,10 @@ public class AdminIncidentTicketDto {
     private String assignedTechnicianId;
     private String assignedTechnicianName;
     private String resolutionNotes;
+    private LocalDateTime firstResponseAt;
+    private LocalDateTime resolvedAt;
+    private Long timeToFirstResponseMinutes;
+    private Long timeToResolutionMinutes;
     private List<TicketCommentDto> comments;
     private LocalDateTime createdAt;
 }

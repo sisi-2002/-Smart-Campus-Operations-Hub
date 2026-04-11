@@ -26,6 +26,7 @@ public class TicketCommentService {
 
     private final UserRepository userRepository;
     private final IncidentTicketRepository incidentTicketRepository;
+    private final NotificationService notificationService;
 
     public List<TicketCommentDto> listComments(String email, String ticketId) {
         User actor = findUserByEmail(email);
@@ -39,6 +40,14 @@ public class TicketCommentService {
         User actor = findUserByEmail(email);
         IncidentTicket ticket = findTicket(ticketId);
         ensureCommentAccess(actor, ticket);
+
+        boolean isStaffActor = actor.getRole() == Role.ADMIN
+                || actor.getRole() == Role.MANAGER
+                || actor.getRole() == Role.TECHNICIAN;
+        if (isStaffActor && ticket.getFirstResponseAt() == null) {
+            ticket.setFirstResponseAt(LocalDateTime.now());
+            incidentTicketRepository.save(ticket);
+        }
 
         String message = trimToNull(request != null ? request.getMessage() : null);
         if (message == null) {
@@ -79,6 +88,8 @@ public class TicketCommentService {
         comments.add(created);
         ticket.setComments(comments);
         incidentTicketRepository.save(ticket);
+
+        notificationService.sendCommentAddedNotifications(actor, ticket.getUserId(), ticket.getAssignedTechnicianId(), ticket.getId());
 
         return TicketCommentDto.from(created);
     }

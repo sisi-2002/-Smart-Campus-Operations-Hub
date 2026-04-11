@@ -54,6 +54,10 @@ public class AuthService {
                 .build();
 
         userRepository.save(user);
+        
+        // registration always counts as first session
+        user.setFirstLogin(false);
+        userRepository.save(user);
 
         // ✅ Send welcome notification on registration
         notificationService.sendWelcomeNotification(user.getId(), user.getName());
@@ -83,6 +87,13 @@ public class AuthService {
 
         // ✅ Standard roles (Students/Lecturers) — skip 2FA, issue token immediately
         if (!MFA_REQUIRED_ROLES.contains(user.getRole())) {
+            // First time login logic for standard roles
+            if (user.isFirstLogin()) {
+                notificationService.sendWelcomeNotification(user.getId(), user.getName());
+                user.setFirstLogin(false);
+                userRepository.save(user);
+            }
+
             String token = jwtUtil.generateToken(
                 user.getEmail(), user.getRole().name(), user.getId());
             return LoginStepResponse.builder()
@@ -139,6 +150,13 @@ public class AuthService {
         // ✅ First time setup — mark as permanently enabled
         if (!user.isMfaEnabled()) {
             user.setMfaEnabled(true);
+            userRepository.save(user);
+        }
+        
+        // First time login logic for MFA roles
+        if (user.isFirstLogin()) {
+            notificationService.sendWelcomeNotification(user.getId(), user.getName());
+            user.setFirstLogin(false);
             userRepository.save(user);
         }
 
