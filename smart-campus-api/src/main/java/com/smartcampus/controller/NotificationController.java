@@ -1,11 +1,14 @@
 package com.smartcampus.controller;
 
+import com.smartcampus.dto.request.ManagerBroadcastNoticeRequest;
+import com.smartcampus.dto.response.ManagerBroadcastNoticeResponse;
 import com.smartcampus.dto.response.NotificationResponse;
 import com.smartcampus.entity.User;
 import com.smartcampus.repository.UserRepository;
 import com.smartcampus.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -86,6 +89,16 @@ public class NotificationController {
         User user = getUser(auth);
         return ResponseEntity.ok(
             notificationService.createClientNotification(user.getId(), request));
+    }
+
+    // POST /api/notifications/manager-broadcast - send targeted notices to users with upcoming bookings
+    @PostMapping("/manager-broadcast")
+    @PreAuthorize("hasRole('MANAGER') or hasRole('ADMIN')")
+    public ResponseEntity<ManagerBroadcastNoticeResponse> sendManagerBroadcastNotice(
+            @RequestBody ManagerBroadcastNoticeRequest request,
+            Authentication auth) {
+        User user = getUser(auth);
+        return ResponseEntity.ok(notificationService.sendManagerBroadcastNotice(user, request));
     }
 
     // Helper — extract User from Authentication

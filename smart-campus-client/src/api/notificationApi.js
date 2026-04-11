@@ -7,3 +7,4 @@ export const markAllAsRead     = ()     => api.patch('/notifications/read-all');
 export const deleteNotification= (id)   => api.delete(`/notifications/${id}`);
 export const clearAll          = ()     => api.delete('/notifications/clear-all');
 export const createClientNotification = (data) => api.post('/notifications/client', data);
+export const sendManagerBroadcastNotice = (data) => api.post('/notifications/manager-broadcast', data);

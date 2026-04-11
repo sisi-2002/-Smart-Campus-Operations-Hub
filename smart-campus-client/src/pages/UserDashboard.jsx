@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { closeIncidentTicket, getIncidentTicket, getUserDashboardOverview, submitIncidentTicket, updateIncidentTicket, updateUserProfile } from '../api/userDashboardApi';
+import { closeIncidentTicket, getIncidentTicket, getUserDashboardOverview, submitIncidentTicket, updateIncidentTicket } from '../api/userDashboardApi';
 import IncidentModal from '../components/IncidentModal';
 import TicketCommentsPanel from '../components/TicketCommentsPanel';
 import BookingList from '../components/Bookings/BookingList';
+import resourceApi from '../api/resourceApi';
+import bookingApi from '../api/bookingApi';
 
 const HIDDEN_TICKET_STORAGE_KEY = 'incidentTicketHiddenIds';
 
@@ -101,18 +103,28 @@ export default function UserDashboard() {
     activeTickets: [],
     incidentTickets: [],
   });
+  const [resources, setResources] = useState([]);
+  const [resourceLoading, setResourceLoading] = useState(false);
+  const [resourceError, setResourceError] = useState('');
+  const [resourceSearch, setResourceSearch] = useState('');
+  const [resourceTypeFilter, setResourceTypeFilter] = useState('ALL');
+  const [resourceStatusFilter, setResourceStatusFilter] = useState('ALL');
+  const [resourceMinCapacity, setResourceMinCapacity] = useState('');
+  const [myBookings, setMyBookings] = useState([]);
+  const [bookingSearch, setBookingSearch] = useState('');
+  const [bookingStatusFilter, setBookingStatusFilter] = useState('ALL');
   const [deleteTicketTarget, setDeleteTicketTarget] = useState(null);
   const [deleteTicketNote, setDeleteTicketNote] = useState('');
   const [deleteTicketError, setDeleteTicketError] = useState('');
   const [isDeletingTicket, setIsDeletingTicket] = useState(false);
 
-  const getCachedIncidentImages = () => {
+  const getCachedIncidentImages = useCallback(() => {
     try {
       return JSON.parse(localStorage.getItem('incidentTicketImageCache') || '[]');
     } catch {
       return [];
     }
-  };
+  }, []);
 
   const setCachedIncidentImages = (entries) => {
     localStorage.setItem('incidentTicketImageCache', JSON.stringify(entries));
@@ -130,7 +142,7 @@ export default function UserDashboard() {
     });
   };
 
-  const mergeCachedImages = (tickets) => {
+  const mergeCachedImages = useCallback((tickets) => {
     const cache = getCachedIncidentImages();
     if (!cache.length) {
       return tickets;
@@ -149,9 +161,9 @@ export default function UserDashboard() {
         imageDataUrls: (ticket.imageDataUrls && ticket.imageDataUrls.length > 0) ? ticket.imageDataUrls : (cached.imageDataUrls || []),
       };
     });
-  };
+  }, [getCachedIncidentImages]);
 
-  const fetchOverview = async () => {
+  const fetchOverview = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
@@ -179,7 +191,29 @@ export default function UserDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [mergeCachedImages]);
+
+  const fetchResources = useCallback(async () => {
+    try {
+      setResourceLoading(true);
+      const res = await resourceApi.getAllResources();
+      setResources(Array.isArray(res.data) ? res.data : []);
+      setResourceError('');
+    } catch (err) {
+      setResourceError(err?.response?.data?.error || 'Failed to load resources.');
+    } finally {
+      setResourceLoading(false);
+    }
+  }, []);
+
+  const fetchMyBookings = useCallback(async () => {
+    try {
+      const res = await bookingApi.getMyBookings();
+      setMyBookings(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setMyBookings([]);
+    }
+  }, []);
 
   const handleIncidentSubmit = async (payload) => {
     const response = await submitIncidentTicket(payload);
@@ -271,7 +305,9 @@ export default function UserDashboard() {
 
   useEffect(() => {
     fetchOverview();
-  }, []);
+    fetchResources();
+    fetchMyBookings();
+  }, [fetchOverview, fetchResources, fetchMyBookings]);
 
   useEffect(() => {
     if (activeTab !== 'tickets' && ticketNotice) {
@@ -294,6 +330,80 @@ export default function UserDashboard() {
     { label: 'Open Tickets', value: overview.stats.openTickets, color: '#ef4444' },
     { label: 'Resolved Tickets', value: overview.stats.resolvedTickets, color: '#10b981' },
   ];
+
+  const normalizeStatus = (value) => String(value || '').trim().toUpperCase();
+
+  const dashboardBookings = useMemo(() => {
+    if (myBookings.length > 0) {
+      return myBookings.map((booking) => {
+        const start = booking.startTime ? new Date(booking.startTime) : null;
+        const end = booking.endTime ? new Date(booking.endTime) : null;
+        const isValidStart = start && !Number.isNaN(start.getTime());
+        const isValidEnd = end && !Number.isNaN(end.getTime());
+
+        return {
+          id: booking.id,
+          resource: booking.resourceName || '-',
+          status: normalizeStatus(booking.status) || 'UNKNOWN',
+          dateLabel: isValidStart ? start.toLocaleDateString() : '-',
+          timeLabel: isValidStart && isValidEnd
+            ? `${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+            : '-',
+          searchText: [booking.resourceName, booking.purpose, booking.status].filter(Boolean).join(' ').toLowerCase(),
+        };
+      });
+    }
+
+    return overview.recentBookings.map((booking, idx) => ({
+      id: booking.id || `overview-${idx}`,
+      resource: booking.resource || '-',
+      status: normalizeStatus(booking.status) || 'UNKNOWN',
+      dateLabel: booking.date || '-',
+      timeLabel: booking.time || '-',
+      searchText: [booking.resource, booking.status, booking.date, booking.time].filter(Boolean).join(' ').toLowerCase(),
+    }));
+  }, [myBookings, overview.recentBookings]);
+
+  const filteredDashboardBookings = useMemo(() => {
+    const q = bookingSearch.trim().toLowerCase();
+    return dashboardBookings.filter((booking) => {
+      const matchSearch = q === '' || booking.searchText.includes(q);
+      const matchStatus = bookingStatusFilter === 'ALL' || booking.status === bookingStatusFilter;
+      return matchSearch && matchStatus;
+    });
+  }, [dashboardBookings, bookingSearch, bookingStatusFilter]);
+
+  const resourceTypes = useMemo(() => {
+    const values = new Set(resources.map((resource) => String(resource.type || '').toUpperCase()).filter(Boolean));
+    return Array.from(values).sort();
+  }, [resources]);
+
+  const filteredResources = useMemo(() => {
+    const q = resourceSearch.trim().toLowerCase();
+    const minCapacity = resourceMinCapacity.trim() === '' ? null : Number.parseInt(resourceMinCapacity, 10);
+
+    return resources.filter((resource) => {
+      const type = String(resource.type || '').toUpperCase();
+      const status = String(resource.status || '').toUpperCase();
+      const capacity = Number(resource.capacity) || 0;
+      const searchSpace = [resource.name, resource.type, resource.location, resource.building, ...(resource.features || [])]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+
+      const matchSearch = q === '' || searchSpace.includes(q);
+      const matchType = resourceTypeFilter === 'ALL' || type === resourceTypeFilter;
+      const matchStatus = resourceStatusFilter === 'ALL' || status === resourceStatusFilter;
+      const matchCapacity = minCapacity === null || (!Number.isNaN(minCapacity) && capacity >= minCapacity);
+
+      return matchSearch && matchType && matchStatus && matchCapacity;
+    });
+  }, [resources, resourceSearch, resourceTypeFilter, resourceStatusFilter, resourceMinCapacity]);
+
+  const formatEnumLabel = (value) => String(value || '-')
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 
   const getStatusPillStyle = (status) => {
     const normalized = (status || '').trim().toUpperCase();
@@ -413,7 +523,41 @@ export default function UserDashboard() {
 
       <div style={s.bottomGrid}>
         <div style={s.tableWrap}>
-          <div style={s.sectionHeader}>My Recent Bookings</div>
+          <div style={s.sectionHeader}>My Bookings</div>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12, padding: '0 12px' }}>
+            <input
+              type="text"
+              value={bookingSearch}
+              onChange={(event) => setBookingSearch(event.target.value)}
+              placeholder="Search by resource, purpose, date..."
+              style={{
+                minWidth: 260,
+                flex: 1,
+                padding: '8px 10px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                fontSize: 13,
+              }}
+            />
+            <select
+              value={bookingStatusFilter}
+              onChange={(event) => setBookingStatusFilter(event.target.value)}
+              style={{
+                minWidth: 180,
+                padding: '8px 10px',
+                borderRadius: 8,
+                border: '1px solid #cbd5e1',
+                fontSize: 13,
+                background: '#fff',
+              }}
+            >
+              <option value="ALL">All Status</option>
+              <option value="PENDING">Pending</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="CANCELLED">Cancelled</option>
+            </select>
+          </div>
           <table style={s.table}>
             <thead>
               <tr style={s.thead}>
@@ -424,19 +568,19 @@ export default function UserDashboard() {
               </tr>
             </thead>
             <tbody>
-              {overview.recentBookings.length === 0 && (
+              {filteredDashboardBookings.length === 0 && (
                 <tr style={s.tr}>
-                  <td style={s.emptyTd} colSpan={4}>No bookings found in database.</td>
+                  <td style={s.emptyTd} colSpan={4}>No bookings match your filter.</td>
                 </tr>
               )}
-              {overview.recentBookings.map((booking) => (
+              {filteredDashboardBookings.map((booking) => (
                 <tr key={booking.id} style={s.tr}>
-                  <td style={s.td}>{booking.resource || '-'}</td>
-                  <td style={s.td}>{booking.date || '-'}</td>
-                  <td style={s.td}>{booking.time || '-'}</td>
+                  <td style={s.td}>{booking.resource}</td>
+                  <td style={s.td}>{booking.dateLabel}</td>
+                  <td style={s.td}>{booking.timeLabel}</td>
                   <td style={s.td}>
                     <span style={{ ...s.pill, ...getStatusPillStyle(booking.status) }}>
-                      {booking.status || 'Unknown'}
+                      {formatEnumLabel(booking.status)}
                     </span>
                   </td>
                 </tr>
@@ -463,7 +607,7 @@ export default function UserDashboard() {
                 </tr>
               )}
               {overview.activeTickets.map((ticket) => (
-                <tr key={ticket.id} style={s.tr}>
+                <tr key={ticket.ticketId || ticket.id} style={s.tr}>
                   <td style={s.td}>{ticket.ticketId || ticket.id}</td>
                   <td style={s.td}>{ticket.location || '-'}</td>
                   <td style={s.td}>{ticket.category || '-'}</td>
@@ -529,7 +673,7 @@ export default function UserDashboard() {
             const resolutionSla = getSlaHealth(ticket.timeToResolutionMinutes, 'resolution');
 
             return (
-              <article key={ticket.id} style={s.ticketCard}>
+              <article key={ticketKey} style={s.ticketCard}>
                 <div style={s.ticketCardHeader}>
                   <div>
                     <div style={s.ticketCardId}>{ticket.ticketId || ticket.id}</div>
@@ -579,7 +723,7 @@ export default function UserDashboard() {
                       {ticketImages.length > 0 ? (
                         ticketImages.map((imageUrl, index) => (
                           <img
-                            key={`${ticket.id}-${index}`}
+                            key={`${ticketKey}-${index}`}
                             src={imageUrl}
                             alt={`${ticket.ticketId || ticket.id} attachment ${index + 1}`}
                             style={s.ticketThumbnail}
@@ -661,11 +805,12 @@ export default function UserDashboard() {
                 const hasImageNamesOnly = ticketImages.length === 0 && (ticket.imageNames || []).length > 0;
                 const normalizedStatus = (ticket.status || '').trim().toUpperCase();
                 const canHide = ['RESOLVED', 'CLOSED', 'REJECTED'].includes(normalizedStatus);
+                const ticketKey = ticket.ticketId || ticket.id;
                 const firstResponseSla = getSlaHealth(ticket.timeToFirstResponseMinutes, 'firstResponse');
                 const resolutionSla = getSlaHealth(ticket.timeToResolutionMinutes, 'resolution');
 
                 return (
-                  <tr key={ticket.id} style={s.tr}>
+                  <tr key={ticketKey} style={s.tr}>
                       <td style={s.ticketCompactTd}><div style={{ fontWeight: 600 }}>{ticket.ticketId || ticket.id}</div></td>
                       <td style={s.ticketCompactTd}>{ticket.location || '-'}</td>
                       <td style={s.ticketCompactTd}>{ticket.category || '-'}</td>
@@ -674,7 +819,7 @@ export default function UserDashboard() {
                           {ticketImages.length > 0 ? (
                             ticketImages.map((imageUrl, index) => (
                               <img
-                                key={`${ticket.id}-${index}`}
+                                key={`${ticketKey}-${index}`}
                                 src={imageUrl}
                                 alt={`${ticket.ticketId || ticket.id} attachment ${index + 1}`}
                                 style={s.ticketThumbnail}
@@ -1016,7 +1161,80 @@ export default function UserDashboard() {
               {activeTab === 'catalogue' && (
                 <div style={s.tableWrap}>
                   <div style={s.sectionHeader}>Resource Catalogue</div>
-                  <div style={s.emptyState}>Resource catalogue content will appear here.</div>
+                  <div style={{ display: 'grid', gap: 12, padding: 12 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: 10 }}>
+                      <input
+                        type="text"
+                        value={resourceSearch}
+                        onChange={(event) => setResourceSearch(event.target.value)}
+                        placeholder="Search name, type, location, building..."
+                        style={{ padding: '9px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+                      />
+                      <select
+                        value={resourceTypeFilter}
+                        onChange={(event) => setResourceTypeFilter(event.target.value)}
+                        style={{ padding: '9px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, background: '#fff' }}
+                      >
+                        <option value="ALL">All Types</option>
+                        {resourceTypes.map((type) => (
+                          <option key={type} value={type}>{formatEnumLabel(type)}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={resourceStatusFilter}
+                        onChange={(event) => setResourceStatusFilter(event.target.value)}
+                        style={{ padding: '9px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13, background: '#fff' }}
+                      >
+                        <option value="ALL">All Status</option>
+                        <option value="ACTIVE">Active</option>
+                        <option value="MAINTENANCE">Maintenance</option>
+                        <option value="OUT_OF_SERVICE">Out of Service</option>
+                      </select>
+                      <input
+                        type="number"
+                        min="0"
+                        value={resourceMinCapacity}
+                        onChange={(event) => setResourceMinCapacity(event.target.value)}
+                        placeholder="Min capacity"
+                        style={{ padding: '9px 10px', borderRadius: 8, border: '1px solid #cbd5e1', fontSize: 13 }}
+                      />
+                    </div>
+
+                    {resourceLoading && <div style={s.infoBanner}>Loading resources...</div>}
+                    {!resourceLoading && resourceError && <div style={s.errorBanner}>{resourceError}</div>}
+
+                    {!resourceLoading && !resourceError && filteredResources.length === 0 && (
+                      <div style={s.emptyState}>No resources match your search/filter.</div>
+                    )}
+
+                    {!resourceLoading && !resourceError && filteredResources.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 10 }}>
+                        {filteredResources.map((resource) => (
+                          <article
+                            key={resource.id}
+                            style={{
+                              border: '1px solid #e2e8f0',
+                              borderRadius: 10,
+                              background: '#f8fafc',
+                              padding: 12,
+                              display: 'grid',
+                              gap: 6,
+                            }}
+                          >
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
+                              <strong style={{ color: '#0f172a' }}>{resource.name || 'Unnamed Resource'}</strong>
+                              <span style={{ ...s.pill, ...getStatusPillStyle(resource.status) }}>{formatEnumLabel(resource.status)}</span>
+                            </div>
+                            <div style={{ color: '#334155', fontSize: 13 }}><strong>Type:</strong> {formatEnumLabel(resource.type)}</div>
+                            <div style={{ color: '#334155', fontSize: 13 }}><strong>Location:</strong> {resource.location || '-'}</div>
+                            <div style={{ color: '#334155', fontSize: 13 }}><strong>Building:</strong> {resource.building || '-'}</div>
+                            <div style={{ color: '#334155', fontSize: 13 }}><strong>Capacity:</strong> {resource.capacity ?? '-'} people</div>
+                            <div style={{ color: '#334155', fontSize: 13 }}><strong>Hours:</strong> {resource.availableFrom || '-'} - {resource.availableTo || '-'}</div>
+                          </article>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               {activeTab === 'tickets' && renderTicketsTab()}
