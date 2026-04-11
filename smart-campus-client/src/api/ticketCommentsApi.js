@@ -1,7 +1,9 @@
 import api from './axiosInstance';
 
+// Shared ticket comment APIs used by user, admin, and technician workflows.
 export const getTicketComments = (ticketId) => api.get(`/tickets/${ticketId}/comments`);
 
+// Retry on dashboard-scoped comment routes for backward-compatible deployments.
 const shouldRetryWithDashboardPath = (error) => [404, 405].includes(error?.response?.status);
 
 export const createTicketComment = async (ticketId, payload) => {

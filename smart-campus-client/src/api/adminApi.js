@@ -2,7 +2,11 @@ import api from './axiosInstance';
 
 export const getAllUsers  = ()              => api.get('/admin/users');
 export const getStats     = ()              => api.get('/admin/stats');
+
+// Ticket-management endpoints used by the admin dashboard.
 export const getIncidentTickets = ()        => api.get('/admin/tickets');
+
+// PATCH is the primary update route; retries keep compatibility with older mappings.
 export const updateIncidentTicket = async (ticketId, payload) => {
 	try {
 		return await api.patch(`/admin/tickets/${ticketId}`, payload);
@@ -15,6 +19,7 @@ export const updateIncidentTicket = async (ticketId, payload) => {
 				id: ticketId,
 			};
 
+			// Fallback order: same path with PUT/POST, then body-based PUT/POST.
 			try {
 				return await api.put(`/admin/tickets/${ticketId}`, payload);
 			} catch (errPutPath) {

@@ -410,6 +410,7 @@ const getSlaHealth = (minutes, metric) => {
   return { label: 'Breached', style: SLA_TONE_STYLE.breached };
 };
 
+// Admin ticket management workspace: triage incidents, assign technicians, and monitor SLA progress.
 export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
   const { user } = useAuth();
   const navigate = useNavigate();
