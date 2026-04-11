@@ -824,6 +824,9 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
   const selectedTicketResolutionSla = selectedTicket
     ? getSlaHealth(selectedTicket.timeToResolutionMinutes, 'resolution')
     : null;
+  const selectedTicketStatusStyle = selectedTicket
+    ? (TICKET_STATUS_STYLE[selectedTicket.status] || TICKET_STATUS_STYLE.OPEN)
+    : TICKET_STATUS_STYLE.OPEN;
 
   const renderTicketsTab = () => (
     <>
@@ -1332,10 +1335,19 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
           <div style={s.ticketModalCard}>
             <div style={s.ticketModalHeader}>
               <div>
-                <h3 style={s.ticketModalTitle}>Ticket Details - {selectedTicket.ticketId}</h3>
+                <h3 style={s.ticketModalTitle}>View Ticket Details - {selectedTicket.ticketId}</h3>
                 <p style={s.ticketModalSub}>Review incident details and update workflow.</p>
+                <div style={s.ticketModalMetaRow}>
+                  <span style={{ ...s.ticketModalMetaChip, ...selectedTicketStatusStyle }}>
+                    {selectedTicket.status || 'OPEN'}
+                  </span>
+                  <span style={s.ticketModalMetaChipMuted}>Priority: {selectedTicket.priority || '-'}</span>
+                  <span style={s.ticketModalMetaChipMuted}>
+                    {selectedTicket.assignedTechnician ? `Assigned: ${selectedTicket.assignedTechnician}` : 'Unassigned'}
+                  </span>
+                </div>
               </div>
-              <button style={s.ticketModalCloseBtn} onClick={closeTicketModal}>x</button>
+              <button style={s.ticketModalCloseBtn} onClick={closeTicketModal}>×</button>
             </div>
 
             <div style={s.ticketModalBody}>
@@ -2475,6 +2487,31 @@ const s = {
   },
   ticketModalTitle: { margin: 0, fontSize: 20, fontWeight: 700, color: '#0f172a' },
   ticketModalSub: { margin: '4px 0 0', fontSize: 13, color: '#64748b' },
+  ticketModalMetaRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    marginTop: 10,
+  },
+  ticketModalMetaChip: {
+    padding: '4px 10px',
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 700,
+    letterSpacing: '0.05em',
+    textTransform: 'uppercase',
+    border: '1px solid transparent',
+  },
+  ticketModalMetaChipMuted: {
+    padding: '4px 10px',
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 600,
+    color: '#475569',
+    background: '#f8fafc',
+    border: '1px solid #e2e8f0',
+  },
   ticketModalCloseBtn: {
     border: '1px solid #e2e8f0',
     background: '#f8fafc',

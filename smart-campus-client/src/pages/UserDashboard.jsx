@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { closeIncidentTicket, getIncidentTicket, getUserDashboardOverview, submitIncidentTicket, updateIncidentTicket, updateUserProfile } from '../api/userDashboardApi';
@@ -76,8 +76,8 @@ export default function UserDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isIncidentModalOpen, setIsIncidentModalOpen] = useState(false);
   const [editingTicket, setEditingTicket] = useState(null);
+  const [detailTicket, setDetailTicket] = useState(null);
   const [previewImageUrl, setPreviewImageUrl] = useState('');
-  const [expandedTicketId, setExpandedTicketId] = useState('');
   const [ticketViewMode, setTicketViewMode] = useState('cards');
   const [ticketNotice, setTicketNotice] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -318,6 +318,17 @@ export default function UserDashboard() {
     return ticketKey && !hiddenTicketIds.includes(ticketKey);
   });
 
+  const detailTicketImages = detailTicket ? (detailTicket.imageDataUrls || []).slice(0, 6) : [];
+  const detailHasImageNamesOnly = detailTicket
+    ? detailTicketImages.length === 0 && (detailTicket.imageNames || []).length > 0
+    : false;
+  const detailFirstResponseSla = detailTicket
+    ? getSlaHealth(detailTicket.timeToFirstResponseMinutes, 'firstResponse')
+    : null;
+  const detailResolutionSla = detailTicket
+    ? getSlaHealth(detailTicket.timeToResolutionMinutes, 'resolution')
+    : null;
+
   const openCreateIncidentModal = () => {
     setEditingTicket(null);
     setIsIncidentModalOpen(true);
@@ -352,6 +363,41 @@ export default function UserDashboard() {
   const closeIncidentModal = () => {
     setIsIncidentModalOpen(false);
     setEditingTicket(null);
+  };
+
+  const openTicketDetailsModal = (ticket) => {
+    if (!ticket) {
+      return;
+    }
+    setDetailTicket(ticket);
+  };
+
+  const closeTicketDetailsModal = () => {
+    setDetailTicket(null);
+  };
+
+  const handleDetailCommentsChange = (nextComments) => {
+    if (!detailTicket) {
+      return;
+    }
+
+    const detailKey = detailTicket.ticketId || detailTicket.id;
+
+    setDetailTicket((current) => (current ? { ...current, comments: nextComments } : current));
+    setOverview((prev) => ({
+      ...prev,
+      activeTickets: prev.activeTickets.map((item) => (
+        (item.ticketId || item.id) === detailKey
+          ? { ...item, comments: nextComments }
+          : item
+      )),
+      incidentTickets: prev.incidentTickets.map((item) => (
+        (item.ticketId || item.id) === detailKey
+          ? { ...item, comments: nextComments }
+          : item
+      )),
+    }));
+    setTicketNotice(null);
   };
 
   const renderDashboardTab = () => (
@@ -479,7 +525,6 @@ export default function UserDashboard() {
             const normalizedStatus = (ticket.status || '').trim().toUpperCase();
             const canHide = ['RESOLVED', 'CLOSED', 'REJECTED'].includes(normalizedStatus);
             const ticketKey = ticket.ticketId || ticket.id;
-            const isExpanded = expandedTicketId === ticketKey;
             const firstResponseSla = getSlaHealth(ticket.timeToFirstResponseMinutes, 'firstResponse');
             const resolutionSla = getSlaHealth(ticket.timeToResolutionMinutes, 'resolution');
 
@@ -576,9 +621,9 @@ export default function UserDashboard() {
                   <button
                     type="button"
                     style={s.actionBtn}
-                    onClick={() => setExpandedTicketId(isExpanded ? '' : ticketKey)}
+                    onClick={() => openTicketDetailsModal(ticket)}
                   >
-                    {isExpanded ? 'Hide Comments' : 'View Comments'}
+                    View Details
                   </button>
 
                   {canHide ? (
@@ -591,33 +636,6 @@ export default function UserDashboard() {
                     </button>
                   ) : null}
                 </div>
-
-                {isExpanded && (
-                  <div style={s.ticketCommentsWrap}>
-                    <TicketCommentsPanel
-                      ticket={ticket}
-                      currentUser={userDetails}
-                      onCommentsChange={(nextComments) => {
-                        setOverview((prev) => ({
-                          ...prev,
-                          activeTickets: prev.activeTickets.map((item) => (
-                            (item.ticketId || item.id) === ticketKey
-                              ? { ...item, comments: nextComments }
-                              : item
-                          )),
-                          incidentTickets: prev.incidentTickets.map((item) => (
-                            (item.ticketId || item.id) === ticketKey
-                              ? { ...item, comments: nextComments }
-                              : item
-                          )),
-                        }));
-                        setTicketNotice(null);
-                      }}
-                      onError={(message) => setTicketNotice({ type: 'error', message: message || 'Failed to update comments' })}
-                      onSuccess={(message) => setTicketNotice({ type: 'success', message: message || 'Comment updated' })}
-                    />
-                  </div>
-                )}
               </article>
             );
           })}
@@ -643,14 +661,11 @@ export default function UserDashboard() {
                 const hasImageNamesOnly = ticketImages.length === 0 && (ticket.imageNames || []).length > 0;
                 const normalizedStatus = (ticket.status || '').trim().toUpperCase();
                 const canHide = ['RESOLVED', 'CLOSED', 'REJECTED'].includes(normalizedStatus);
-                const ticketKey = ticket.ticketId || ticket.id;
-                const isExpanded = expandedTicketId === ticketKey;
                 const firstResponseSla = getSlaHealth(ticket.timeToFirstResponseMinutes, 'firstResponse');
                 const resolutionSla = getSlaHealth(ticket.timeToResolutionMinutes, 'resolution');
 
                 return (
-                  <Fragment key={ticket.id}>
-                    <tr key={`${ticket.id}-row`} style={s.tr}>
+                  <tr key={ticket.id} style={s.tr}>
                       <td style={s.ticketCompactTd}><div style={{ fontWeight: 600 }}>{ticket.ticketId || ticket.id}</div></td>
                       <td style={s.ticketCompactTd}>{ticket.location || '-'}</td>
                       <td style={s.ticketCompactTd}>{ticket.category || '-'}</td>
@@ -717,9 +732,9 @@ export default function UserDashboard() {
                           <button
                             type="button"
                             style={s.actionBtn}
-                            onClick={() => setExpandedTicketId(isExpanded ? '' : ticketKey)}
+                            onClick={() => openTicketDetailsModal(ticket)}
                           >
-                            {isExpanded ? 'Hide Comments' : 'View Comments'}
+                            View Details
                           </button>
                           {canHide ? (
                             <button
@@ -733,35 +748,6 @@ export default function UserDashboard() {
                         </div>
                       </td>
                     </tr>
-                    {isExpanded && (
-                      <tr key={`${ticket.id}-comments`} style={s.tr}>
-                        <td style={s.ticketCompactTd} colSpan={8}>
-                          <TicketCommentsPanel
-                            ticket={ticket}
-                            currentUser={userDetails}
-                            onCommentsChange={(nextComments) => {
-                              setOverview((prev) => ({
-                                ...prev,
-                                activeTickets: prev.activeTickets.map((item) => (
-                                  (item.ticketId || item.id) === ticketKey
-                                    ? { ...item, comments: nextComments }
-                                    : item
-                                )),
-                                incidentTickets: prev.incidentTickets.map((item) => (
-                                  (item.ticketId || item.id) === ticketKey
-                                    ? { ...item, comments: nextComments }
-                                    : item
-                                )),
-                              }));
-                              setTicketNotice(null);
-                            }}
-                            onError={(message) => setTicketNotice({ type: 'error', message: message || 'Failed to update comments' })}
-                            onSuccess={(message) => setTicketNotice({ type: 'success', message: message || 'Comment updated' })}
-                          />
-                        </td>
-                      </tr>
-                    )}
-                  </Fragment>
                 );
               })}
             </tbody>
@@ -793,6 +779,106 @@ export default function UserDashboard() {
           }
         }}
       />
+
+      {detailTicket && (
+        <div style={s.detailOverlay} onClick={closeTicketDetailsModal}>
+          <div style={s.detailModal} onClick={(event) => event.stopPropagation()}>
+            <div style={s.detailHeader}>
+              <div>
+                <h3 style={s.detailTitle}>View Ticket Details - {detailTicket.ticketId || detailTicket.id}</h3>
+                <p style={s.detailSub}>Track progress, review evidence, and continue the conversation.</p>
+                <div style={s.detailMetaRow}>
+                  <span style={{ ...s.pill, ...getStatusPillStyle(detailTicket.status) }}>
+                    {detailTicket.status || 'OPEN'}
+                  </span>
+                  <span style={s.detailMetaChip}>Priority: {detailTicket.priority || '-'}</span>
+                  <span style={s.detailMetaChip}>Category: {detailTicket.category || '-'}</span>
+                </div>
+              </div>
+              <button type="button" style={s.detailCloseBtn} onClick={closeTicketDetailsModal}>×</button>
+            </div>
+
+            <div style={s.detailBody}>
+              <div style={s.detailInfoGrid}>
+                <div style={s.detailInfoItem}>
+                  <span style={s.detailInfoLabel}>Location</span>
+                  <span style={s.detailInfoValue}>{detailTicket.location || '-'}</span>
+                </div>
+                <div style={s.detailInfoItem}>
+                  <span style={s.detailInfoLabel}>Preferred Contact</span>
+                  <span style={s.detailInfoValue}>{detailTicket.preferredContact || '-'}</span>
+                </div>
+                <div style={s.detailInfoItem}>
+                  <span style={s.detailInfoLabel}>Submitted At</span>
+                  <span style={s.detailInfoValue}>{formatDateTime(detailTicket.createdAt)}</span>
+                </div>
+                <div style={s.detailInfoItem}>
+                  <span style={s.detailInfoLabel}>First Response SLA</span>
+                  <span style={s.detailInfoValue}>
+                    {formatSlaDuration(detailTicket.timeToFirstResponseMinutes)} ({detailFirstResponseSla?.label || 'Pending'})
+                  </span>
+                </div>
+                <div style={s.detailInfoItem}>
+                  <span style={s.detailInfoLabel}>Resolution SLA</span>
+                  <span style={s.detailInfoValue}>
+                    {formatSlaDuration(detailTicket.timeToResolutionMinutes)} ({detailResolutionSla?.label || 'Pending'})
+                  </span>
+                </div>
+              </div>
+
+              <div style={s.detailSection}>
+                <div style={s.detailSectionTitle}>Description</div>
+                <p style={s.detailDescription}>{detailTicket.description || 'No description provided.'}</p>
+              </div>
+
+              <div style={s.detailSection}>
+                <div style={s.detailSectionTitle}>Evidence</div>
+                {detailTicketImages.length > 0 ? (
+                  <div style={s.detailEvidenceGrid}>
+                    {detailTicketImages.map((imageUrl, index) => (
+                      <img
+                        key={`${detailTicket.id}-detail-${index}`}
+                        src={imageUrl}
+                        alt={`${detailTicket.ticketId || detailTicket.id} attachment ${index + 1}`}
+                        style={s.detailEvidenceImage}
+                        onClick={() => setPreviewImageUrl(imageUrl)}
+                      />
+                    ))}
+                  </div>
+                ) : detailHasImageNamesOnly ? (
+                  <div style={s.attachmentNamesWrap}>
+                    {(detailTicket.imageNames || []).slice(0, 6).map((imageName) => (
+                      <span key={imageName} style={s.imageNameChip}>{imageName}</span>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={s.noEvidenceBox}>No image attachments were provided.</div>
+                )}
+              </div>
+
+              <div style={s.detailSection}>
+                <div style={s.detailSectionTitle}>Resolution Notes</div>
+                <p style={s.detailDescription}>{detailTicket.resolutionNotes || 'No resolution notes yet.'}</p>
+              </div>
+
+              <div style={s.detailSection}>
+                <div style={s.detailSectionTitle}>Comments</div>
+                <TicketCommentsPanel
+                  ticket={detailTicket}
+                  currentUser={userDetails}
+                  onCommentsChange={handleDetailCommentsChange}
+                  onError={(message) => setTicketNotice({ type: 'error', message: message || 'Failed to update comments' })}
+                  onSuccess={(message) => setTicketNotice({ type: 'success', message: message || 'Comment updated' })}
+                />
+              </div>
+            </div>
+
+            <div style={s.detailFooter}>
+              <button type="button" style={s.detailDoneBtn} onClick={closeTicketDetailsModal}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {deleteTicketTarget && (
         <div
@@ -1387,11 +1473,6 @@ const s = {
     alignItems: 'center',
     flexWrap: 'wrap',
   },
-  ticketCommentsWrap: {
-    borderTop: '1px solid #e4dfd4',
-    background: '#f4f1eb',
-    padding: 10,
-  },
   table: { width: '100%', borderCollapse: 'collapse' },
   thead: { background: '#f8fafc' },
   th: {
@@ -1472,6 +1553,159 @@ const s = {
     padding: '18px 16px',
     color: '#64748b',
     fontSize: 14,
+  },
+  detailOverlay: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 1325,
+    background: 'rgba(15, 23, 42, 0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    backdropFilter: 'blur(5px)',
+  },
+  detailModal: {
+    width: '100%',
+    maxWidth: 920,
+    maxHeight: '90vh',
+    background: '#fff',
+    border: '1px solid #e2e8f0',
+    borderRadius: 14,
+    boxShadow: '0 30px 50px rgba(15, 23, 42, 0.28)',
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'hidden',
+  },
+  detailHeader: {
+    padding: '14px 16px',
+    borderBottom: '1px solid #e2e8f0',
+    display: 'flex',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+    background: '#f8fafc',
+  },
+  detailTitle: {
+    margin: 0,
+    fontSize: 20,
+    fontWeight: 700,
+    color: '#0f172a',
+  },
+  detailSub: {
+    margin: '4px 0 0',
+    fontSize: 13,
+    color: '#64748b',
+  },
+  detailMetaRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  detailMetaChip: {
+    padding: '4px 10px',
+    borderRadius: 999,
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    color: '#475569',
+    fontSize: 11,
+    fontWeight: 600,
+  },
+  detailCloseBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    color: '#334155',
+    fontSize: 20,
+    lineHeight: 1,
+    cursor: 'pointer',
+  },
+  detailBody: {
+    padding: 16,
+    overflowY: 'auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12,
+    background: '#f8fafc',
+  },
+  detailInfoGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))',
+    gap: 8,
+  },
+  detailInfoItem: {
+    border: '1px solid #e2e8f0',
+    borderRadius: 10,
+    background: '#fff',
+    padding: '8px 10px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+  },
+  detailInfoLabel: {
+    fontSize: 10,
+    fontWeight: 700,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: '#64748b',
+  },
+  detailInfoValue: {
+    fontSize: 13,
+    color: '#0f172a',
+    lineHeight: 1.45,
+  },
+  detailSection: {
+    border: '1px solid #e2e8f0',
+    borderRadius: 10,
+    background: '#fff',
+    padding: '10px 12px',
+  },
+  detailSectionTitle: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#334155',
+    marginBottom: 8,
+  },
+  detailDescription: {
+    margin: 0,
+    fontSize: 13,
+    lineHeight: 1.6,
+    color: '#334155',
+  },
+  detailEvidenceGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
+    gap: 8,
+  },
+  detailEvidenceImage: {
+    width: '100%',
+    height: 96,
+    objectFit: 'cover',
+    borderRadius: 10,
+    border: '1px solid #e2e8f0',
+    background: '#f8fafc',
+    cursor: 'zoom-in',
+  },
+  detailFooter: {
+    padding: '10px 14px',
+    borderTop: '1px solid #e2e8f0',
+    display: 'flex',
+    justifyContent: 'flex-end',
+    background: '#fff',
+  },
+  detailDoneBtn: {
+    padding: '8px 14px',
+    borderRadius: 8,
+    border: '1px solid #e2e8f0',
+    background: '#fff',
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
   },
   deleteOverlay: {
     position: 'fixed',
