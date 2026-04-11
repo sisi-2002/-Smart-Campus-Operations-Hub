@@ -201,9 +201,20 @@ public class AdminService {
         boolean requestWantsOpenLikeStatus = requestedStatus == null
                 || "OPEN".equalsIgnoreCase(requestedStatus)
                 || "PENDING".equalsIgnoreCase(requestedStatus);
+        boolean shouldReopenRejectedOnAssignment = assignmentChanged
+            && hasAssignedTechnician
+            && "REJECTED".equals(normalizedDraftStatus)
+            && (requestedStatus == null || "REJECTED".equalsIgnoreCase(requestedStatus));
 
-        if (hasAssignedTechnician && requestWantsOpenLikeStatus && isOpenLikeStatus(normalizedDraftStatus)) {
+        if ((hasAssignedTechnician && requestWantsOpenLikeStatus && isOpenLikeStatus(normalizedDraftStatus))
+            || shouldReopenRejectedOnAssignment) {
             ticket.setStatus("IN_PROGRESS");
+        }
+
+        String normalizedFinalStatus = normalizeStatus(ticket.getStatus());
+        if (("OPEN".equals(normalizedFinalStatus) || "IN_PROGRESS".equals(normalizedFinalStatus))
+                && !hasAssignedTechnician) {
+            throw new RuntimeException("A technician must be assigned before saving OPEN or IN_PROGRESS tickets");
         }
 
         if (request.getResolutionNotes() != null) {
@@ -365,8 +376,8 @@ public class AdminService {
                 }
             }
             case "REJECTED" -> {
-                if (!"REJECTED".equals(nextStatus)) {
-                    throw new RuntimeException("Rejected tickets cannot transition to another status");
+                if (!"REJECTED".equals(nextStatus) && !"IN_PROGRESS".equals(nextStatus)) {
+                    throw new RuntimeException("Allowed transitions from REJECTED are REJECTED or IN_PROGRESS");
                 }
             }
             default -> throw new RuntimeException("Unknown ticket status: " + currentStatus);
