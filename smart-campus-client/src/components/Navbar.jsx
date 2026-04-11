@@ -4,7 +4,7 @@ import { useState } from 'react';
 import NotificationPanel from './NotificationPanel';
 
 export default function Navbar() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isManager } = useAuth();
   const navigate = useNavigate();
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
@@ -31,6 +31,12 @@ export default function Navbar() {
           {/* <button style={s.navLink} onClick={() => navigate('/bookings')}>
           Bookings
         </button> */}
+
+          {(isAdmin() || isManager()) && (
+            <button style={s.navLink} onClick={() => navigate('/check-in')}>
+              Check-in
+            </button>
+          )}
 
           {/* MODULE C: Uncomment when Tickets page is implemented */}
           {/* <button style={s.navLink} onClick={() => navigate('/tickets')}>

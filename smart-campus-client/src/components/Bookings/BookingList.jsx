@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { QRCodeCanvas } from 'qrcode.react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotification } from '../../context/NotificationContext';
 import bookingApi from '../../api/bookingApi';
@@ -336,9 +337,11 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
 
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
-
-  const [actionLoading, setActionLoading] = useState(false);
   const [currentBookingId, setCurrentBookingId] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [qrData, setQrData] = useState('');
+  const [qrBookingName, setQrBookingName] = useState('');
+  const [showQrModal, setShowQrModal] = useState(false);
 
   useEffect(() => {
     if (statusFilter) {
@@ -446,6 +449,18 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
       );
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleShowQr = async (booking) => {
+    try {
+      const response = await bookingApi.getCheckInQr(booking.id);
+      setQrData(response.data?.qrData || booking.checkInQrData || '');
+      setQrBookingName(booking.resourceName || 'Booking');
+      setShowQrModal(true);
+    } catch (err) {
+      const message = err.response?.data?.error || err.response?.data?.message || 'Failed to load QR';
+      alert(message);
     }
   };
 
@@ -623,6 +638,15 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
                     </button>
                   )}
 
+                  {booking.status === 'APPROVED' && (
+                    <button
+                      className="bl-btn bl-btn-view"
+                      onClick={() => handleShowQr(booking)}
+                    >
+                      QR Check-in
+                    </button>
+                  )}
+
                   {!isAdmin && booking.status === 'PENDING' && booking.canCancel && (
                     <button
                       className="bl-btn bl-btn-cancel"
@@ -730,6 +754,32 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
                     {actionLoading ? 'Rejecting…' : 'Confirm Reject'}
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+        {showQrModal && (
+          <div className="bl-overlay" onClick={() => setShowQrModal(false)}>
+            <div className="bl-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="bl-modal-head">
+                <span className="bl-modal-title">Check-in QR</span>
+                <button className="bl-modal-close" onClick={() => setShowQrModal(false)}>×</button>
+              </div>
+              <div className="bl-modal-body" style={{alignItems:'center'}}>
+                <div className="bl-detail-section" style={{width:'100%', textAlign:'center'}}>
+                  <div className="bl-detail-section-title">{qrBookingName}</div>
+                  {qrData ? (
+                    <>
+                      <QRCodeCanvas value={qrData} size={220} includeMargin={true} />
+                      <div style={{marginTop:12, fontSize:12, color:'#78716c', wordBreak:'break-all'}}>{qrData}</div>
+                    </>
+                  ) : (
+                    <div style={{fontSize:13, color:'#be123c'}}>QR payload not available</div>
+                  )}
+                </div>
+              </div>
+              <div className="bl-modal-foot">
+                <button className="bl-btn-close-modal" onClick={() => setShowQrModal(false)}>Close</button>
               </div>
             </div>
           </div>
