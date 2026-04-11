@@ -1,17 +1,32 @@
 package com.smartcampus.service;
 
+import com.smartcampus.dto.request.ManagerBroadcastNoticeRequest;
+import com.smartcampus.dto.response.ManagerBroadcastNoticeResponse;
 import com.smartcampus.dto.response.NotificationResponse;
+import com.smartcampus.entity.Booking;
+import com.smartcampus.entity.BookingStatus;
 import com.smartcampus.entity.Notification;
 import com.smartcampus.entity.NotificationType;
+import com.smartcampus.entity.Resource;
 import com.smartcampus.entity.Role;
 import com.smartcampus.entity.User;
+import com.smartcampus.repository.BookingRepository;
 import com.smartcampus.repository.NotificationRepository;
+import com.smartcampus.repository.ResourceRepository;
 import com.smartcampus.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -21,6 +36,8 @@ public class NotificationService {
 
     private final NotificationRepository notificationRepository;
     private final UserRepository userRepository;
+    private final BookingRepository bookingRepository;
+    private final ResourceRepository resourceRepository;
 
     // ================================================================
     //  CORE CRUD METHODS
@@ -116,6 +133,71 @@ public class NotificationService {
 
         notificationRepository.save(notification);
         return toDto(notification);
+    }
+
+    public ManagerBroadcastNoticeResponse sendManagerBroadcastNotice(User actor, ManagerBroadcastNoticeRequest request) {
+        if (actor.getRole() != Role.MANAGER && actor.getRole() != Role.ADMIN) {
+            throw new RuntimeException("Only managers or admins can send broadcast notices");
+        }
+
+        String title = String.valueOf(request.getTitle() == null ? "" : request.getTitle()).trim();
+        String message = String.valueOf(request.getMessage() == null ? "" : request.getMessage()).trim();
+        if (title.isBlank() || message.isBlank()) {
+            throw new IllegalArgumentException("Title and message are required");
+        }
+
+        LocalDateTime windowStart = request.getWindowStart() != null ? request.getWindowStart() : LocalDateTime.now();
+        LocalDateTime windowEnd = request.getWindowEnd() != null ? request.getWindowEnd() : windowStart.plusDays(14);
+        if (windowEnd.isBefore(windowStart)) {
+            throw new IllegalArgumentException("Window end must be after window start");
+        }
+
+        String query = String.valueOf(request.getResourceQuery() == null ? "" : request.getResourceQuery()).trim().toLowerCase(Locale.ROOT);
+
+        List<Booking> bookingsInWindow = findUpcomingBookingsInWindow(windowStart, windowEnd);
+        List<Booking> matchedBookings = query.isBlank()
+            ? bookingsInWindow
+            : filterBookingsByResourceQuery(bookingsInWindow, query);
+
+        Set<String> userIds = matchedBookings.stream()
+            .map(Booking::getUser)
+            .filter(Objects::nonNull)
+            .map(User::getId)
+            .filter(id -> id != null && !id.isBlank())
+            .collect(Collectors.toCollection(HashSet::new));
+
+        List<Notification> notifications = new ArrayList<>();
+        for (String userId : userIds) {
+            notifications.add(Notification.builder()
+                .recipientUserId(userId)
+                .type(NotificationType.SYSTEM_ANNOUNCEMENT)
+                .title(title)
+                .message(message)
+                .relatedEntityType("BROADCAST_NOTICE")
+                .relatedEntityId(actor.getId())
+                .build());
+        }
+
+        if (!notifications.isEmpty()) {
+            notificationRepository.saveAll(notifications);
+        }
+
+        create(Notification.builder()
+            .recipientUserId(actor.getId())
+            .type(NotificationType.SYSTEM_ANNOUNCEMENT)
+            .title("Broadcast Sent")
+            .message("Your notice was sent to " + userIds.size() + " users.")
+            .relatedEntityType("BROADCAST_NOTICE")
+            .build());
+
+        return ManagerBroadcastNoticeResponse.builder()
+            .title(title)
+            .resourceQuery(request.getResourceQuery())
+            .windowStart(windowStart)
+            .windowEnd(windowEnd)
+            .matchedBookings(matchedBookings.size())
+            .notifiedUsers(userIds.size())
+            .build();
     }
 
     // ================================================================
@@ -507,5 +589,44 @@ public class NotificationService {
             .relatedEntityId(ticketId)
             .relatedEntityType("TICKET")
             .build());
+    }
+
+    private List<Booking> filterBookingsByResourceQuery(List<Booking> bookings, String query) {
+        Set<String> resourceIds = bookings.stream()
+            .map(Booking::getResourceId)
+            .filter(id -> id != null && !id.isBlank())
+            .collect(Collectors.toSet());
+
+        Map<String, Resource> resourceById = new HashMap<>();
+        if (!resourceIds.isEmpty()) {
+            resourceRepository.findAllById(resourceIds)
+                .forEach(resource -> resourceById.put(resource.getId(), resource));
+        }
+
+        return bookings.stream()
+            .filter(booking -> {
+                Resource resource = resourceById.get(booking.getResourceId());
+                String haystack = String.join(" ",
+                    safeLower(booking.getResourceName()),
+                    safeLower(booking.getResourceType()),
+                    safeLower(resource != null ? resource.getName() : null),
+                    safeLower(resource != null ? resource.getLocation() : null),
+                    safeLower(resource != null ? resource.getBuilding() : null)
+                );
+                return haystack.contains(query);
+            })
+            .collect(Collectors.toList());
+    }
+
+    private String safeLower(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT);
+    }
+
+    private List<Booking> findUpcomingBookingsInWindow(LocalDateTime windowStart, LocalDateTime windowEnd) {
+        return bookingRepository.findAll().stream()
+            .filter(booking -> booking.getStatus() == BookingStatus.APPROVED || booking.getStatus() == BookingStatus.PENDING)
+            .filter(booking -> booking.getStartTime() != null && booking.getEndTime() != null)
+            .filter(booking -> !booking.getEndTime().isBefore(windowStart) && !booking.getStartTime().isAfter(windowEnd))
+            .collect(Collectors.toList());
     }
 }
