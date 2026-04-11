@@ -786,7 +786,7 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
           : current
       ));
 
-      showToast(`Ticket ${selectedTicket.ticketId} updated`, 'success');
+      // showToast(`Ticket ${selectedTicket.ticketId} updated`, 'success');
       closeTicketModal();
     } catch (err) {
       const apiMessage = typeof err.response?.data === 'string'

@@ -65,6 +65,8 @@ public class SecurityConfig {
                 ).permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/resources/**").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/dashboard/**").hasRole("USER")  //last time
+                .requestMatchers("/api/technician/**").hasRole("TECHNICIAN") // last time add this
                 .requestMatchers("/api/notifications/**").authenticated()
                 .requestMatchers("/api/chatbot/**").authenticated()
                 .anyRequest().authenticated()

@@ -292,6 +292,14 @@ const CSS = `
   cursor: pointer; transition: opacity .18s;
 }
 .bl-btn-confirm-reject:hover { opacity: .88; }
+.bl-btn-confirm-approve {
+  padding: 9px 18px; border-radius: 9px;
+  background: var(--success, #10b981); color: #fff;
+  border: none;
+  font-family: 'Epilogue', sans-serif; font-size: 13px; font-weight: 700;
+  cursor: pointer; transition: opacity .18s;
+}
+.bl-btn-confirm-approve:hover { opacity: .88; }
 
 @media(max-width:600px){
   .bl-grid,.bl-loading{ grid-template-columns:1fr; }
@@ -324,7 +332,7 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
   const notificationContext = useNotification();
 
   const showLocalToast =
-    notificationContext?.showToast ||
+    notificationContext?.showLocalToast ||
     ((title, message) => {
       alert(`${title}: ${message}`);
     });
@@ -337,6 +345,7 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
 
   const [rejectionReason, setRejectionReason] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showApproveModal, setShowApproveModal] = useState(false);
   const [currentBookingId, setCurrentBookingId] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [qrData, setQrData] = useState('');
@@ -378,14 +387,19 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
     fetchBookings();
   }, [fetchBookings]);
 
-  const handleApprove = async (bookingId) => {
-    if (!window.confirm('Are you sure you want to approve this booking?')) return;
+  const handleApproveClick = (bookingId) => {
+    setCurrentBookingId(bookingId);
+    setShowApproveModal(true);
+  };
 
+  const handleConfirmApprove = async () => {
     setActionLoading(true);
     try {
-      const response = await bookingApi.approveBooking(bookingId, true, null);
+      const response = await bookingApi.approveBooking(currentBookingId, true, null);
       console.log('Approve response:', response.data);
-      alert('Booking approved successfully!');
+      showLocalToast('Success', 'Booking approved successfully!', 'SYSTEM_ANNOUNCEMENT');
+      setShowApproveModal(false);
+      setCurrentBookingId(null);
       await fetchBookings();
     } catch (err) {
       console.error('Error approving booking:', err);
@@ -415,7 +429,7 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
     try {
       const response = await bookingApi.approveBooking(currentBookingId, false, rejectionReason);
       console.log('Reject response:', response.data);
-      alert('Booking rejected successfully!');
+      showLocalToast('Success', 'Booking rejected successfully!', 'SYSTEM_ANNOUNCEMENT');
       setShowRejectModal(false);
       setCurrentBookingId(null);
       await fetchBookings();
@@ -460,7 +474,7 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
       setShowQrModal(true);
     } catch (err) {
       const message = err.response?.data?.error || err.response?.data?.message || 'Failed to load QR';
-      alert(message);
+      showLocalToast('Error', message, 'SYSTEM_ANNOUNCEMENT');
     }
   };
 
@@ -613,7 +627,7 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
                     <>
                       <button
                         className="bl-btn bl-btn-approve"
-                        onClick={() => handleApprove(booking.id)}
+                        onClick={() => handleApproveClick(booking.id)}
                         disabled={actionLoading}
                       >
                         {actionLoading ? <span className="bl-spinner" /> : '✓'} Approve
@@ -719,6 +733,31 @@ const BookingList = ({ isAdmin = false, statusFilter = null }) => {
                 <button className="bl-btn-close-modal" onClick={() => setSelectedBooking(null)}>
                   Close
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {showApproveModal && (
+          <div className="bl-overlay" onClick={() => setShowApproveModal(false)}>
+            <div className="bl-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="bl-modal-head">
+                <span className="bl-modal-title">Approve Booking</span>
+                <button className="bl-modal-close" onClick={() => setShowApproveModal(false)}>×</button>
+              </div>
+              <div className="bl-modal-body">
+                <div className="bl-reason-box resolve" style={{marginBottom:16}}>
+                  <span style={{flexShrink:0}}>✔</span>
+                  <span>Are you sure you want to approve this booking? This will notify the user.</span>
+                </div>
+                <div className="bl-modal-actions">
+                  <button className="bl-btn-cancel-modal" onClick={() => setShowApproveModal(false)}>
+                    Cancel
+                  </button>
+                  <button className="bl-btn-confirm-approve" onClick={handleConfirmApprove}>
+                    {actionLoading ? 'Approving…' : 'Approve Booking'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

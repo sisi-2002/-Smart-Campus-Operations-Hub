@@ -4,6 +4,25 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/axiosInstance';
 import authBg from '../assets/auth-bg.jpg';
 
+const theme = {
+  primary: '#ea580c',
+  primaryDark: '#c2410c',
+  dark: '#121c32',
+  dark2: '#1e293b',
+  dark3: '#0b1325',
+  light: '#ffffff',
+  lightAlt: '#fafafa',
+  border: '#334155',
+  text: '#1e293b',
+  textMuted: '#64748b',
+  textSoft: '#94a3b8',
+  textLight: '#cbd5e1',
+  success: '#16a34a',
+  warning: '#f97316',
+  error: '#dc2626',
+  errorSoft: '#fef2f2',
+};
+
 export default function MfaVerifyPage({ userId }) {
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -55,6 +74,8 @@ export default function MfaVerifyPage({ userId }) {
 
       <div style={styles.mainContainer}>
         <div style={styles.card}>
+          <div style={styles.badge}>SECURITY VERIFICATION</div>
+
           <div style={styles.iconWrap}>
             <div style={styles.icon}>🔐</div>
           </div>
@@ -114,6 +135,11 @@ export default function MfaVerifyPage({ userId }) {
         @keyframes spin {
           to { transform: rotate(360deg); }
         }
+
+        @keyframes glowPulse {
+          0%, 100% { box-shadow: 0 0 0 rgba(234, 88, 12, 0); }
+          50% { box-shadow: 0 0 18px rgba(234, 88, 12, 0.18); }
+        }
       `}</style>
     </div>
   );
@@ -128,7 +154,7 @@ const styles = {
     justifyContent: 'center',
     overflow: 'hidden',
     fontFamily: "'Poppins', sans-serif",
-    background: '#eff6ff',
+    background: theme.light,
     padding: '24px',
     boxSizing: 'border-box',
   },
@@ -153,7 +179,7 @@ const styles = {
   bgOverlay: {
     position: 'absolute',
     inset: 0,
-    background: 'linear-gradient(135deg, rgba(239,246,255,0.78), rgba(191,219,254,0.72))',
+    background: 'linear-gradient(135deg, rgba(18,28,50,0.88), rgba(18,28,50,0.72))',
     backdropFilter: 'blur(2px)',
   },
 
@@ -163,7 +189,7 @@ const styles = {
     left: '-10%',
     width: '50%',
     height: '50%',
-    background: 'radial-gradient(circle, rgba(37,99,235,0.15) 0%, rgba(37,99,235,0.05) 50%, transparent 70%)',
+    background: 'radial-gradient(circle, rgba(234,88,12,0.18) 0%, rgba(234,88,12,0.06) 50%, transparent 70%)',
     borderRadius: '50%',
     filter: 'blur(80px)',
     animation: 'floatBG 15s ease-in-out infinite alternate',
@@ -175,7 +201,7 @@ const styles = {
     right: '-10%',
     width: '45%',
     height: '45%',
-    background: 'radial-gradient(circle, rgba(30,64,175,0.15) 0%, rgba(30,64,175,0.05) 50%, transparent 70%)',
+    background: 'radial-gradient(circle, rgba(234,88,12,0.14) 0%, rgba(234,88,12,0.04) 50%, transparent 70%)',
     borderRadius: '50%',
     filter: 'blur(80px)',
     animation: 'floatBG 18s ease-in-out infinite alternate-reverse',
@@ -184,9 +210,10 @@ const styles = {
   gridOverlay: {
     position: 'absolute',
     inset: 0,
-    backgroundImage: 'linear-gradient(rgba(37,99,235,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(37,99,235,0.08) 1px, transparent 1px)',
+    backgroundImage:
+      'linear-gradient(rgba(234,88,12,0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(234,88,12,0.06) 1px, transparent 1px)',
     backgroundSize: '40px 40px',
-    opacity: 0.28,
+    opacity: 0.22,
   },
 
   dataStream: {
@@ -195,9 +222,9 @@ const styles = {
     left: 0,
     right: 0,
     height: '2px',
-    background: 'linear-gradient(90deg, transparent, #2563eb, transparent)',
+    background: `linear-gradient(90deg, transparent, ${theme.primary}, transparent)`,
     animation: 'dataFlow 6s linear infinite',
-    opacity: 0.35,
+    opacity: 0.45,
   },
 
   mainContainer: {
@@ -208,13 +235,26 @@ const styles = {
   },
 
   card: {
-    background: 'rgba(239, 246, 255, 0.78)',
-    border: '2px solid rgba(37,99,235,0.75)',
+    background: 'rgba(255,255,255,0.94)',
+    border: '1px solid rgba(234,88,12,0.35)',
     borderRadius: '30px',
-    boxShadow: '0 15px 35px rgba(37,99,235,0.15)',
+    boxShadow: '0 20px 50px rgba(0,0,0,0.25), 0 10px 30px rgba(234,88,12,0.12)',
     padding: '40px 32px',
     textAlign: 'center',
     backdropFilter: 'blur(12px)',
+  },
+
+  badge: {
+    display: 'inline-block',
+    padding: '6px 14px',
+    borderRadius: '20px',
+    border: `1px solid ${theme.primary}33`,
+    color: theme.primary,
+    fontSize: '11px',
+    fontWeight: 700,
+    letterSpacing: '1px',
+    marginBottom: '16px',
+    background: `${theme.primary}10`,
   },
 
   iconWrap: {
@@ -222,11 +262,12 @@ const styles = {
     height: '74px',
     margin: '0 auto 14px',
     borderRadius: '50%',
-    background: 'linear-gradient(135deg, #2563eb, #1e40af)',
+    background: `linear-gradient(135deg, ${theme.primary}, ${theme.primaryDark})`,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 10px 24px rgba(37,99,235,0.25)',
+    boxShadow: '0 10px 24px rgba(234,88,12,0.25)',
+    animation: 'glowPulse 3s ease-in-out infinite',
   },
 
   icon: {
@@ -235,13 +276,14 @@ const styles = {
 
   title: {
     fontSize: '30px',
-    fontWeight: 700,
+    fontWeight: 800,
     margin: '0 0 10px',
-    color: '#1e3a8a',
+    color: theme.dark,
+    letterSpacing: '-0.4px',
   },
 
   sub: {
-    color: '#1e40af',
+    color: theme.textMuted,
     fontSize: '14px',
     marginBottom: '22px',
     lineHeight: 1.7,
@@ -256,30 +298,32 @@ const styles = {
     padding: '16px',
     fontSize: '30px',
     textAlign: 'center',
-    border: '2px solid #2563eb',
+    border: `2px solid ${theme.primary}`,
     borderRadius: '12px',
     letterSpacing: '12px',
     boxSizing: 'border-box',
     marginBottom: '14px',
     outline: 'none',
-    background: 'rgba(255,255,255,0.58)',
-    color: '#1e3a8a',
-    fontWeight: 600,
+    background: '#ffffff',
+    color: theme.dark,
+    fontWeight: 700,
+    boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
   },
 
   btn: {
     width: '100%',
     minHeight: '50px',
-    background: '#2563eb',
+    background: theme.primary,
     color: '#fff',
     border: 'none',
     borderRadius: '10px',
     fontSize: '15px',
-    fontWeight: 600,
+    fontWeight: 700,
     display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 0 10px rgba(37,99,235,0.2)',
+    boxShadow: '0 8px 20px rgba(234,88,12,0.25)',
+    transition: 'all 0.3s ease',
   },
 
   loader: {
@@ -292,21 +336,22 @@ const styles = {
   },
 
   error: {
-    background: '#fff1f1',
-    color: '#a94442',
-    border: '1px solid #d9534f',
+    background: theme.errorSoft,
+    color: theme.error,
+    border: `1px solid ${theme.error}33`,
     padding: '10px 12px',
     borderRadius: '10px',
     fontSize: '13px',
     marginBottom: '16px',
     textAlign: 'left',
+    lineHeight: 1.5,
   },
 
   note: {
     fontSize: '12px',
-    color: '#1e40af',
+    color: theme.textMuted,
     marginTop: '16px',
     lineHeight: 1.6,
-    opacity: 0.9,
+    opacity: 0.95,
   },
 };
