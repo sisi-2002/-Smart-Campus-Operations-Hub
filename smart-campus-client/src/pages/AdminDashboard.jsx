@@ -665,7 +665,7 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
     if (currentStatus === 'CLOSED') {
       return ['CLOSED'];
     }
-    return ['REJECTED'];
+    return ['REJECTED', 'IN_PROGRESS'];
   };
 
   const openTicketModal = (ticket) => {
@@ -700,11 +700,17 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
 
     const autoProgressStatus =
       Boolean(ticketDraft.assignedTechnician) &&
-      ticketDraft.status === 'OPEN';
+      (ticketDraft.status === 'OPEN' || ticketDraft.status === 'REJECTED');
     const nextStatus = autoProgressStatus ? 'IN_PROGRESS' : ticketDraft.status;
+    const hasAssignedTechnician = Boolean((ticketDraft.assignedTechnician || '').trim());
     const nextNotes = ticketDraft.resolutionNotes.trim();
     const existingNotes = (selectedTicket.resolutionNotes || '').trim();
     const effectiveNotes = nextNotes || existingNotes;
+
+    if ((nextStatus === 'OPEN' || nextStatus === 'IN_PROGRESS') && !hasAssignedTechnician) {
+      showToast('Assign a technician before saving a ticket in OPEN or IN_PROGRESS status', 'error');
+      return;
+    }
 
     if (nextStatus === 'REJECTED' && !nextNotes) {
       showToast('A rejection reason is required', 'error');
@@ -1425,7 +1431,7 @@ export default function AdminDashboard({ dashboardBadge = 'ADMIN' } = {}) {
                       setTicketDraft((prev) => {
                         const shouldMoveToInProgress =
                           Boolean(technicianId) &&
-                          prev.status === 'OPEN';
+                          (prev.status === 'OPEN' || prev.status === 'REJECTED');
                         return {
                           ...prev,
                           assignedTechnician: technicianId,

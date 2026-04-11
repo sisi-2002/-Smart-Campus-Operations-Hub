@@ -172,7 +172,7 @@ export default function TechnicianDashboard() {
     }
 
     if (normalized === 'IN_PROGRESS') {
-      return ['IN_PROGRESS', 'RESOLVED', 'CLOSED'];
+      return ['IN_PROGRESS', 'REJECTED', 'RESOLVED'];
     }
 
     if (normalized === 'RESOLVED') {
@@ -207,10 +207,21 @@ export default function TechnicianDashboard() {
   const saveTicket = async () => {
     if (!selectedTicket) return;
 
+    const currentStatus = (selectedTicket.status || 'OPEN').trim().toUpperCase();
     const nextStatus = ticketDraft.status;
     const nextNotes = ticketDraft.resolutionNotes.trim();
     const existingNotes = (selectedTicket.resolutionNotes || '').trim();
     const effectiveNotes = nextNotes || existingNotes;
+
+    if (currentStatus === 'IN_PROGRESS' && nextStatus === 'IN_PROGRESS') {
+      showToast('For IN_PROGRESS tickets, select REJECTED or RESOLVED', 'error');
+      return;
+    }
+
+    if (nextStatus === 'REJECTED' && !nextNotes) {
+      showToast('Rejection reason is required before rejecting a ticket', 'error');
+      return;
+    }
 
     if (nextStatus === 'RESOLVED' && !nextNotes) {
       showToast('Resolution notes are required before marking a ticket as resolved', 'error');
@@ -372,9 +383,16 @@ export default function TechnicianDashboard() {
                     value={ticketDraft.status}
                     onChange={(e) => setTicketDraft((prev) => ({ ...prev, status: e.target.value }))}
                   >
-                    {getAllowedStatusOptions(selectedTicket.status).map((status) => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
+                    {getAllowedStatusOptions(selectedTicket.status).map((status) => {
+                      const disableCurrentInProgress =
+                        (selectedTicket.status || '').trim().toUpperCase() === 'IN_PROGRESS'
+                        && status === 'IN_PROGRESS';
+                      return (
+                        <option key={status} value={status} disabled={disableCurrentInProgress}>
+                          {status}
+                        </option>
+                      );
+                    })}
                   </select>
                 </label>
               </div>
@@ -384,7 +402,7 @@ export default function TechnicianDashboard() {
                 <textarea
                   style={s.ticketTextarea}
                   value={ticketDraft.resolutionNotes}
-                  placeholder={ticketDraft.status === 'RESOLVED' || ticketDraft.status === 'CLOSED'
+                  placeholder={ticketDraft.status === 'RESOLVED' || ticketDraft.status === 'REJECTED'
                     ? 'Add the fix, steps taken, or confirmation notes'
                     : 'Add progress updates or technician comments'}
                   onChange={(e) => setTicketDraft((prev) => ({ ...prev, resolutionNotes: e.target.value }))}

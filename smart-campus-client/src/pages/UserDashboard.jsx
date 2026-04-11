@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { getIncidentTicket, getUserDashboardOverview, submitIncidentTicket, updateIncidentTicket, updateUserProfile } from '../api/userDashboardApi';
+import { closeIncidentTicket, getIncidentTicket, getUserDashboardOverview, submitIncidentTicket, updateIncidentTicket, updateUserProfile } from '../api/userDashboardApi';
 import IncidentModal from '../components/IncidentModal';
 import TicketCommentsPanel from '../components/TicketCommentsPanel';
 import BookingList from '../components/Bookings/BookingList';
@@ -101,6 +101,10 @@ export default function UserDashboard() {
     activeTickets: [],
     incidentTickets: [],
   });
+  const [deleteTicketTarget, setDeleteTicketTarget] = useState(null);
+  const [deleteTicketNote, setDeleteTicketNote] = useState('');
+  const [deleteTicketError, setDeleteTicketError] = useState('');
+  const [isDeletingTicket, setIsDeletingTicket] = useState(false);
 
   const getCachedIncidentImages = () => {
     try {
@@ -202,6 +206,67 @@ export default function UserDashboard() {
     const response = await updateIncidentTicket(ticketId, payload);
     await fetchOverview();
     return response;
+  };
+
+  const openDeleteTicketModal = (ticket) => {
+    if (!ticket) {
+      return;
+    }
+
+    const normalizedStatus = (ticket.status || '').trim().toUpperCase();
+    if (normalizedStatus !== 'OPEN') {
+      setTicketNotice({
+        type: 'error',
+        message: 'Only OPEN tickets can be deleted.',
+      });
+      return;
+    }
+
+    setDeleteTicketTarget(ticket);
+    setDeleteTicketNote('');
+    setDeleteTicketError('');
+  };
+
+  const closeDeleteTicketModal = () => {
+    setDeleteTicketTarget(null);
+    setDeleteTicketNote('');
+    setDeleteTicketError('');
+  };
+
+  const confirmDeleteOpenTicket = async () => {
+    if (!deleteTicketTarget) {
+      return;
+    }
+
+    const note = deleteTicketNote.trim();
+    if (!note) {
+      setDeleteTicketError('A note is required to delete an OPEN ticket.');
+      return;
+    }
+
+    const ticketId = deleteTicketTarget.id || deleteTicketTarget.ticketId;
+    if (!ticketId) {
+      setDeleteTicketError('Ticket identifier is missing.');
+      return;
+    }
+
+    setIsDeletingTicket(true);
+    setDeleteTicketError('');
+
+    try {
+      await closeIncidentTicket(ticketId, { note });
+      hideTicketFromView(deleteTicketTarget.ticketId || deleteTicketTarget.id || ticketId);
+      await fetchOverview();
+      closeDeleteTicketModal();
+      setTicketNotice({
+        type: 'success',
+        message: `Ticket ${deleteTicketTarget.ticketId || deleteTicketTarget.id} deleted successfully and marked as CLOSED for admins.`,
+      });
+    } catch (err) {
+      setDeleteTicketError(err.response?.data?.error || 'Failed to delete ticket.');
+    } finally {
+      setIsDeletingTicket(false);
+    }
   };
 
   useEffect(() => {
@@ -498,6 +563,16 @@ export default function UserDashboard() {
                     </button>
                   )}
 
+                  {normalizedStatus === 'OPEN' && (
+                    <button
+                      type="button"
+                      style={s.actionBtnDanger}
+                      onClick={() => openDeleteTicketModal(ticket)}
+                    >
+                      Delete Ticket
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     style={s.actionBtn}
@@ -514,9 +589,7 @@ export default function UserDashboard() {
                     >
                       Remove From View
                     </button>
-                  ) : (
-                    <span style={s.mutedText}>Visible to staff</span>
-                  )}
+                  ) : null}
                 </div>
 
                 {isExpanded && (
@@ -632,6 +705,15 @@ export default function UserDashboard() {
                               Edit Ticket
                             </button>
                           )}
+                          {normalizedStatus === 'OPEN' && (
+                            <button
+                              type="button"
+                              style={s.actionBtnDanger}
+                              onClick={() => openDeleteTicketModal(ticket)}
+                            >
+                              Delete Ticket
+                            </button>
+                          )}
                           <button
                             type="button"
                             style={s.actionBtn}
@@ -647,9 +729,7 @@ export default function UserDashboard() {
                             >
                               Remove From View
                             </button>
-                          ) : (
-                            <span style={s.mutedText}>Visible to staff</span>
-                          )}
+                          ) : null}
                         </div>
                       </td>
                     </tr>
@@ -713,6 +793,58 @@ export default function UserDashboard() {
           }
         }}
       />
+
+      {deleteTicketTarget && (
+        <div
+          style={s.deleteOverlay}
+          onClick={() => {
+            if (!isDeletingTicket) {
+              closeDeleteTicketModal();
+            }
+          }}
+        >
+          <div style={s.deleteModal} onClick={(event) => event.stopPropagation()}>
+            <div style={s.deleteModalTitle}>Delete Open Ticket</div>
+            <div style={s.deleteTicketRef}>Ticket: {deleteTicketTarget.ticketId || deleteTicketTarget.id}</div>
+
+            {deleteTicketError && (
+              <div style={s.deleteErrorBanner}>{deleteTicketError}</div>
+            )}
+
+            <label style={s.deleteLabel}>Required Note</label>
+            <textarea
+              style={s.deleteTextarea}
+              value={deleteTicketNote}
+              onChange={(event) => {
+                setDeleteTicketNote(event.target.value);
+                if (deleteTicketError) {
+                  setDeleteTicketError('');
+                }
+              }}
+              placeholder="Explain why you are deleting this open ticket"
+            />
+
+            <div style={s.deleteActions}>
+              <button
+                type="button"
+                style={s.deleteCancelBtn}
+                onClick={closeDeleteTicketModal}
+                disabled={isDeletingTicket}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                style={s.deleteConfirmBtn}
+                onClick={confirmDeleteOpenTicket}
+                disabled={isDeletingTicket}
+              >
+                {isDeletingTicket ? 'Deleting...' : 'Delete Ticket'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {previewImageUrl && (
         <div style={s.previewOverlay} onClick={() => setPreviewImageUrl('')}>
@@ -1312,6 +1444,16 @@ const s = {
     fontWeight: 600,
     cursor: 'pointer',
   },
+  actionBtnDanger: {
+    padding: '7px 12px',
+    borderRadius: 8,
+    border: '1px solid #dc2626',
+    background: '#fee2e2',
+    color: '#991b1b',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
+  },
   imageNameChip: {
     display: 'inline-flex',
     alignItems: 'center',
@@ -1330,6 +1472,100 @@ const s = {
     padding: '18px 16px',
     color: '#64748b',
     fontSize: 14,
+  },
+  deleteOverlay: {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 1350,
+    background: 'rgba(15, 23, 42, 0.7)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    backdropFilter: 'blur(4px)',
+  },
+  deleteModal: {
+    width: '100%',
+    maxWidth: 560,
+    background: '#fff',
+    borderRadius: 14,
+    border: '1px solid #e2e8f0',
+    boxShadow: '0 22px 40px rgba(15, 23, 42, 0.25)',
+    padding: 18,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+  },
+  deleteModalTitle: {
+    fontSize: 18,
+    fontWeight: 700,
+    color: '#0f172a',
+  },
+  deleteTicketRef: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#7c2d12',
+    background: '#fff7ed',
+    border: '1px solid #fed7aa',
+    borderRadius: 8,
+    padding: '6px 10px',
+    width: 'fit-content',
+  },
+  deleteErrorBanner: {
+    background: '#fef2f2',
+    border: '1px solid #fecaca',
+    color: '#991b1b',
+    borderRadius: 8,
+    padding: '8px 10px',
+    fontSize: 12,
+    fontWeight: 600,
+  },
+  deleteLabel: {
+    fontSize: 12,
+    fontWeight: 700,
+    color: '#334155',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  deleteTextarea: {
+    width: '100%',
+    minHeight: 110,
+    border: '1px solid #cbd5e1',
+    borderRadius: 10,
+    padding: '10px 12px',
+    fontSize: 14,
+    color: '#0f172a',
+    background: '#f8fafc',
+    resize: 'vertical',
+    outline: 'none',
+    boxSizing: 'border-box',
+  },
+  deleteActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  deleteCancelBtn: {
+    padding: '8px 12px',
+    borderRadius: 8,
+    border: '1px solid #cbd5e1',
+    background: '#fff',
+    color: '#334155',
+    fontSize: 12,
+    fontWeight: 600,
+    cursor: 'pointer',
+  },
+  deleteConfirmBtn: {
+    padding: '8px 12px',
+    borderRadius: 8,
+    border: '1px solid #dc2626',
+    background: '#dc2626',
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: 700,
+    cursor: 'pointer',
   },
   previewOverlay: {
     position: 'fixed',
